@@ -29,6 +29,8 @@ import java.util.Locale
 @Composable
 fun GameRomInfoDialog(
     game: GameRomEntity,
+    customIcon: String,
+    onCustomIconChange: (String) -> Unit,
     onFavoriteToggle: (GameRomEntity) -> Unit,
     onRenameGame: (GameRomEntity, String) -> Unit,
     onDismiss: () -> Unit
@@ -162,6 +164,13 @@ fun GameRomInfoDialog(
                         }
                     }
                 }
+
+                IconPickerInput(
+                    iconNameOrPath = customIcon,
+                    onIconSelected = onCustomIconChange,
+                    label = "Game Custom Icon",
+                    tint = MaterialTheme.colorScheme.primary
+                )
 
                 InfoDetailRow("System ID", game.systemId.uppercase())
                 InfoDetailRow("File Name", game.fileName)

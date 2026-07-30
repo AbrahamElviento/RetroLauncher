@@ -241,6 +241,76 @@ class ConfigStorageManager(private val context: Context) {
         return result
     }
 
+    // --- CUSTOM ICONS XML ---
+
+    fun saveCustomIcons(customIcons: Map<String, String>): Boolean {
+        return try {
+            val file = File(baseDir, "custom_icon.xml")
+            val writer = StringWriter()
+            val serializer: XmlSerializer = Xml.newSerializer()
+            serializer.setOutput(writer)
+            serializer.startDocument("UTF-8", true)
+            serializer.startTag("", "CustomIcons")
+
+            for ((filePath, customIcon) in customIcons) {
+                serializer.startTag("", "Game")
+                serializer.startTag("", "filePath").text(filePath).endTag("", "filePath")
+                serializer.startTag("", "customIcon").text(customIcon).endTag("", "customIcon")
+                serializer.endTag("", "Game")
+            }
+
+            serializer.endTag("", "CustomIcons")
+            serializer.endDocument()
+
+            FileOutputStream(file).use { out ->
+                out.write(writer.toString().toByteArray())
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun loadCustomIcons(): Map<String, String> {
+        val result = mutableMapOf<String, String>()
+        try {
+            val file = File(baseDir, "custom_icon.xml")
+            if (!file.exists()) return result
+            val parser: XmlPullParser = Xml.newPullParser()
+            parser.setInput(FileInputStream(file), "UTF-8")
+            var eventType = parser.eventType
+            var currentFilePath: String? = null
+            var currentCustomIcon: String? = null
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                val tagName = parser.name
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        if (tagName == "filePath") {
+                            currentFilePath = parser.nextText()
+                        } else if (tagName == "customIcon") {
+                            currentCustomIcon = parser.nextText()
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        if (tagName == "Game") {
+                            if (currentFilePath != null && currentCustomIcon != null) {
+                                result[currentFilePath] = currentCustomIcon
+                            }
+                            currentFilePath = null
+                            currentCustomIcon = null
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return result
+    }
+
     // --- DISPLAY SETTINGS XML ---
 
     fun saveDisplaySettings(settings: DisplaySettings): Boolean {
@@ -266,6 +336,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "showSystemMainMenuTitle").text(settings.showSystemMainMenuTitle.toString()).endTag("", "showSystemMainMenuTitle")
             serializer.startTag("", "showSystemMainMenuEditIcon").text(settings.showSystemMainMenuEditIcon.toString()).endTag("", "showSystemMainMenuEditIcon")
             serializer.startTag("", "systemMainMenuStyle").text(settings.systemMainMenuStyle).endTag("", "systemMainMenuStyle")
+            serializer.startTag("", "systemMainMenuGridStyle").text(settings.systemMainMenuGridStyle).endTag("", "systemMainMenuGridStyle")
             serializer.startTag("", "systemMenuDisplayColumns").text(settings.systemMenuDisplayColumns.toString()).endTag("", "systemMenuDisplayColumns")
             serializer.startTag("", "systemMenuDisplayRows").text(settings.systemMenuDisplayRows.toString()).endTag("", "systemMenuDisplayRows")
             serializer.startTag("", "systemMenuActualColumns").text(settings.systemMenuActualColumns.toString()).endTag("", "systemMenuActualColumns")
@@ -330,6 +401,7 @@ class ConfigStorageManager(private val context: Context) {
             var showSystemMainMenuTitle = true
             var showSystemMainMenuEditIcon = false
             var systemMainMenuStyle = "ICON_GRID"
+            var systemMainMenuGridStyle = "ICON_GRID"
             var systemMenuDisplayColumns = 4
             var systemMenuDisplayRows = 4
             var systemMenuActualColumns = 4
@@ -383,6 +455,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "showSystemMainMenuTitle" -> showSystemMainMenuTitle = text.toBooleanStrictOrNull() ?: true
                                 "showSystemMainMenuEditIcon" -> showSystemMainMenuEditIcon = text.toBooleanStrictOrNull() ?: false
                                 "systemMainMenuStyle" -> systemMainMenuStyle = text
+                                "systemMainMenuGridStyle" -> systemMainMenuGridStyle = text
                                 "systemMenuDisplayColumns" -> systemMenuDisplayColumns = text.toIntOrNull() ?: 4
                                 "systemMenuDisplayRows" -> systemMenuDisplayRows = text.toIntOrNull() ?: 4
                                 "systemMenuActualColumns" -> systemMenuActualColumns = text.toIntOrNull() ?: 4
@@ -433,6 +506,7 @@ class ConfigStorageManager(private val context: Context) {
                 showSystemMainMenuTitle = showSystemMainMenuTitle,
                 showSystemMainMenuEditIcon = showSystemMainMenuEditIcon,
                 systemMainMenuStyle = systemMainMenuStyle,
+                systemMainMenuGridStyle = systemMainMenuGridStyle,
                 systemMenuDisplayColumns = systemMenuDisplayColumns,
                 systemMenuDisplayRows = systemMenuDisplayRows,
                 systemMenuActualColumns = systemMenuActualColumns,

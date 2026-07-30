@@ -84,8 +84,10 @@ fun DisplaySettingsDialog(
     var systemMenuTileMarginRightText by remember { mutableStateOf(currentSettings.systemMenuTileMarginRightDp.toString()) }
     var showSystemMainMenuEditIcon by remember { mutableStateOf(currentSettings.showSystemMainMenuEditIcon) }
     var systemMainMenuStyle by remember { mutableStateOf(if (currentSettings.systemMainMenuStyle == "CAROUSEL") "ICON_GRID" else currentSettings.systemMainMenuStyle) }
+    var systemMainMenuGridStyle by remember { mutableStateOf(currentSettings.systemMainMenuGridStyle) }
     var showSystemTitle by remember { mutableStateOf(currentSettings.showSystemTitle) }
     var expandedMainMenuStyleDropdown by remember { mutableStateOf(false) }
+    var expandedGridStyleDropdown by remember { mutableStateOf(false) }
     var systemMenuTextSize by remember { mutableFloatStateOf(currentSettings.systemMenuTextSizeSp.toFloat()) }
     var systemMenuTextAlignment by remember { mutableStateOf(currentSettings.systemMenuTextAlignment) }
 
@@ -496,13 +498,64 @@ fun DisplaySettingsDialog(
 
                             Spacer(modifier = Modifier.height(6.dp))
 
+                            val gridStyleOptions = remember {
+                                listOf(
+                                    "ICON_GRID" to "Standard Grid Style (Icon Left)",
+                                    "GRID_ALT" to "Grid Alternative Style (Icon Top & Centered)"
+                                )
+                            }
+                            val selectedGridOptionLabel = gridStyleOptions.firstOrNull { it.first == systemMainMenuGridStyle }?.second ?: "Standard Grid Style (Icon Left)"
+
+                            ExposedDropdownMenuBox(
+                                expanded = expandedGridStyleDropdown,
+                                onExpandedChange = { expandedGridStyleDropdown = !expandedGridStyleDropdown }
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedGridOptionLabel,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Grid Style Preference") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGridStyleDropdown) },
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                ExposedDropdownMenu(
+                                    expanded = expandedGridStyleDropdown,
+                                    onDismissRequest = { expandedGridStyleDropdown = false }
+                                ) {
+                                    gridStyleOptions.forEach { (styleKey, styleLabel) ->
+                                        DropdownMenuItem(
+                                            text = { Text(styleLabel, fontWeight = FontWeight.SemiBold) },
+                                            onClick = {
+                                                systemMainMenuGridStyle = styleKey
+                                                if (systemMainMenuStyle != "TEXT_LIST") {
+                                                    systemMainMenuStyle = styleKey
+                                                }
+                                                expandedGridStyleDropdown = false
+                                            },
+                                            leadingIcon = {
+                                                if (systemMainMenuGridStyle == styleKey) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             val menuStyles = remember {
                                 listOf(
-                                    "ICON_GRID" to "Icon Grid Mode",
+                                    "ICON_GRID" to "Standard Grid Mode",
+                                    "GRID_ALT" to "Grid Alternative Mode",
                                     "TEXT_LIST" to "Text List Mode"
                                 )
                             }
-                            val selectedMenuStyleLabel = menuStyles.firstOrNull { it.first == systemMainMenuStyle }?.second ?: "Icon Grid Mode"
+                            val selectedMenuStyleLabel = menuStyles.firstOrNull { it.first == systemMainMenuStyle }?.second ?: "Standard Grid Mode"
 
                             ExposedDropdownMenuBox(
                                 expanded = expandedMainMenuStyleDropdown,
@@ -512,7 +565,7 @@ fun DisplaySettingsDialog(
                                     value = selectedMenuStyleLabel,
                                     onValueChange = {},
                                     readOnly = true,
-                                    label = { Text("Main Menu Layout Style") },
+                                    label = { Text("Main Menu Active Layout Style") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMainMenuStyleDropdown) },
                                     modifier = Modifier
                                         .menuAnchor()
@@ -529,6 +582,9 @@ fun DisplaySettingsDialog(
                                             text = { Text(styleLabel, fontWeight = FontWeight.SemiBold) },
                                             onClick = {
                                                 systemMainMenuStyle = styleKey
+                                                if (styleKey == "ICON_GRID" || styleKey == "GRID_ALT") {
+                                                    systemMainMenuGridStyle = styleKey
+                                                }
                                                 expandedMainMenuStyleDropdown = false
                                             },
                                             leadingIcon = {
@@ -1059,6 +1115,7 @@ fun DisplaySettingsDialog(
                                 showSystemMainMenuTitle = showSystemMainMenuTitle,
                                 showSystemMainMenuEditIcon = showSystemMainMenuEditIcon,
                                 systemMainMenuStyle = systemMainMenuStyle,
+                                systemMainMenuGridStyle = systemMainMenuGridStyle,
                                 showSystemTitle = showSystemTitle,
                                 swapTopAndBottomBar = swapTopAndBottomBar,
                                 systemMenuTextSizeSp = systemMenuTextSize.toInt(),

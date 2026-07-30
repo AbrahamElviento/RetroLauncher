@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 
 enum class SystemDisplayStyle {
     ICON_GRID,
+    GRID_ALT,
     TEXT_LIST
 }
 
@@ -88,7 +89,11 @@ fun SystemMainMenu(
 ) {
     var displayStyle by remember(defaultDisplayStyle) {
         mutableStateOf(
-            if (defaultDisplayStyle == "TEXT_LIST") SystemDisplayStyle.TEXT_LIST else SystemDisplayStyle.ICON_GRID
+            when (defaultDisplayStyle) {
+                "GRID_ALT" -> SystemDisplayStyle.GRID_ALT
+                "TEXT_LIST" -> SystemDisplayStyle.TEXT_LIST
+                else -> SystemDisplayStyle.ICON_GRID
+            }
         )
     }
 
@@ -146,8 +151,17 @@ fun SystemMainMenu(
                 when (headerFocusedIndex) {
                     0 -> onOpenSystemManager()
                     1 -> {
-                        displayStyle = if (displayStyle == SystemDisplayStyle.ICON_GRID) SystemDisplayStyle.TEXT_LIST else SystemDisplayStyle.ICON_GRID
-                        onToggleDisplayStyle?.invoke(if (displayStyle == SystemDisplayStyle.ICON_GRID) "ICON_GRID" else "TEXT_LIST")
+                        displayStyle = if (displayStyle == SystemDisplayStyle.TEXT_LIST) {
+                            if (defaultDisplayStyle == "GRID_ALT") SystemDisplayStyle.GRID_ALT else SystemDisplayStyle.ICON_GRID
+                        } else {
+                            SystemDisplayStyle.TEXT_LIST
+                        }
+                        val styleStr = when (displayStyle) {
+                            SystemDisplayStyle.ICON_GRID -> "ICON_GRID"
+                            SystemDisplayStyle.GRID_ALT -> "GRID_ALT"
+                            SystemDisplayStyle.TEXT_LIST -> "TEXT_LIST"
+                        }
+                        onToggleDisplayStyle?.invoke(styleStr)
                     }
                     2 -> onOpenMainSettings()
                 }
@@ -245,8 +259,17 @@ fun SystemMainMenu(
                         onClick = {
                             isHeaderFocused = true
                             headerFocusedIndex = 1
-                            displayStyle = if (displayStyle == SystemDisplayStyle.ICON_GRID) SystemDisplayStyle.TEXT_LIST else SystemDisplayStyle.ICON_GRID
-                            onToggleDisplayStyle?.invoke(if (displayStyle == SystemDisplayStyle.ICON_GRID) "ICON_GRID" else "TEXT_LIST")
+                            displayStyle = if (displayStyle == SystemDisplayStyle.TEXT_LIST) {
+                                if (defaultDisplayStyle == "GRID_ALT") SystemDisplayStyle.GRID_ALT else SystemDisplayStyle.ICON_GRID
+                            } else {
+                                SystemDisplayStyle.TEXT_LIST
+                            }
+                            val styleStr = when (displayStyle) {
+                                SystemDisplayStyle.ICON_GRID -> "ICON_GRID"
+                                SystemDisplayStyle.GRID_ALT -> "GRID_ALT"
+                                SystemDisplayStyle.TEXT_LIST -> "TEXT_LIST"
+                            }
+                            onToggleDisplayStyle?.invoke(styleStr)
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                         },
                         modifier = Modifier
@@ -263,7 +286,7 @@ fun SystemMainMenu(
                             )
                     ) {
                         Icon(
-                            imageVector = if (displayStyle == SystemDisplayStyle.ICON_GRID) Icons.Default.GridView else Icons.Default.ViewList,
+                            imageVector = if (displayStyle != SystemDisplayStyle.TEXT_LIST) Icons.Default.GridView else Icons.Default.ViewList,
                             contentDescription = "Toggle Grid / List Mode",
                             tint = if (isHeaderFocused && headerFocusedIndex == 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
@@ -320,7 +343,7 @@ fun SystemMainMenu(
             var lastHandledGoToBottom by remember { mutableLongStateOf(goToBottomTrigger) }
 
             when (displayStyle) {
-                SystemDisplayStyle.ICON_GRID -> {
+                SystemDisplayStyle.ICON_GRID, SystemDisplayStyle.GRID_ALT -> {
                     val iconScaleFactor = (mainMenuIconGridScalePercent / 100f).coerceIn(0.5f, 1.5f)
                     val numCols = maxOf(1, (maxWidth / (140.dp * iconScaleFactor)).toInt())
                     val gridState = rememberLazyGridState()
@@ -456,29 +479,54 @@ fun SystemMainMenu(
                     ) {
                         itemsIndexed(systems, key = { _, s -> s.id }) { index, system ->
                             val isFocused = isMenuFocused && !isHeaderFocused && index == focusedIndex
-                            SystemGridCard(
-                                system = system,
-                                isFocused = isFocused,
-                                showEditIcon = showEditIcon,
-                                textSizeSp = textSizeSp,
-                                textAlignment = textAlignment,
-                                marqueeSpeed = marqueeSpeed,
-                                marqueeDelayMillis = marqueeDelayMillis,
-                                modifier = Modifier
-                                    .padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp)
-                                    .fillMaxWidth()
-                                    .height(110.dp * iconScaleFactor),
-                                onClick = {
-                                    isHeaderFocused = false
-                                    focusedIndex = index
-                                    onSelectAndEnterSystem(system)
-                                },
-                                onLongClick = {
-                                    isHeaderFocused = false
-                                    focusedIndex = index
-                                },
-                                onEdit = { onEditSystem(system) }
-                            )
+                            if (displayStyle == SystemDisplayStyle.GRID_ALT) {
+                                SystemGridCardAlt(
+                                    system = system,
+                                    isFocused = isFocused,
+                                    showEditIcon = showEditIcon,
+                                    textSizeSp = textSizeSp,
+                                    marqueeSpeed = marqueeSpeed,
+                                    marqueeDelayMillis = marqueeDelayMillis,
+                                    modifier = Modifier
+                                        .padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp)
+                                        .fillMaxWidth()
+                                        .height(130.dp * iconScaleFactor),
+                                    onClick = {
+                                        isHeaderFocused = false
+                                        focusedIndex = index
+                                        onSelectAndEnterSystem(system)
+                                    },
+                                    onLongClick = {
+                                        isHeaderFocused = false
+                                        focusedIndex = index
+                                    },
+                                    onEdit = { onEditSystem(system) }
+                                )
+                            } else {
+                                SystemGridCard(
+                                    system = system,
+                                    isFocused = isFocused,
+                                    showEditIcon = showEditIcon,
+                                    textSizeSp = textSizeSp,
+                                    textAlignment = textAlignment,
+                                    marqueeSpeed = marqueeSpeed,
+                                    marqueeDelayMillis = marqueeDelayMillis,
+                                    modifier = Modifier
+                                        .padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp)
+                                        .fillMaxWidth()
+                                        .height(110.dp * iconScaleFactor),
+                                    onClick = {
+                                        isHeaderFocused = false
+                                        focusedIndex = index
+                                        onSelectAndEnterSystem(system)
+                                    },
+                                    onLongClick = {
+                                        isHeaderFocused = false
+                                        focusedIndex = index
+                                    },
+                                    onEdit = { onEditSystem(system) }
+                                )
+                            }
                         }
                     }
                 }
@@ -859,6 +907,136 @@ fun SystemTextRow(
                         contentDescription = "Edit System",
                         tint = parseColor,
                         modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun SystemGridCardAlt(
+    system: SystemEntity,
+    isFocused: Boolean,
+    showEditIcon: Boolean = false,
+    textSizeSp: Int = 16,
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    onEdit: () -> Unit
+) {
+    val parseColor = runCatching {
+        Color(android.graphics.Color.parseColor(system.colorHex))
+    }.getOrDefault(MaterialTheme.colorScheme.primary)
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) parseColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+        label = "border"
+    )
+
+    val scale by animateFloatAsState(targetValue = if (isFocused) 1.02f else 1.0f, label = "scale")
+
+    Card(
+        modifier = modifier
+            .scale(scale)
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .border(
+                width = if (isFocused) 2.5.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(16.dp)
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                parseColor.copy(alpha = if (isFocused) 0.25f else 0.1f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                UniversalIconView(
+                    iconNameOrPath = system.iconName,
+                    tint = parseColor,
+                    modifier = Modifier.size(44.dp)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                MarqueeText(
+                    text = system.name,
+                    isFocused = isFocused,
+                    marqueeSpeed = marqueeSpeed,
+                    marqueeDelayMillis = marqueeDelayMillis,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = textSizeSp.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                )
+
+                if (system.manufacturer.isNotEmpty()) {
+                    Text(
+                        text = system.manufacturer,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = (textSizeSp * 0.75f).sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Surface(
+                    color = parseColor.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = system.shortName,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = parseColor,
+                            fontSize = (textSizeSp * 0.7f).sp
+                        ),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            if (showEditIcon) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                        .size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit System",
+                        tint = parseColor,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }

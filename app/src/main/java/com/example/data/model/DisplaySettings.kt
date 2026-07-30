@@ -27,6 +27,7 @@ data class DisplaySettings(
     val showSystemMainMenuTitle: Boolean = true,
     val showSystemMainMenuEditIcon: Boolean = false,
     val systemMainMenuStyle: String = "ICON_GRID",
+    val systemMainMenuGridStyle: String = "ICON_GRID",
     val systemMenuDisplayColumns: Int = 4,
     val systemMenuDisplayRows: Int = 4,
     val systemMenuActualColumns: Int = 4,

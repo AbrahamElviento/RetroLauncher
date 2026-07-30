@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -89,13 +90,23 @@ fun GameGrid(
     scrollbarShowDurationMs: Int = 1500,
     enableNavigationSound: Boolean = true,
     selectedSfxFileName: String = "",
+    allSystems: List<SystemEntity> = emptyList(),
+    customIcons: Map<String, String> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val gridCardScale = (listSettings.gridScalePercent / 100f).coerceIn(0.5f, 2.0f)
+    val minTileWidth = (160.dp * gridCardScale).coerceAtLeast(80.dp)
+    val gridNumCols = maxOf(1, (screenWidthDp / minTileWidth).toInt())
+
     var showStyleDialog by remember { mutableStateOf(false) }
     var showDirectoryPicker by remember { mutableStateOf(false) }
     var currentSubfolderPath by remember(currentSystem?.id) { mutableStateOf("") }
     var selectedIndex by remember(currentSystem?.id, currentSubfolderPath) { mutableIntStateOf(0) }
+    val openedFolderHistory = remember(currentSystem?.id) { mutableStateMapOf<String, String>() }
+    var targetHighlightFolder by remember(currentSystem?.id) { mutableStateOf<String?>(null) }
 
     var isHeaderFocused by remember(currentSystem?.id) { mutableStateOf(false) }
     var headerFocusedIndex by remember { mutableIntStateOf(0) } // 0: Folder, 1: Refresh, 2: Style
@@ -182,6 +193,45 @@ fun GameGrid(
         }
     }
 
+    fun openSubfolder(folderName: String) {
+        val parentPath = currentSubfolderPath
+        openedFolderHistory[parentPath] = folderName
+        currentSubfolderPath = if (currentSubfolderPath.isEmpty()) folderName else "$currentSubfolderPath/$folderName"
+        selectedIndex = 0
+    }
+
+    fun navigateUpToParent() {
+        if (currentSubfolderPath.isNotEmpty()) {
+            val oldSubfolderPath = currentSubfolderPath
+            val parentPath = if (oldSubfolderPath.contains("/")) {
+                oldSubfolderPath.substringBeforeLast("/")
+            } else {
+                ""
+            }
+            val lastOpenedFolder = openedFolderHistory[parentPath]
+            targetHighlightFolder = lastOpenedFolder
+            currentSubfolderPath = parentPath
+        } else {
+            onBackToMainMenu()
+        }
+    }
+
+    LaunchedEffect(currentSubfolderPath, displayItems) {
+        val targetFolder = targetHighlightFolder
+        if (targetFolder != null) {
+            val idx = displayItems.indexOfFirst {
+                it is ListDisplayItem.FolderItem && it.name == targetFolder
+            }
+            if (idx >= 0) {
+                selectedIndex = idx
+                scrollToCenter(idx)
+            } else {
+                selectedIndex = 0
+            }
+            targetHighlightFolder = null
+        }
+    }
+
     // Reset header focus when system or subfolder changes
     LaunchedEffect(currentSystem?.id, currentSubfolderPath) {
         isHeaderFocused = false
@@ -196,7 +246,7 @@ fun GameGrid(
                 isHeaderFocused = false
                 onMoveFocusUp()
             } else {
-                val step = if (listSettings.listStyle == RomListStyle.GRID) 2 else 1
+                val step = if (listSettings.listStyle == RomListStyle.GRID) gridNumCols else 1
                 if (selectedIndex >= step) {
                     selectedIndex -= step
                     scrollToCenter(selectedIndex)
@@ -217,9 +267,12 @@ fun GameGrid(
                 selectedIndex = 0
                 scrollToCenter(selectedIndex)
             } else {
-                val step = if (listSettings.listStyle == RomListStyle.GRID) 2 else 1
+                val step = if (listSettings.listStyle == RomListStyle.GRID) gridNumCols else 1
                 if (displayItems.isNotEmpty() && selectedIndex + step < displayItems.size) {
                     selectedIndex += step
+                    scrollToCenter(selectedIndex)
+                } else if (selectedIndex < displayItems.size - 1) {
+                    selectedIndex = displayItems.size - 1
                     scrollToCenter(selectedIndex)
                 } else {
                     onMoveFocusDown()
@@ -235,7 +288,7 @@ fun GameGrid(
             if (isHeaderFocused) {
                 headerFocusedIndex = maxOf(0, headerFocusedIndex - 1)
             } else if (listSettings.listStyle == RomListStyle.GRID) {
-                if (selectedIndex % 2 == 1) {
+                if (selectedIndex % gridNumCols > 0) {
                     selectedIndex -= 1
                     scrollToCenter(selectedIndex)
                 } else {
@@ -254,7 +307,7 @@ fun GameGrid(
             if (isHeaderFocused) {
                 headerFocusedIndex = minOf(2, headerFocusedIndex + 1)
             } else if (listSettings.listStyle == RomListStyle.GRID) {
-                if (selectedIndex % 2 == 0 && selectedIndex + 1 < displayItems.size) {
+                if (selectedIndex % gridNumCols < gridNumCols - 1 && selectedIndex + 1 < displayItems.size) {
                     selectedIndex += 1
                     scrollToCenter(selectedIndex)
                 } else {
@@ -315,15 +368,9 @@ fun GameGrid(
             } else if (displayItems.isNotEmpty()) {
                 val item = displayItems.getOrNull(selectedIndex)
                 if (item is ListDisplayItem.ParentFolderItem) {
-                    currentSubfolderPath = if (currentSubfolderPath.contains("/")) {
-                        currentSubfolderPath.substringBeforeLast("/")
-                    } else {
-                        ""
-                    }
-                    selectedIndex = 0
+                    navigateUpToParent()
                 } else if (item is ListDisplayItem.FolderItem) {
-                    currentSubfolderPath = if (currentSubfolderPath.isEmpty()) item.name else "$currentSubfolderPath/${item.name}"
-                    selectedIndex = 0
+                    openSubfolder(item.name)
                 } else if (item is ListDisplayItem.GameItem) {
                     onGameClick(item.game)
                 }
@@ -336,12 +383,7 @@ fun GameGrid(
         if (backActionTrigger > 0L && backActionTrigger != lastHandledBackTrigger) {
             lastHandledBackTrigger = backActionTrigger
             if (currentSubfolderPath.isNotEmpty()) {
-                currentSubfolderPath = if (currentSubfolderPath.contains("/")) {
-                    currentSubfolderPath.substringBeforeLast("/")
-                } else {
-                    ""
-                }
-                selectedIndex = 0
+                navigateUpToParent()
             } else {
                 onBackToMainMenu()
             }
@@ -622,7 +664,7 @@ fun GameGrid(
                     val gridCardScale = (listSettings.gridScalePercent / 100f).coerceIn(0.5f, 2.0f)
                     LazyVerticalGrid(
                         state = gridState,
-                        columns = GridCells.Adaptive((160.dp * gridCardScale).coerceAtLeast(80.dp)),
+                        columns = GridCells.Fixed(gridNumCols),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -648,12 +690,7 @@ fun GameGrid(
                                         onClick = {
                                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                                             isHeaderFocused = false
-                                            currentSubfolderPath = if (currentSubfolderPath.contains("/")) {
-                                                currentSubfolderPath.substringBeforeLast("/")
-                                            } else {
-                                                ""
-                                            }
-                                            selectedIndex = 0
+                                            navigateUpToParent()
                                         },
                                         onLongClick = {
                                             selectedIndex = index
@@ -671,10 +708,8 @@ fun GameGrid(
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         onClick = {
                                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-                                            selectedIndex = index
                                             isHeaderFocused = false
-                                            currentSubfolderPath = if (currentSubfolderPath.isEmpty()) item.name else "$currentSubfolderPath/${item.name}"
-                                            selectedIndex = 0
+                                            openSubfolder(item.name)
                                         },
                                         onLongClick = {
                                             selectedIndex = index
@@ -702,7 +737,9 @@ fun GameGrid(
                                         },
                                         onFavoriteClick = { onFavoriteToggle(item.game) },
                                         onInfoClick = { onShowGameInfo?.invoke(item.game) },
-                                        onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null
+                                        onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null,
+                                        allSystems = allSystems,
+                                        customIcons = customIcons
                                     )
                                 }
                             }
@@ -736,12 +773,7 @@ fun GameGrid(
                                         onClick = {
                                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                                             isHeaderFocused = false
-                                            currentSubfolderPath = if (currentSubfolderPath.contains("/")) {
-                                                currentSubfolderPath.substringBeforeLast("/")
-                                            } else {
-                                                ""
-                                            }
-                                            selectedIndex = 0
+                                            navigateUpToParent()
                                         },
                                         onLongClick = {
                                             selectedIndex = index
@@ -759,10 +791,8 @@ fun GameGrid(
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         onClick = {
                                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-                                            selectedIndex = index
                                             isHeaderFocused = false
-                                            currentSubfolderPath = if (currentSubfolderPath.isEmpty()) item.name else "$currentSubfolderPath/${item.name}"
-                                            selectedIndex = 0
+                                            openSubfolder(item.name)
                                         },
                                         onLongClick = {
                                             selectedIndex = index
@@ -789,7 +819,9 @@ fun GameGrid(
                                         },
                                         onFavoriteClick = { onFavoriteToggle(item.game) },
                                         onInfoClick = { onShowGameInfo?.invoke(item.game) },
-                                        onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null
+                                        onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null,
+                                        allSystems = allSystems,
+                                        customIcons = customIcons
                                     )
                                 }
                             }
@@ -823,12 +855,7 @@ fun GameGrid(
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         onClick = {
                                             isHeaderFocused = false
-                                            currentSubfolderPath = if (currentSubfolderPath.contains("/")) {
-                                                currentSubfolderPath.substringBeforeLast("/")
-                                            } else {
-                                                ""
-                                            }
-                                            selectedIndex = 0
+                                            navigateUpToParent()
                                         },
                                         onLongClick = {
                                             selectedIndex = index
@@ -844,10 +871,8 @@ fun GameGrid(
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         onClick = {
-                                            selectedIndex = index
                                             isHeaderFocused = false
-                                            currentSubfolderPath = if (currentSubfolderPath.isEmpty()) item.name else "$currentSubfolderPath/${item.name}"
-                                            selectedIndex = 0
+                                            openSubfolder(item.name)
                                         },
                                         onLongClick = {
                                             selectedIndex = index
@@ -875,7 +900,9 @@ fun GameGrid(
                                         },
                                         onFavoriteClick = { onFavoriteToggle(item.game) },
                                         onInfoClick = { onShowGameInfo?.invoke(item.game) },
-                                        onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null
+                                        onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null,
+                                        allSystems = allSystems,
+                                        customIcons = customIcons
                                     )
                                 }
                             }
@@ -1173,7 +1200,9 @@ fun GameGridCardItem(
     onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
-    onDeleteClick: (() -> Unit)? = null
+    onDeleteClick: (() -> Unit)? = null,
+    allSystems: List<SystemEntity> = emptyList(),
+    customIcons: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
     val cardHeightScale = (gridScalePercent / 100f).coerceIn(0.5f, 2.0f)
@@ -1233,8 +1262,16 @@ fun GameGridCardItem(
                 }
             } else {
                 val iconToUse = when {
+                    customIcons.containsKey(game.filePath) -> customIcons[game.filePath] ?: "gamepad"
                     !system?.defaultRomIcon.isNullOrBlank() -> system!!.defaultRomIcon
-                    system?.id == "favorites" || system?.id == "recently_played" -> game.systemId
+                    system?.id == "favorites" || system?.id == "recently_played" -> {
+                        val matchedSystem = allSystems.firstOrNull { it.id == game.systemId }
+                        when {
+                            matchedSystem != null && !matchedSystem.defaultRomIcon.isNullOrBlank() -> matchedSystem.defaultRomIcon
+                            matchedSystem != null && !matchedSystem.iconName.isNullOrBlank() -> matchedSystem.iconName
+                            else -> game.systemId
+                        }
+                    }
                     !system?.iconName.isNullOrBlank() -> system!!.iconName
                     else -> "gamepad"
                 }
@@ -1341,7 +1378,9 @@ fun GameListRowItem(
     onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
-    onDeleteClick: (() -> Unit)? = null
+    onDeleteClick: (() -> Unit)? = null,
+    allSystems: List<SystemEntity> = emptyList(),
+    customIcons: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
 
@@ -1399,8 +1438,16 @@ fun GameListRowItem(
                     }
                 } else {
                     val iconToUse = when {
+                        customIcons.containsKey(game.filePath) -> customIcons[game.filePath] ?: "gamepad"
                         !system?.defaultRomIcon.isNullOrBlank() -> system!!.defaultRomIcon
-                        system?.id == "favorites" || system?.id == "recently_played" -> game.systemId
+                        system?.id == "favorites" || system?.id == "recently_played" -> {
+                            val matchedSystem = allSystems.firstOrNull { it.id == game.systemId }
+                            when {
+                                matchedSystem != null && !matchedSystem.defaultRomIcon.isNullOrBlank() -> matchedSystem.defaultRomIcon
+                                matchedSystem != null && !matchedSystem.iconName.isNullOrBlank() -> matchedSystem.iconName
+                                else -> game.systemId
+                            }
+                        }
                         !system?.iconName.isNullOrBlank() -> system!!.iconName
                         else -> "gamepad"
                     }
@@ -1481,7 +1528,9 @@ fun GameTextOnlyItem(
     onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
-    onDeleteClick: (() -> Unit)? = null
+    onDeleteClick: (() -> Unit)? = null,
+    allSystems: List<SystemEntity> = emptyList(),
+    customIcons: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
 
@@ -1541,8 +1590,16 @@ fun GameTextOnlyItem(
                     }
                 } else {
                     val iconToUse = when {
+                        customIcons.containsKey(game.filePath) -> customIcons[game.filePath] ?: "gamepad"
                         !system?.defaultRomIcon.isNullOrBlank() -> system!!.defaultRomIcon
-                        system?.id == "favorites" || system?.id == "recently_played" -> game.systemId
+                        system?.id == "favorites" || system?.id == "recently_played" -> {
+                            val matchedSystem = allSystems.firstOrNull { it.id == game.systemId }
+                            when {
+                                matchedSystem != null && !matchedSystem.defaultRomIcon.isNullOrBlank() -> matchedSystem.defaultRomIcon
+                                matchedSystem != null && !matchedSystem.iconName.isNullOrBlank() -> matchedSystem.iconName
+                                else -> game.systemId
+                            }
+                        }
                         !system?.iconName.isNullOrBlank() -> system!!.iconName
                         else -> "gamepad"
                     }

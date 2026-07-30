@@ -54,6 +54,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _displaySettings = MutableStateFlow(DisplaySettings())
     val displaySettings: StateFlow<DisplaySettings> = _displaySettings.asStateFlow()
 
+    private val _customIcons = MutableStateFlow<Map<String, String>>(emptyMap())
+    val customIcons: StateFlow<Map<String, String>> = _customIcons.asStateFlow()
+
     private val _launchEvent = MutableSharedFlow<LaunchResult>()
     val launchEvent: SharedFlow<LaunchResult> = _launchEvent.asSharedFlow()
 
@@ -93,6 +96,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             _gamepadSettings.value = repository.loadGamepadSettings()
             _bottomBarSettings.value = repository.loadBottomBarSettings()
             _hiddenAndroidApps.value = repository.getHiddenAndroidApps()
+            _customIcons.value = repository.loadCustomIcons()
+        }
+    }
+
+    fun saveCustomIcon(game: GameRomEntity, iconPath: String) {
+        viewModelScope.launch {
+            repository.saveCustomIcon(game.filePath, iconPath)
+            _customIcons.value = repository.loadCustomIcons()
         }
     }
 

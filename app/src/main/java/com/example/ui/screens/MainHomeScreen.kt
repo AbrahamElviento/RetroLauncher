@@ -55,6 +55,7 @@ fun MainHomeScreen(
     val gamepadSettings by viewModel.gamepadSettings.collectAsStateWithLifecycle()
     val bottomBarSettings by viewModel.bottomBarSettings.collectAsStateWithLifecycle()
     val hiddenAndroidApps by viewModel.hiddenAndroidApps.collectAsStateWithLifecycle()
+    val customIcons by viewModel.customIcons.collectAsStateWithLifecycle()
 
     var showTopBar by remember { mutableStateOf(true) }
 
@@ -545,6 +546,8 @@ fun MainHomeScreen(
                         onUpdateListSettings = { viewModel.updateRomListSettings(it) },
                         enableNavigationSound = displaySettings.enableNavigationSound,
                         selectedSfxFileName = displaySettings.selectedSfxFileName,
+                        allSystems = systems,
+                        customIcons = customIcons,
                         onGameClick = { game ->
                             if (currentSystem != null) {
                                 viewModel.launchGame(currentSystem, game)
@@ -785,6 +788,10 @@ fun MainHomeScreen(
     showGameDetailsDialog?.let { game ->
         GameRomInfoDialog(
             game = game,
+            customIcon = customIcons[game.filePath] ?: "",
+            onCustomIconChange = { newIcon ->
+                viewModel.saveCustomIcon(game, newIcon)
+            },
             onFavoriteToggle = { g ->
                 viewModel.toggleFavorite(g)
                 showGameDetailsDialog = g.copy(isFavorite = !g.isFavorite)

@@ -178,6 +178,20 @@ class LauncherRepository(private val context: Context) {
         configStorageManager.saveCustomNames(customNames)
     }
 
+    fun loadCustomIcons(): Map<String, String> {
+        return configStorageManager.loadCustomIcons()
+    }
+
+    fun saveCustomIcon(filePath: String, iconPath: String) {
+        val customIcons = configStorageManager.loadCustomIcons().toMutableMap()
+        if (iconPath.isBlank()) {
+            customIcons.remove(filePath)
+        } else {
+            customIcons[filePath] = iconPath
+        }
+        configStorageManager.saveCustomIcons(customIcons)
+    }
+
     suspend fun updateRomPlayed(rom: GameRomEntity) = withContext(Dispatchers.IO) {
         gameRomDao.updateRom(
             rom.copy(
@@ -245,6 +259,7 @@ class LauncherRepository(private val context: Context) {
         }
         val baseDir = configStorageManager.getBaseDirPath()
         val savedUserDataMap = configStorageManager.loadFavoritesAndRecents()
+        val customNamesMap = configStorageManager.loadCustomNames()
 
         val appRoms = resolveInfos.mapNotNull { info ->
             val pkg = info.activityInfo.packageName
@@ -253,7 +268,8 @@ class LauncherRepository(private val context: Context) {
             // Check XML visibility
             if (!xmlVisibleSet.contains(pkg)) return@mapNotNull null
 
-            val label = info.loadLabel(pm).toString()
+            val customTitle = customNamesMap[pkg]
+            val label = customTitle ?: info.loadLabel(pm).toString()
 
             // Check if user has custom artwork in RetroLauncher/boxart/
             val customArt = File("$baseDir/boxart/${pkg}.png")
