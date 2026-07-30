@@ -36,7 +36,7 @@ fun ListStyleSettingsDialog(
     var showArtwork by remember { mutableStateOf(settings.showArtworkInTextOnly) }
     var gridScalePercent by remember { mutableFloatStateOf(settings.gridScalePercent.toFloat()) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()

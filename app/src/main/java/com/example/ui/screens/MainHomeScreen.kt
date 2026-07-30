@@ -129,7 +129,8 @@ fun MainHomeScreen(
         }
     }
 
-    // Outer Canvas Layout Wrapper applying resolution bounds & margins!
+    CompositionLocalProvider(LocalDisplaySettings provides displaySettings) {
+        // Outer Canvas Layout Wrapper applying resolution bounds & margins!
     CanvasLayoutWrapper(
         displaySettings = displaySettings,
         modifier = modifier.onPreviewKeyEvent { keyEvent ->
@@ -798,28 +799,57 @@ fun MainHomeScreen(
 
     // Missing Package Alert Dialog
     missingPackageAlert?.let { alert ->
-        AlertDialog(
-            onDismissRequest = { missingPackageAlert = null },
-            icon = { Icon(imageVector = Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Emulator App Not Installed") },
-            text = {
-                Text(
-                    "The app '${alert.appName}' (${alert.packageName}) is not installed on this device.\n\nYou can edit the system configuration to launch RetroArch or add a custom XML profile for an installed standalone app!"
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    missingPackageAlert = null
-                    showXmlEditorDialog = true
-                }) {
-                    Text("Edit XML Profile")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { missingPackageAlert = null }) {
-                    Text("OK")
+        ScaledDialog(
+            onDismissRequest = { missingPackageAlert = null }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .wrapContentHeight()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Text(
+                        text = "Emulator App Not Installed",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "The app '${alert.appName}' (${alert.packageName}) is not installed on this device.\n\nYou can edit the system configuration to launch RetroArch or add a custom XML profile for an installed standalone app!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { missingPackageAlert = null }) {
+                            Text("OK")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = {
+                            missingPackageAlert = null
+                            showXmlEditorDialog = true
+                        }) {
+                            Text("Edit XML Profile")
+                        }
+                    }
                 }
             }
-        )
+        }
     }
+}
 }

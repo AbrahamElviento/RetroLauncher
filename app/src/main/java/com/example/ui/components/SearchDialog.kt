@@ -59,7 +59,7 @@ fun SearchDialog(
         }
     }
 
-    Dialog(
+    ScaledDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {

@@ -110,7 +110,7 @@ fun DirectoryPickerDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()

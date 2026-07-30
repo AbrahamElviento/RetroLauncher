@@ -55,7 +55,7 @@ fun AndroidAppVisibilityDialog(
         }
     }
 
-    Dialog(
+    ScaledDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {

@@ -31,7 +31,7 @@ fun BottomBarSettingsDialog(
     var showWifi by remember { mutableStateOf(settings.showWifi) }
     var showBluetooth by remember { mutableStateOf(settings.showBluetooth) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()

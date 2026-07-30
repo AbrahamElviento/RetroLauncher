@@ -71,7 +71,7 @@ fun FilePickerDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()

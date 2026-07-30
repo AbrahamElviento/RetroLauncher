@@ -111,7 +111,7 @@ fun DisplaySettingsDialog(
     var autoHideScrollbar by remember { mutableStateOf(currentSettings.autoHideScrollbar) }
     var scrollbarShowDurationMsText by remember { mutableStateOf(currentSettings.scrollbarShowDurationMs.toString()) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()

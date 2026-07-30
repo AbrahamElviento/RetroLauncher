@@ -45,7 +45,7 @@ fun SystemManagementDialog(
     var editingSystem by remember { mutableStateOf<SystemEntity?>(null) }
     var isAddingNew by remember { mutableStateOf(false) }
 
-    Dialog(
+    ScaledDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
@@ -435,7 +435,7 @@ fun SystemEditDetailDialog(
         )
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()

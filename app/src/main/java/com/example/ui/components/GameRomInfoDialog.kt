@@ -43,7 +43,7 @@ fun GameRomInfoDialog(
     var isRenaming by remember { mutableStateOf(false) }
     var renameText by remember(game.title) { mutableStateOf(game.title) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.9f)

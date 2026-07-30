@@ -41,7 +41,7 @@ fun ConfigFileManagerDialog(
     var pendingNewDir by remember { mutableStateOf<String?>(null) }
     var currentDirPath by remember { mutableStateOf(configStorageManager.getBaseDirPath()) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()

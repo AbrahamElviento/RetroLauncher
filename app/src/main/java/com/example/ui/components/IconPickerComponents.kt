@@ -148,7 +148,7 @@ fun IconPickerDialog(
         else EXPANDED_ICON_LIST.filter { it.first.contains(searchQuery, ignoreCase = true) }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
