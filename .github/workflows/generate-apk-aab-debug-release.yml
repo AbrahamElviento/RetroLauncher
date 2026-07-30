@@ -22,7 +22,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # Generates gradlew dynamically if missing in Google AI Studio repos
+      # Generate wrapper if missing from AI Studio export
       - name: Generate Gradle Wrapper if missing
         run: |
           if [ ! -f "gradlew" ]; then
@@ -34,8 +34,9 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
+      # Uses wildcards to find the APK whether generated at root build/ or app/build/
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: '**/build/outputs/apk/debug/*.apk'
