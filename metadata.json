@@ -1,0 +1,6 @@
+{
+  "name": "Retro Launcher",
+  "description": "Front-end emulator launcher with system folder mapping, RetroArch core & custom standalone XML profiles, custom canvas resolution & margins, and accessible shareable XML settings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

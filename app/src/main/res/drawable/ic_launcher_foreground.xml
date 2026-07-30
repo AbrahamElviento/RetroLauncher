@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- D-Pad and Gamepad silhouette -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M28,40 C22,40 18,45 18,54 C18,63 22,68 28,68 L36,68 C40,68 44,65 48,60 L60,60 C64,65 68,68 72,68 L80,68 C86,68 90,63 90,54 C90,45 86,40 80,40 L28,40 Z" />
+    <path
+        android:fillColor="#121124"
+        android:pathData="M30,48 L34,48 L34,44 L38,44 L38,48 L42,48 L42,52 L38,52 L38,56 L34,56 L34,52 L30,52 Z" />
+    <path
+        android:fillColor="#FF2A85"
+        android:pathData="M74,46 A3,3 0 1,1 74,52 A3,3 0 1,1 74,46 Z M68,52 A3,3 0 1,1 68,58 A3,3 0 1,1 68,52 Z M80,52 A3,3 0 1,1 80,58 A3,3 0 1,1 80,52 Z M74,58 A3,3 0 1,1 74,64 A3,3 0 1,1 74,58 Z" />
+</vector>
