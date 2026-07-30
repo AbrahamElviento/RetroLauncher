@@ -22,7 +22,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # Generate wrapper if missing from AI Studio export
       - name: Generate Gradle Wrapper if missing
         run: |
           if [ ! -f "gradlew" ]; then
@@ -31,10 +30,22 @@ jobs:
           fi
           chmod +x gradlew
 
+      # Generates the missing debug.keystore expected by build.gradle.kts
+      - name: Generate Debug Keystore
+        run: |
+          keytool -genkey -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      # Uses wildcards to find the APK whether generated at root build/ or app/build/
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
