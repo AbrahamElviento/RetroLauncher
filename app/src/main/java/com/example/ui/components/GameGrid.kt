@@ -104,9 +104,7 @@ fun GameGrid(
     var showStyleDialog by remember { mutableStateOf(false) }
     var showDirectoryPicker by remember { mutableStateOf(false) }
     var currentSubfolderPath by remember(currentSystem?.id) { mutableStateOf("") }
-    var selectedIndex by remember(currentSystem?.id, currentSubfolderPath) { mutableIntStateOf(0) }
     val openedFolderHistory = remember(currentSystem?.id) { mutableStateMapOf<String, String>() }
-    var targetHighlightFolder by remember(currentSystem?.id) { mutableStateOf<String?>(null) }
 
     var isHeaderFocused by remember(currentSystem?.id) { mutableStateOf(false) }
     var headerFocusedIndex by remember { mutableIntStateOf(0) } // 0: Folder, 1: Refresh, 2: Style
@@ -125,8 +123,6 @@ fun GameGrid(
     var lastHandledPageDownTrigger by remember { mutableLongStateOf(pageDownTrigger) }
     var lastHandledGoToTopTrigger by remember { mutableLongStateOf(goToTopTrigger) }
     var lastHandledGoToBottomTrigger by remember { mutableLongStateOf(goToBottomTrigger) }
-    val gridState = remember(currentSystem?.id, currentSubfolderPath) { LazyGridState() }
-    val listState = remember(currentSystem?.id, currentSubfolderPath) { LazyListState() }
 
     val isAndroidSystem = currentSystem?.id in listOf("android_apps", "android_games", "android_emulators") || currentSystem?.defaultLaunchMode == "ANDROID_APP"
     val isVirtualCollection = currentSystem?.id == "favorites" || currentSystem?.id == "recently_played" || isAndroidSystem
@@ -179,6 +175,31 @@ fun GameGrid(
         list
     }
 
+    var selectedIndex by remember(currentSystem?.id) { mutableIntStateOf(0) }
+    var lastSubfolderPath by remember(currentSystem?.id) { mutableStateOf("") }
+    var targetHighlightFolder by remember(currentSystem?.id) { mutableStateOf<String?>(null) }
+
+    if (lastSubfolderPath != currentSubfolderPath) {
+        val targetFolder = targetHighlightFolder
+        if (targetFolder != null) {
+            val idx = displayItems.indexOfFirst {
+                it is ListDisplayItem.FolderItem && it.name == targetFolder
+            }
+            selectedIndex = if (idx >= 0) idx else 0
+            targetHighlightFolder = null
+        } else {
+            selectedIndex = 0
+        }
+        lastSubfolderPath = currentSubfolderPath
+    }
+
+    val gridState = remember(currentSystem?.id, currentSubfolderPath) {
+        LazyGridState(firstVisibleItemIndex = maxOf(0, selectedIndex - 2))
+    }
+    val listState = remember(currentSystem?.id, currentSubfolderPath) {
+        LazyListState(firstVisibleItemIndex = maxOf(0, selectedIndex - 2))
+    }
+
     fun scrollToCenter(index: Int) {
         coroutineScope.launch {
             if (listSettings.listStyle == RomListStyle.GRID) {
@@ -216,21 +237,7 @@ fun GameGrid(
         }
     }
 
-    LaunchedEffect(currentSubfolderPath, displayItems) {
-        val targetFolder = targetHighlightFolder
-        if (targetFolder != null) {
-            val idx = displayItems.indexOfFirst {
-                it is ListDisplayItem.FolderItem && it.name == targetFolder
-            }
-            if (idx >= 0) {
-                selectedIndex = idx
-                scrollToCenter(idx)
-            } else {
-                selectedIndex = 0
-            }
-            targetHighlightFolder = null
-        }
-    }
+
 
     // Reset header focus when system or subfolder changes
     LaunchedEffect(currentSystem?.id, currentSubfolderPath) {
@@ -288,7 +295,7 @@ fun GameGrid(
             if (isHeaderFocused) {
                 headerFocusedIndex = maxOf(0, headerFocusedIndex - 1)
             } else if (listSettings.listStyle == RomListStyle.GRID) {
-                if (selectedIndex % gridNumCols > 0) {
+                if (selectedIndex > 0) {
                     selectedIndex -= 1
                     scrollToCenter(selectedIndex)
                 } else {
@@ -307,7 +314,7 @@ fun GameGrid(
             if (isHeaderFocused) {
                 headerFocusedIndex = minOf(2, headerFocusedIndex + 1)
             } else if (listSettings.listStyle == RomListStyle.GRID) {
-                if (selectedIndex % gridNumCols < gridNumCols - 1 && selectedIndex + 1 < displayItems.size) {
+                if (selectedIndex + 1 < displayItems.size) {
                     selectedIndex += 1
                     scrollToCenter(selectedIndex)
                 } else {
@@ -1342,8 +1349,10 @@ fun GameGridCardItem(
         }
 
         Column(modifier = Modifier.padding(10.dp)) {
+            val displaySettings = LocalDisplaySettings.current
+            val cleanedTitle = getCleanedTitle(game.title, displaySettings.removeCharsFromGameNames)
             MarqueeText(
-                text = game.title,
+                text = cleanedTitle,
                 isFocused = isFocused,
                 marqueeSpeed = marqueeSpeed,
                 marqueeDelayMillis = marqueeDelayMillis,
@@ -1463,8 +1472,10 @@ fun GameListRowItem(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                val displaySettings = LocalDisplaySettings.current
+                val cleanedTitle = getCleanedTitle(game.title, displaySettings.removeCharsFromGameNames)
                 MarqueeText(
-                    text = game.title,
+                    text = cleanedTitle,
                     isFocused = isFocused,
                     marqueeSpeed = marqueeSpeed,
                     marqueeDelayMillis = marqueeDelayMillis,
@@ -1613,8 +1624,10 @@ fun GameTextOnlyItem(
                 Spacer(modifier = Modifier.width(8.dp))
             }
 
+            val displaySettings = LocalDisplaySettings.current
+            val cleanedTitle = getCleanedTitle(game.title, displaySettings.removeCharsFromGameNames)
             MarqueeText(
-                text = game.title,
+                text = cleanedTitle,
                 isFocused = isFocused,
                 marqueeSpeed = marqueeSpeed,
                 marqueeDelayMillis = marqueeDelayMillis,
@@ -1677,4 +1690,13 @@ fun drawableToBitmap(drawable: android.graphics.drawable.Drawable): android.grap
     drawable.setBounds(0, 0, canvas.width, canvas.height)
     drawable.draw(canvas)
     return bitmap
+}
+
+fun getCleanedTitle(title: String, removeChars: String): String {
+    if (removeChars.isEmpty()) return title
+    var cleaned = title
+    for (char in removeChars) {
+        cleaned = cleaned.replace(char.toString(), "")
+    }
+    return cleaned
 }

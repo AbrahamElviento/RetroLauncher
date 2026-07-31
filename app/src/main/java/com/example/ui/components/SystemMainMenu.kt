@@ -10,7 +10,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -320,7 +322,11 @@ fun SystemMainMenu(
                 SystemDisplayStyle.ICON_GRID, SystemDisplayStyle.GRID_ALT -> {
                     val iconScaleFactor = (mainMenuIconGridScalePercent / 100f).coerceIn(0.5f, 1.5f)
                     val numCols = maxOf(1, (maxWidth / (140.dp * iconScaleFactor)).toInt())
-                    val gridState = rememberLazyGridState()
+                    val gridState = remember(systems.size, selectedSystemId) {
+                        val initialIdx = systems.indexOfFirst { it.id == selectedSystemId }
+                        val safeIdx = if (initialIdx >= 0) initialIdx else 0
+                        LazyGridState(firstVisibleItemIndex = maxOf(0, safeIdx - numCols))
+                    }
 
                     fun scrollToCenter(index: Int) {
                         coroutineScope.launch {
@@ -505,7 +511,11 @@ fun SystemMainMenu(
                     }
                 }
                 SystemDisplayStyle.TEXT_LIST -> {
-                    val listState = rememberLazyListState()
+                    val listState = remember(systems.size, selectedSystemId) {
+                        val initialIdx = systems.indexOfFirst { it.id == selectedSystemId }
+                        val safeIdx = if (initialIdx >= 0) initialIdx else 0
+                        LazyListState(firstVisibleItemIndex = maxOf(0, safeIdx - 2))
+                    }
 
                     fun scrollListToCenter(index: Int) {
                         coroutineScope.launch {

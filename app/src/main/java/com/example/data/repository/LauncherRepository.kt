@@ -343,7 +343,6 @@ class LauncherRepository(private val context: Context) {
             } else {
                 file.nameWithoutExtension
                     .replace("_", " ")
-                    .replace("-", " ")
                     .trim()
             }
             val savedData = savedUserDataMap[file.absolutePath]

@@ -51,5 +51,6 @@ data class DisplaySettings(
     val systemMenuTileMarginRightDp: Int = 0,
     val systemMainMenuIconPath: String = "gamepad",
     val topBarColorHex: String = "",
-    val bottomBarColorHex: String = ""
+    val bottomBarColorHex: String = "",
+    val removeCharsFromGameNames: String = ""
 )

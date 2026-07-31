@@ -112,6 +112,7 @@ fun DisplaySettingsDialog(
     var showCustomArcadeDbFilePicker by remember { mutableStateOf(false) }
     var autoHideScrollbar by remember { mutableStateOf(currentSettings.autoHideScrollbar) }
     var scrollbarShowDurationMsText by remember { mutableStateOf(currentSettings.scrollbarShowDurationMs.toString()) }
+    var removeCharsFromGameNamesText by remember { mutableStateOf(currentSettings.removeCharsFromGameNames) }
 
     ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
@@ -1016,6 +1017,15 @@ fun DisplaySettingsDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
+
+                            OutlinedTextField(
+                                value = removeCharsFromGameNamesText,
+                                onValueChange = { removeCharsFromGameNamesText = it },
+                                label = { Text("Remove Characters from Game Names") },
+                                placeholder = { Text("Characters to delete, e.g. -/\\") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
                         }
                     }
                 }
@@ -1085,7 +1095,8 @@ fun DisplaySettingsDialog(
                                 systemMenuTileMarginRightDp = systemMenuTileMarginRightText.toIntOrNull() ?: 0,
                                 systemMainMenuIconPath = systemMainMenuIconPathText.ifBlank { "gamepad" },
                                 topBarColorHex = topBarColorHex,
-                                bottomBarColorHex = bottomBarColorHex
+                                bottomBarColorHex = bottomBarColorHex,
+                                removeCharsFromGameNames = removeCharsFromGameNamesText
                             )
                             onSaveSettings(newSettings)
                             if (bottomBarSettings != null && onSaveBottomBarSettings != null) {

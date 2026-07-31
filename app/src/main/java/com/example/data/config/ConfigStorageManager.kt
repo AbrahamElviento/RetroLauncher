@@ -366,6 +366,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "systemMainMenuIconPath").text(settings.systemMainMenuIconPath).endTag("", "systemMainMenuIconPath")
             serializer.startTag("", "topBarColorHex").text(settings.topBarColorHex).endTag("", "topBarColorHex")
             serializer.startTag("", "bottomBarColorHex").text(settings.bottomBarColorHex).endTag("", "bottomBarColorHex")
+            serializer.startTag("", "removeCharsFromGameNames").text(settings.removeCharsFromGameNames).endTag("", "removeCharsFromGameNames")
 
             serializer.endTag("", "DisplaySettings")
             serializer.endDocument()
@@ -431,6 +432,7 @@ class ConfigStorageManager(private val context: Context) {
             var systemMainMenuIconPath = "gamepad"
             var topBarColorHex = ""
             var bottomBarColorHex = ""
+            var removeCharsFromGameNames = ""
 
             var currentTag = ""
 
@@ -485,6 +487,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "systemMainMenuIconPath" -> systemMainMenuIconPath = text
                                 "topBarColorHex" -> topBarColorHex = text
                                 "bottomBarColorHex" -> bottomBarColorHex = text
+                                "removeCharsFromGameNames" -> removeCharsFromGameNames = text
                             }
                         }
                     }
@@ -535,7 +538,8 @@ class ConfigStorageManager(private val context: Context) {
                 systemMenuTileMarginRightDp = systemMenuTileMarginRightDp,
                 systemMainMenuIconPath = systemMainMenuIconPath,
                 topBarColorHex = topBarColorHex,
-                bottomBarColorHex = bottomBarColorHex
+                bottomBarColorHex = bottomBarColorHex,
+                removeCharsFromGameNames = removeCharsFromGameNames
             )
         } catch (e: Exception) {
             e.printStackTrace()
