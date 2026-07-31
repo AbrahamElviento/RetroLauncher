@@ -34,7 +34,7 @@ class ConfigStorageManager(private val context: Context) {
         }
 
         val docsDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+            Environment.getExternalStorageDirectory(),
             "RetroLauncher"
         )
         if (!docsDir.exists()) {

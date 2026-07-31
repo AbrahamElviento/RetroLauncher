@@ -61,6 +61,7 @@ fun GameGrid(
     onGameLongClick: (GameRomEntity) -> Unit,
     onFavoriteToggle: (GameRomEntity) -> Unit,
     onScanFolderClick: () -> Unit,
+    isScanning: Boolean = false,
     onOpenAppVisibilityClick: (() -> Unit)? = null,
     onOpenSystemSettings: (() -> Unit)? = null,
     onUpdateSystemFolder: ((String) -> Unit)? = null,
@@ -423,7 +424,8 @@ fun GameGrid(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = modifier.fillMaxSize()) {
         // System Header Bar
         Row(
             modifier = Modifier
@@ -914,6 +916,45 @@ fun GameGrid(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+        if (isScanning) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .clickable(enabled = true, onClick = {}),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier.padding(24.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp
+                        )
+                        Text(
+                            text = "Scanning directory...",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = currentSystem?.folderPath ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }

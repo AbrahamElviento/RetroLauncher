@@ -293,10 +293,10 @@ class LauncherRepository(private val context: Context) {
         gameRomDao.insertRoms(appRoms)
     }
 
-    suspend fun scanFolderForRoms(system: SystemEntity) = withContext(Dispatchers.IO) {
+    suspend fun scanFolderForRoms(system: SystemEntity): Int = withContext(Dispatchers.IO) {
         if (system.id in listOf("android_apps", "android_games", "android_emulators") || system.defaultLaunchMode == "ANDROID_APP") {
             scanAndroidApps(system.id)
-            return@withContext
+            return@withContext 0
         }
 
         val folder = File(system.folderPath)
@@ -364,6 +364,7 @@ class LauncherRepository(private val context: Context) {
         if (romEntities.isNotEmpty()) {
             gameRomDao.insertRoms(romEntities)
         }
+        romEntities.size
     }
 
     private fun findRomArtwork(file: File, system: SystemEntity, baseDir: String): String? {
@@ -480,14 +481,14 @@ class LauncherRepository(private val context: Context) {
     private suspend fun createDemoRomInFolder(sys: SystemEntity, folder: File) {
         val ext = sys.allowedExtensions.split(",").firstOrNull()?.trim() ?: ".zip"
         val sampleTitles = when (sys.id) {
-            "snes" -> listOf("Super Mario World", "The Legend of Zelda - A Link to the Past", "Chrono Trigger")
-            "ps2" -> listOf("Grand Theft Auto - San Andreas", "Kingdom Hearts II", "Shadow of the Colossus")
-            "3ds" -> listOf("Pokemon Sun and Moon", "Super Mario 3D Land", "Fire Emblem Awakening")
-            "psp" -> listOf("God of War - Chains of Olympus", "Crisis Core - Final Fantasy VII", "Tekken 6")
-            "n64" -> listOf("Super Mario 64", "The Legend of Zelda - Ocarina of Time", "GoldenEye 007")
-            "gba" -> listOf("Pokemon Emerald Version", "Metroid Fusion", "Castlevania - Aria of Sorrow")
-            "ps1" -> listOf("Castlevania - Symphony of the Night", "Final Fantasy VII", "Metal Gear Solid")
-            "gc" -> listOf("Super Smash Bros. Melee", "The Legend of Zelda - The Wind Waker", "Super Mario Sunshine")
+            "snes" -> listOf("Super Ario World", "The Legend of Zee - A Link", "Chron A Trigger")
+            "ps2" -> listOf("Grand San Andrea", "Kingdom Hear II", "Shadow of Olossus")
+            "3ds" -> listOf("Poke Sun", "Super Ario 3D Land", "Fire Awaken")
+            "psp" -> listOf("God of Chains of Olympus", "Crisis Core Fantasy", "Tekkan 6")
+            "n64" -> listOf("Super Ario 64", "The Legend of Time", "Golden7")
+            "gba" -> listOf("Poke Emerald", "Metroion", "Castlearia")
+            "ps1" -> listOf("Castlephony of the Night", "Final VII", "Metal Solid")
+            "gc" -> listOf("Super Melee", "The Legend of Zee - The Wind Waker", "Super Ario Shine")
             else -> listOf("Demo Game 1", "Demo Game 2")
         }
 

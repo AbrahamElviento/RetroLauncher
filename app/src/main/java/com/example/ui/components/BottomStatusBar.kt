@@ -39,13 +39,7 @@ fun BottomStatusBar(
     if (!settings.showBottomBar) return
 
     val context = LocalContext.current
-    val attributionContext = remember(context) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            context.createAttributionContext("default")
-        } else {
-            context
-        }
-    }
+    val attributionContext = context
 
     // Live Time state
     var currentTimeStr by remember { mutableStateOf("") }

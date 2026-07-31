@@ -15,6 +15,8 @@ object SoundManager {
 
     private var mediaPlayer: MediaPlayer? = null
     private var isPlayingBgm = false
+    private var bgmPlaylist: List<File> = emptyList()
+    private var currentTrackIndex = -1
 
     // Synthesize a short navigation click sound in memory
     private val clickPcmData: ByteArray by lazy {
@@ -119,7 +121,7 @@ object SoundManager {
             return
         }
 
-        if (isPlayingBgm) return
+        if (isPlayingBgm && mediaPlayer != null) return
 
         try {
             val bgmFolder = getBgmDirectory(context)
@@ -130,7 +132,7 @@ object SoundManager {
             val audioFiles = bgmFolder.listFiles { file ->
                 val name = file.name.lowercase()
                 file.isFile && (name.endsWith(".mp3") || name.endsWith(".ogg") || name.endsWith(".wav") || name.endsWith(".m4a") || name.endsWith(".flac"))
-            } ?: emptyArray()
+            }?.sortedBy { it.name.lowercase() } ?: emptyList()
 
             if (audioFiles.isEmpty()) {
                 Log.d(TAG, "No BGM files found in ${bgmFolder.absolutePath}")
@@ -138,22 +140,73 @@ object SoundManager {
                 return
             }
 
-            val trackToPlay = audioFiles.random()
-            stopBgm()
-
-            val player = MediaPlayer().apply {
-                setDataSource(trackToPlay.absolutePath)
-                isLooping = true
-                setVolume(0.35f, 0.35f)
-                prepare()
-                start()
-            }
-            mediaPlayer = player
+            bgmPlaylist = audioFiles
+            currentTrackIndex = 0
             isPlayingBgm = true
-            Log.d(TAG, "Started playing BGM: ${trackToPlay.name}")
+            playTrack(context, bgmPlaylist[currentTrackIndex])
         } catch (e: Exception) {
             Log.e(TAG, "Error starting BGM player", e)
             stopBgm()
+        }
+    }
+
+    private fun playTrack(context: Context, file: File) {
+        try {
+            stopBgmOnly()
+            val player = MediaPlayer().apply {
+                setDataSource(file.absolutePath)
+                isLooping = false
+                setVolume(0.35f, 0.35f)
+                prepare()
+                start()
+                setOnCompletionListener {
+                    try {
+                        it.release()
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                    if (mediaPlayer == this) {
+                        mediaPlayer = null
+                    }
+                    playNextBgm(context)
+                }
+            }
+            mediaPlayer = player
+            isPlayingBgm = true
+            Log.d(TAG, "Started playing BGM track: ${file.name}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error playing BGM track ${file.name}", e)
+            if (isPlayingBgm) {
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    playNextBgm(context)
+                }, 2000)
+            }
+        }
+    }
+
+    private fun playNextBgm(context: Context) {
+        if (!isPlayingBgm) return
+        if (bgmPlaylist.isEmpty()) {
+            stopBgm()
+            return
+        }
+        currentTrackIndex = (currentTrackIndex + 1) % bgmPlaylist.size
+        val nextFile = bgmPlaylist[currentTrackIndex]
+        playTrack(context, nextFile)
+    }
+
+    private fun stopBgmOnly() {
+        try {
+            mediaPlayer?.let {
+                if (it.isPlaying) {
+                    it.stop()
+                }
+                it.release()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping media player", e)
+        } finally {
+            mediaPlayer = null
         }
     }
 
@@ -197,6 +250,8 @@ object SoundManager {
         } finally {
             mediaPlayer = null
             isPlayingBgm = false
+            bgmPlaylist = emptyList()
+            currentTrackIndex = -1
         }
     }
 

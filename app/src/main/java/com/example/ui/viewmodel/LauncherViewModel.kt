@@ -60,6 +60,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _launchEvent = MutableSharedFlow<LaunchResult>()
     val launchEvent: SharedFlow<LaunchResult> = _launchEvent.asSharedFlow()
 
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
+    sealed class ScanEvent {
+        data class ScanFinished(val systemName: String, val romCount: Int, val folderPath: String) : ScanEvent()
+    }
+
+    private val _scanEvent = MutableSharedFlow<ScanEvent>()
+    val scanEvent: SharedFlow<ScanEvent> = _scanEvent.asSharedFlow()
+
     val currentSystemRoms: StateFlow<List<GameRomEntity>> = combine(
         repository.allRoms,
         _selectedSystemId,
@@ -230,8 +240,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun rescanCurrentSystemRoms(system: SystemEntity) {
+        if (_isScanning.value) return
+        _isScanning.value = true
         viewModelScope.launch {
-            repository.scanFolderForRoms(system)
+            try {
+                val romCount = repository.scanFolderForRoms(system)
+                _scanEvent.emit(ScanEvent.ScanFinished(system.name, romCount, system.folderPath))
+            } finally {
+                _isScanning.value = false
+            }
         }
     }
 
@@ -243,8 +260,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun rescanRoms() {
+        if (_isScanning.value) return
+        _isScanning.value = true
         viewModelScope.launch {
-            repository.scanAllSystemFolders()
+            try {
+                repository.scanAllSystemFolders()
+                _scanEvent.emit(ScanEvent.ScanFinished("All Systems", -1, ""))
+            } finally {
+                _isScanning.value = false
+            }
         }
     }
 }

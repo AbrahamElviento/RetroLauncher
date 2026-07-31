@@ -51,7 +51,7 @@ fun DisplaySettingsDialog(
     val baseDirName = remember(storageManager) {
         try {
             val base = storageManager.resolveBaseDir()
-            if (base.name == "0" || base.name == "emulated") "Documents/RetroLauncher" else base.name
+            if (base.name == "0" || base.name == "emulated") "RetroLauncher" else base.name
         } catch (_: Exception) {
             "RetroLauncher"
         }

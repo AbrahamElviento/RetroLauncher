@@ -56,7 +56,9 @@ fun MainHomeScreen(
     val bottomBarSettings by viewModel.bottomBarSettings.collectAsStateWithLifecycle()
     val hiddenAndroidApps by viewModel.hiddenAndroidApps.collectAsStateWithLifecycle()
     val customIcons by viewModel.customIcons.collectAsStateWithLifecycle()
+    val isScanning by viewModel.isScanning.collectAsStateWithLifecycle()
 
+    var showEmptyFolderAlert by remember { mutableStateOf<String?>(null) }
     var showTopBar by remember { mutableStateOf(true) }
 
     var showSearchDialog by remember { mutableStateOf(false) }
@@ -115,6 +117,21 @@ fun MainHomeScreen(
                 }
                 is LaunchResult.Error -> {
                     Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    // Observe scan events
+    LaunchedEffect(Unit) {
+        viewModel.scanEvent.collect { event ->
+            when (event) {
+                is LauncherViewModel.ScanEvent.ScanFinished -> {
+                    if (event.romCount == 0) {
+                        showEmptyFolderAlert = event.folderPath
+                    } else if (event.romCount > 0) {
+                        Toast.makeText(context, "Scan completed! Found ${event.romCount} games.", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -565,6 +582,7 @@ fun MainHomeScreen(
                                 viewModel.rescanCurrentSystemRoms(currentSystem)
                             }
                         },
+                        isScanning = isScanning,
                         onOpenAppVisibilityClick = {
                             showAppVisibilityDialog = true
                         },
@@ -847,6 +865,54 @@ fun MainHomeScreen(
                             showXmlEditorDialog = true
                         }) {
                             Text("Edit XML Profile")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Empty Folder Alert Dialog
+    showEmptyFolderAlert?.let { folderPath ->
+        ScaledDialog(
+            onDismissRequest = { showEmptyFolderAlert = null }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .wrapContentHeight()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Text(
+                        text = "Directory is Empty",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "No games or ROM files with allowed extensions were found in the scanned directory:\n\n$folderPath\n\nPlease check the path, put ROMs there, or edit the system's allowed extensions in System settings.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { showEmptyFolderAlert = null }) {
+                            Text("OK")
                         }
                     }
                 }
