@@ -14,6 +14,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -48,6 +56,25 @@ fun FilePickerDialog(
         )
     }
 
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+    val gamepadSettings = remember {
+        try {
+            com.example.data.config.ConfigStorageManager(context).loadGamepadSettings()
+        } catch (e: Exception) {
+            com.example.data.model.GamepadSettings()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        try {
+            focusRequester.requestFocus()
+        } catch (e: Exception) {
+            // Ignore if focus request fails initially
+        }
+    }
+
     var selectedFile by remember { mutableStateOf<File?>(if (initialPath.isNotBlank() && File(initialPath).isFile) File(initialPath) else null) }
 
     var currentDir by remember {
@@ -75,7 +102,45 @@ fun FilePickerDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f),
+                .fillMaxHeight(0.85f)
+                .focusRequester(focusRequester)
+                .focusable()
+                .onKeyEvent { keyEvent ->
+                    if (keyEvent.type == KeyEventType.KeyDown) {
+                        val keyCode = keyEvent.nativeKeyEvent.keyCode
+                        when (keyCode) {
+                            gamepadSettings.keyPageUp -> {
+                                coroutineScope.launch {
+                                    val targetIndex = maxOf(0, listState.firstVisibleItemIndex - 10)
+                                    listState.animateScrollToItem(targetIndex)
+                                }
+                                true
+                            }
+                            gamepadSettings.keyPageDown -> {
+                                coroutineScope.launch {
+                                    val targetIndex = minOf(maxOf(0, dirContents.size - 1), listState.firstVisibleItemIndex + 10)
+                                    listState.animateScrollToItem(targetIndex)
+                                }
+                                true
+                            }
+                            gamepadSettings.keyGoToTop -> {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(0)
+                                }
+                                true
+                            }
+                            gamepadSettings.keyGoToBottom -> {
+                                coroutineScope.launch {
+                                    if (dirContents.isNotEmpty()) {
+                                        listState.animateScrollToItem(dirContents.size - 1)
+                                    }
+                                }
+                                true
+                            }
+                            else -> false
+                        }
+                    } else false
+                },
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
@@ -234,7 +299,8 @@ fun FilePickerDialog(
                                     it.extension.equals("jpg", ignoreCase = true) ||
                                     it.extension.equals("jpeg", ignoreCase = true) ||
                                     it.extension.equals("webp", ignoreCase = true) ||
-                                    it.extension.equals("gif", ignoreCase = true)
+                                    it.extension.equals("gif", ignoreCase = true) ||
+                                    it.extension.equals("svg", ignoreCase = true)
                                 )
                             } ?: false
 
@@ -293,7 +359,7 @@ fun FilePickerDialog(
                             )
                         }
                     } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                             items(dirContents, key = { it.absolutePath }) { file ->
                                 val isSelected = selectedFile?.absolutePath == file.absolutePath
                                 Row(
@@ -319,7 +385,8 @@ fun FilePickerDialog(
                                         file.extension.equals("jpg", ignoreCase = true) ||
                                         file.extension.equals("jpeg", ignoreCase = true) ||
                                         file.extension.equals("webp", ignoreCase = true) ||
-                                        file.extension.equals("gif", ignoreCase = true)
+                                        file.extension.equals("gif", ignoreCase = true) ||
+                                        file.extension.equals("svg", ignoreCase = true)
                                     )
 
                                     if (isImage) {

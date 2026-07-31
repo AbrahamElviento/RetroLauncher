@@ -151,10 +151,10 @@ fun SystemMainMenu(
                 when (headerFocusedIndex) {
                     0 -> onOpenSystemManager()
                     1 -> {
-                        displayStyle = if (displayStyle == SystemDisplayStyle.TEXT_LIST) {
-                            if (defaultDisplayStyle == "GRID_ALT") SystemDisplayStyle.GRID_ALT else SystemDisplayStyle.ICON_GRID
-                        } else {
-                            SystemDisplayStyle.TEXT_LIST
+                        displayStyle = when (displayStyle) {
+                            SystemDisplayStyle.ICON_GRID -> SystemDisplayStyle.GRID_ALT
+                            SystemDisplayStyle.GRID_ALT -> SystemDisplayStyle.TEXT_LIST
+                            SystemDisplayStyle.TEXT_LIST -> SystemDisplayStyle.ICON_GRID
                         }
                         val styleStr = when (displayStyle) {
                             SystemDisplayStyle.ICON_GRID -> "ICON_GRID"
@@ -163,7 +163,6 @@ fun SystemMainMenu(
                         }
                         onToggleDisplayStyle?.invoke(styleStr)
                     }
-                    2 -> onOpenMainSettings()
                 }
             } else if (currentFocusedSystem != null) {
                 onSelectAndEnterSystem(currentFocusedSystem)
@@ -221,7 +220,7 @@ fun SystemMainMenu(
 
                 // Selectable Header Buttons with increased margin
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
@@ -235,21 +234,21 @@ fun SystemMainMenu(
                         },
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (isHeaderFocused && headerFocusedIndex == 0) MaterialTheme.colorScheme.primary
+                                if (isMenuFocused && isHeaderFocused && headerFocusedIndex == 0) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surfaceVariant
                             )
                             .border(
-                                width = if (isHeaderFocused && headerFocusedIndex == 0) 2.dp else 0.dp,
+                                width = if (isMenuFocused && isHeaderFocused && headerFocusedIndex == 0) 2.dp else 0.dp,
                                 color = MaterialTheme.colorScheme.primary,
-                                shape = androidx.compose.foundation.shape.CircleShape
+                                shape = RoundedCornerShape(8.dp)
                             )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Dns,
                             contentDescription = "Emulator System Manager",
-                            tint = if (isHeaderFocused && headerFocusedIndex == 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isMenuFocused && isHeaderFocused && headerFocusedIndex == 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -259,10 +258,10 @@ fun SystemMainMenu(
                         onClick = {
                             isHeaderFocused = true
                             headerFocusedIndex = 1
-                            displayStyle = if (displayStyle == SystemDisplayStyle.TEXT_LIST) {
-                                if (defaultDisplayStyle == "GRID_ALT") SystemDisplayStyle.GRID_ALT else SystemDisplayStyle.ICON_GRID
-                            } else {
-                                SystemDisplayStyle.TEXT_LIST
+                            displayStyle = when (displayStyle) {
+                                SystemDisplayStyle.ICON_GRID -> SystemDisplayStyle.GRID_ALT
+                                SystemDisplayStyle.GRID_ALT -> SystemDisplayStyle.TEXT_LIST
+                                SystemDisplayStyle.TEXT_LIST -> SystemDisplayStyle.ICON_GRID
                             }
                             val styleStr = when (displayStyle) {
                                 SystemDisplayStyle.ICON_GRID -> "ICON_GRID"
@@ -274,50 +273,25 @@ fun SystemMainMenu(
                         },
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (isHeaderFocused && headerFocusedIndex == 1) MaterialTheme.colorScheme.primary
+                                if (isMenuFocused && isHeaderFocused && headerFocusedIndex == 1) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surfaceVariant
                             )
                             .border(
-                                width = if (isHeaderFocused && headerFocusedIndex == 1) 2.dp else 0.dp,
+                                width = if (isMenuFocused && isHeaderFocused && headerFocusedIndex == 1) 2.dp else 0.dp,
                                 color = MaterialTheme.colorScheme.primary,
-                                shape = androidx.compose.foundation.shape.CircleShape
+                                shape = RoundedCornerShape(8.dp)
                             )
                     ) {
                         Icon(
-                            imageVector = if (displayStyle != SystemDisplayStyle.TEXT_LIST) Icons.Default.GridView else Icons.Default.ViewList,
+                            imageVector = when (displayStyle) {
+                                SystemDisplayStyle.ICON_GRID -> Icons.Default.GridView
+                                SystemDisplayStyle.GRID_ALT -> Icons.Default.Apps
+                                SystemDisplayStyle.TEXT_LIST -> Icons.Default.ViewList
+                            },
                             contentDescription = "Toggle Grid / List Mode",
-                            tint = if (isHeaderFocused && headerFocusedIndex == 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    // 2. Main Settings Button
-                    IconButton(
-                        onClick = {
-                            isHeaderFocused = true
-                            headerFocusedIndex = 2
-                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-                            onOpenMainSettings()
-                        },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(
-                                if (isHeaderFocused && headerFocusedIndex == 2) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
-                            .border(
-                                width = if (isHeaderFocused && headerFocusedIndex == 2) 2.dp else 0.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = androidx.compose.foundation.shape.CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Main Settings",
-                            tint = if (isHeaderFocused && headerFocusedIndex == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isMenuFocused && isHeaderFocused && headerFocusedIndex == 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -420,7 +394,7 @@ fun SystemMainMenu(
                             lastHandledRight = dpadRightTrigger
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                             if (isHeaderFocused) {
-                                headerFocusedIndex = minOf(2, headerFocusedIndex + 1)
+                                headerFocusedIndex = minOf(1, headerFocusedIndex + 1)
                             } else {
                                 if (focusedIndex + 1 < systems.size) {
                                     focusedIndex += 1
@@ -605,7 +579,7 @@ fun SystemMainMenu(
                             lastHandledRight = dpadRightTrigger
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                             if (isHeaderFocused) {
-                                headerFocusedIndex = minOf(2, headerFocusedIndex + 1)
+                                headerFocusedIndex = minOf(1, headerFocusedIndex + 1)
                             } else {
                                 if (focusedIndex + 1 < systems.size) {
                                     focusedIndex += 1

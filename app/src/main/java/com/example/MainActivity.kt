@@ -23,6 +23,9 @@ import android.view.InputDevice
 import android.view.MotionEvent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import coil.ImageLoader
+import coil.decode.SvgDecoder
+import coil.Coil
 
 class MainActivity : ComponentActivity() {
 
@@ -30,6 +33,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize Coil with SVG decoder support
+        val imageLoader = ImageLoader.Builder(this)
+            .components {
+                add(SvgDecoder.Factory())
+            }
+            .build()
+        Coil.setImageLoader(imageLoader)
+
         enableEdgeToEdge()
         checkAndRequestStoragePermissions()
         setContent {

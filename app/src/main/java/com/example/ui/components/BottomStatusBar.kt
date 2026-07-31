@@ -39,6 +39,13 @@ fun BottomStatusBar(
     if (!settings.showBottomBar) return
 
     val context = LocalContext.current
+    val attributionContext = remember(context) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            context.createAttributionContext("default")
+        } else {
+            context
+        }
+    }
 
     // Live Time state
     var currentTimeStr by remember { mutableStateOf("") }
@@ -54,7 +61,7 @@ fun BottomStatusBar(
     var batteryPercent by remember { mutableIntStateOf(100) }
     var isCharging by remember { mutableStateOf(false) }
 
-    DisposableEffect(context) {
+    DisposableEffect(attributionContext) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 intent?.let {
@@ -70,11 +77,11 @@ fun BottomStatusBar(
             }
         }
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        context.registerReceiver(receiver, filter)
+        attributionContext.registerReceiver(receiver, filter)
 
         onDispose {
             try {
-                context.unregisterReceiver(receiver)
+                attributionContext.unregisterReceiver(receiver)
             } catch (e: Exception) {
                 // Ignore if unregister fails
             }
@@ -83,8 +90,8 @@ fun BottomStatusBar(
 
     // Wifi state check
     var isWifiConnected by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+    LaunchedEffect(attributionContext) {
+        val cm = attributionContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         while (true) {
             val net = cm?.activeNetwork
             val caps = cm?.getNetworkCapabilities(net)
@@ -95,8 +102,9 @@ fun BottomStatusBar(
 
     // Bluetooth state check
     var isBluetoothEnabled by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        val btAdapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+    LaunchedEffect(attributionContext) {
+        val bluetoothManager = attributionContext.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
+        val btAdapter = bluetoothManager?.adapter ?: android.bluetooth.BluetoothAdapter.getDefaultAdapter()
         while (true) {
             isBluetoothEnabled = btAdapter?.isEnabled == true
             delay(5000L)

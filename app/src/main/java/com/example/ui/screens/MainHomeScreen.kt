@@ -183,13 +183,11 @@ fun MainHomeScreen(
                             }
                         } else {
                             if (activeFocusZone == ActiveFocusZone.TOP_BAR) {
+                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR
+                            } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
                                 activeFocusZone = ActiveFocusZone.ROM_LIST
                             } else if (activeFocusZone == ActiveFocusZone.ROM_LIST) {
                                 dpadUpTrigger = System.currentTimeMillis()
-                            } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
-                                if (bottomBarSettings.showBottomBar) {
-                                    activeFocusZone = ActiveFocusZone.BOTTOM_BAR
-                                }
                             }
                         }
                         true
@@ -197,7 +195,7 @@ fun MainHomeScreen(
                     keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
                         if (!displaySettings.swapTopAndBottomBar) {
                             if (activeFocusZone == ActiveFocusZone.TOP_BAR) {
-                                activeFocusZone = ActiveFocusZone.SYSTEM_SELECTOR
+                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR
                             } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
                                 activeFocusZone = ActiveFocusZone.ROM_LIST
                             } else if (activeFocusZone == ActiveFocusZone.ROM_LIST) {
@@ -205,7 +203,7 @@ fun MainHomeScreen(
                             }
                         } else {
                             if (activeFocusZone == ActiveFocusZone.BOTTOM_BAR) {
-                                activeFocusZone = ActiveFocusZone.SYSTEM_SELECTOR
+                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR
                             } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
                                 activeFocusZone = ActiveFocusZone.ROM_LIST
                             } else if (activeFocusZone == ActiveFocusZone.ROM_LIST) {
@@ -350,19 +348,16 @@ fun MainHomeScreen(
                 TopAppBar(
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                shape = CircleShape,
-                                modifier = Modifier.size(36.dp)
+                            Box(
+                                modifier = Modifier.size(36.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    UniversalIconView(
-                                        iconNameOrPath = displaySettings.launcherIconPath.ifEmpty { "gamepad" },
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
+                                UniversalIconView(
+                                    iconNameOrPath = displaySettings.launcherIconPath.ifEmpty { "gamepad" },
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
@@ -377,7 +372,7 @@ fun MainHomeScreen(
                     },
                     actions = {
                         val topActions = listOf(
-                            Icons.Default.AspectRatio to "Display Canvas Settings",
+                            Icons.Default.Settings to "Display Canvas Settings",
                             Icons.Default.Gamepad to "Gamepad Button Mapping",
                             Icons.Default.FolderZip to "Share Configs"
                         )

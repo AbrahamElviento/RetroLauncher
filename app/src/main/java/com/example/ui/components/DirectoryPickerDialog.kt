@@ -14,6 +14,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -36,6 +44,25 @@ fun DirectoryPickerDialog(
     onDirectorySelected: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+    val gamepadSettings = remember {
+        try {
+            com.example.data.config.ConfigStorageManager(context).loadGamepadSettings()
+        } catch (e: Exception) {
+            com.example.data.model.GamepadSettings()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        try {
+            focusRequester.requestFocus()
+        } catch (e: Exception) {
+            // Ignore if focus request fails initially
+        }
+    }
+
     var isPermissionGranted by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -115,7 +142,46 @@ fun DirectoryPickerDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f)
-                .clip(RoundedCornerShape(20.dp)),
+                .clip(RoundedCornerShape(20.dp))
+                .focusRequester(focusRequester)
+                .focusable()
+                .onKeyEvent { keyEvent ->
+                    if (keyEvent.type == KeyEventType.KeyDown) {
+                        val keyCode = keyEvent.nativeKeyEvent.keyCode
+                        when (keyCode) {
+                            gamepadSettings.keyPageUp -> {
+                                coroutineScope.launch {
+                                    val targetIndex = maxOf(0, listState.firstVisibleItemIndex - 10)
+                                    listState.animateScrollToItem(targetIndex)
+                                }
+                                true
+                            }
+                            gamepadSettings.keyPageDown -> {
+                                coroutineScope.launch {
+                                    val targetIndex = minOf(maxOf(0, subdirectories.size), listState.firstVisibleItemIndex + 10)
+                                    listState.animateScrollToItem(targetIndex)
+                                }
+                                true
+                            }
+                            gamepadSettings.keyGoToTop -> {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(0)
+                                }
+                                true
+                            }
+                            gamepadSettings.keyGoToBottom -> {
+                                coroutineScope.launch {
+                                    val totalCount = subdirectories.size + (if (currentDir.parentFile != null) 1 else 0)
+                                    if (totalCount > 0) {
+                                        listState.animateScrollToItem(totalCount - 1)
+                                    }
+                                }
+                                true
+                            }
+                            else -> false
+                        }
+                    } else false
+                },
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(
@@ -257,6 +323,7 @@ fun DirectoryPickerDialog(
 
                 // Directory Listing
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),

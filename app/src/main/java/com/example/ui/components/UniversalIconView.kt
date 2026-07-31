@@ -31,7 +31,8 @@ fun UniversalIconView(
             file.exists() || iconNameOrPath.startsWith("/") || iconNameOrPath.startsWith("http") ||
                     iconNameOrPath.endsWith(".png", ignoreCase = true) ||
                     iconNameOrPath.endsWith(".jpg", ignoreCase = true) ||
-                    iconNameOrPath.endsWith(".webp", ignoreCase = true)
+                    iconNameOrPath.endsWith(".webp", ignoreCase = true) ||
+                    iconNameOrPath.endsWith(".svg", ignoreCase = true)
         }
     }
 
