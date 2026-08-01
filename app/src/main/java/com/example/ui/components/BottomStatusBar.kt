@@ -7,7 +7,9 @@ import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.BottomBarSettings
@@ -28,12 +32,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BottomStatusBar(
     settings: BottomBarSettings,
     onOpenBarSettings: () -> Unit,
     isFocused: Boolean = false,
     containerColorHex: String = "",
+    notificationText: String? = null,
     modifier: Modifier = Modifier
 ) {
     if (!settings.showBottomBar) return
@@ -173,6 +179,48 @@ fun BottomStatusBar(
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontSize = (settings.iconSizeDp * 0.75f).sp,
                                 fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Center Area: Notification with Marquee if text is too long
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!notificationText.isNullOrBlank()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (notificationText.contains("Scanning", ignoreCase = true)) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(12.dp),
+                                strokeWidth = 1.5.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = notificationText,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = if (notificationText.contains("completed", ignoreCase = true) || notificationText.contains("found", ignoreCase = true)) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            modifier = Modifier.basicMarquee(
+                                iterations = Int.MAX_VALUE,
+                                initialDelayMillis = 1200,
+                                velocity = 30.dp
                             )
                         )
                     }

@@ -45,6 +45,16 @@ import com.example.data.model.TextAlignmentOption
 import kotlinx.coroutines.launch
 import java.io.File
 
+private val topMostSelectedPaths = mutableMapOf<String, String>()
+
+private fun getItemUniqueKey(item: ListDisplayItem): String {
+    return when (item) {
+        is ListDisplayItem.ParentFolderItem -> "__parent__"
+        is ListDisplayItem.FolderItem -> "folder:${item.fullPath}"
+        is ListDisplayItem.GameItem -> "game:${item.game.filePath}"
+    }
+}
+
 sealed class ListDisplayItem {
     object ParentFolderItem : ListDisplayItem()
     data class FolderItem(val name: String, val fullPath: String) : ListDisplayItem()
@@ -176,7 +186,40 @@ fun GameGrid(
         list
     }
 
-    var selectedIndex by remember(currentSystem?.id) { mutableIntStateOf(0) }
+    val validHeaderIndices = remember(isAndroidSystem, isVirtualCollection) {
+        when {
+            isAndroidSystem -> listOf(0, 2)
+            isVirtualCollection -> listOf(2)
+            else -> listOf(0, 1, 2)
+        }
+    }
+
+    LaunchedEffect(validHeaderIndices) {
+        if (headerFocusedIndex !in validHeaderIndices) {
+            headerFocusedIndex = validHeaderIndices.firstOrNull() ?: 2
+        }
+    }
+
+    var selectedIndex by remember(currentSystem?.id) {
+        val sysId = currentSystem?.id ?: ""
+        val savedKey = topMostSelectedPaths[sysId]
+        val initialIdx = if (savedKey != null && currentSubfolderPath.isEmpty()) {
+            val idx = displayItems.indexOfFirst { getItemUniqueKey(it) == savedKey }
+            if (idx >= 0) idx else 0
+        } else {
+            0
+        }
+        mutableIntStateOf(initialIdx)
+    }
+
+    // Whenever selectedIndex changes in top-most directory, remember it
+    LaunchedEffect(selectedIndex, currentSubfolderPath, currentSystem?.id) {
+        if (currentSubfolderPath.isEmpty() && currentSystem != null && selectedIndex in displayItems.indices) {
+            val item = displayItems[selectedIndex]
+            topMostSelectedPaths[currentSystem.id] = getItemUniqueKey(item)
+        }
+    }
+
     var lastSubfolderPath by remember(currentSystem?.id) { mutableStateOf("") }
     var targetHighlightFolder by remember(currentSystem?.id) { mutableStateOf<String?>(null) }
 
@@ -260,7 +303,7 @@ fun GameGrid(
                     scrollToCenter(selectedIndex)
                 } else {
                     isHeaderFocused = true
-                    headerFocusedIndex = 0
+                    headerFocusedIndex = validHeaderIndices.firstOrNull() ?: 2
                 }
             }
         }
@@ -294,7 +337,10 @@ fun GameGrid(
             lastHandledDpadLeft = dpadLeftTrigger
             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
             if (isHeaderFocused) {
-                headerFocusedIndex = maxOf(0, headerFocusedIndex - 1)
+                val currentIndexInValid = validHeaderIndices.indexOf(headerFocusedIndex)
+                if (currentIndexInValid > 0) {
+                    headerFocusedIndex = validHeaderIndices[currentIndexInValid - 1]
+                }
             } else if (listSettings.listStyle == RomListStyle.GRID) {
                 if (selectedIndex > 0) {
                     selectedIndex -= 1
@@ -313,7 +359,10 @@ fun GameGrid(
             lastHandledDpadRight = dpadRightTrigger
             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
             if (isHeaderFocused) {
-                headerFocusedIndex = minOf(2, headerFocusedIndex + 1)
+                val currentIndexInValid = validHeaderIndices.indexOf(headerFocusedIndex)
+                if (currentIndexInValid >= 0 && currentIndexInValid < validHeaderIndices.size - 1) {
+                    headerFocusedIndex = validHeaderIndices[currentIndexInValid + 1]
+                }
             } else if (listSettings.listStyle == RomListStyle.GRID) {
                 if (selectedIndex + 1 < displayItems.size) {
                     selectedIndex += 1
@@ -369,8 +418,18 @@ fun GameGrid(
             lastHandledSelectTrigger = selectActionTrigger
             if (isHeaderFocused) {
                 when (headerFocusedIndex) {
-                    0 -> showDirectoryPicker = true
-                    1 -> onScanFolderClick()
+                    0 -> {
+                        if (isAndroidSystem) {
+                            onOpenAppVisibilityClick?.invoke()
+                        } else if (!isVirtualCollection) {
+                            showDirectoryPicker = true
+                        }
+                    }
+                    1 -> {
+                        if (!isAndroidSystem && !isVirtualCollection) {
+                            onScanFolderClick()
+                        }
+                    }
                     2 -> showStyleDialog = true
                 }
             } else if (displayItems.isNotEmpty()) {
@@ -391,6 +450,7 @@ fun GameGrid(
         if (backActionTrigger > 0L && backActionTrigger != lastHandledBackTrigger) {
             lastHandledBackTrigger = backActionTrigger
             if (currentSubfolderPath.isNotEmpty()) {
+                com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                 navigateUpToParent()
             } else {
                 onBackToMainMenu()
@@ -921,45 +981,7 @@ fun GameGrid(
             }
         }
     }
-
-        if (isScanning) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable(enabled = true, onClick = {}),
-                contentAlignment = Alignment.Center
-            ) {
-                Card(
-                    modifier = Modifier.padding(24.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 4.dp
-                        )
-                        Text(
-                            text = "Scanning directory...",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = currentSystem?.folderPath ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-    }
+}
 
     if (showStyleDialog) {
         ListStyleSettingsDialog(

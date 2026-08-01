@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.app.Activity
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +62,20 @@ fun MainHomeScreen(
     val isScanning by viewModel.isScanning.collectAsStateWithLifecycle()
 
     var showEmptyFolderAlert by remember { mutableStateOf<String?>(null) }
+    var bottomBarNotification by remember { mutableStateOf<String?>(null) }
+    var showScanConfirmation by remember { mutableStateOf<SystemEntity?>(null) }
+
+    // Screen sleep prevention during scanning
+    val activity = context as? Activity
+    DisposableEffect(isScanning) {
+        if (isScanning) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     var showTopBar by remember { mutableStateOf(true) }
 
     var showSearchDialog by remember { mutableStateOf(false) }
@@ -105,6 +122,17 @@ fun MainHomeScreen(
 
     val currentSystem = systems.firstOrNull { it.id == selectedSystemId }
 
+    // Keep bottomBarNotification up to date while scanning
+    LaunchedEffect(isScanning, currentSystem) {
+        if (isScanning) {
+            bottomBarNotification = "Scanning Directory : ${currentSystem?.folderPath ?: ""}"
+        } else {
+            if (bottomBarNotification?.startsWith("Scanning Directory") == true) {
+                bottomBarNotification = null
+            }
+        }
+    }
+
     // Observe launch events
     LaunchedEffect(Unit) {
         viewModel.launchEvent.collect { result ->
@@ -129,8 +157,15 @@ fun MainHomeScreen(
                 is LauncherViewModel.ScanEvent.ScanFinished -> {
                     if (event.romCount == 0) {
                         showEmptyFolderAlert = event.folderPath
+                        bottomBarNotification = "Scan completed! No games found."
                     } else if (event.romCount > 0) {
-                        Toast.makeText(context, "Scan completed! Found ${event.romCount} games.", Toast.LENGTH_SHORT).show()
+                        bottomBarNotification = "Scan completed! Found ${event.romCount} games."
+                    } else {
+                        bottomBarNotification = "Scan completed!"
+                    }
+                    kotlinx.coroutines.delay(5000)
+                    if (!isScanning) {
+                        bottomBarNotification = null
                     }
                 }
             }
@@ -404,8 +439,6 @@ fun MainHomeScreen(
                             ) {
                                 IconButton(
                                     onClick = {
-                                        activeFocusZone = ActiveFocusZone.TOP_BAR
-                                        topBarFocusedIndex = idx
                                         when (idx) {
                                             0 -> showDisplaySettingsDialog = true
                                             1 -> showGamepadSettingsDialog = true
@@ -434,6 +467,7 @@ fun MainHomeScreen(
                 settings = bottomBarSettings,
                 isFocused = (activeFocusZone == ActiveFocusZone.BOTTOM_BAR),
                 containerColorHex = displaySettings.bottomBarColorHex,
+                notificationText = bottomBarNotification,
                 onOpenBarSettings = {
                     activeFocusZone = ActiveFocusZone.BOTTOM_BAR
                     showBottomBarSettingsDialog = true
@@ -540,6 +574,7 @@ fun MainHomeScreen(
                         },
                         onOpenSystemManager = { showSystemManagementDialog = true },
                         onOpenMainMenu = {
+                            com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
                             isMainMenuActive = true
                             viewModel.selectSystem(null)
                             activeFocusZone = ActiveFocusZone.ROM_LIST
@@ -579,7 +614,7 @@ fun MainHomeScreen(
                         },
                         onScanFolderClick = {
                             if (currentSystem != null) {
-                                viewModel.rescanCurrentSystemRoms(currentSystem)
+                                showScanConfirmation = currentSystem
                             }
                         },
                         isScanning = isScanning,
@@ -617,6 +652,7 @@ fun MainHomeScreen(
                         favoriteActionTrigger = favoriteActionTrigger,
                         infoActionTrigger = infoActionTrigger,
                         onBackToMainMenu = {
+                            com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
                             isMainMenuActive = true
                             viewModel.selectSystem(null)
                             activeFocusZone = ActiveFocusZone.ROM_LIST
@@ -738,7 +774,10 @@ fun MainHomeScreen(
         DisplaySettingsDialog(
             currentSettings = displaySettings,
             bottomBarSettings = bottomBarSettings,
-            onDismiss = { showDisplaySettingsDialog = false },
+            onDismiss = {
+                showDisplaySettingsDialog = false
+                activeFocusZone = ActiveFocusZone.ROM_LIST
+            },
             onSaveSettings = { updated ->
                 viewModel.updateDisplaySettings(updated)
                 Toast.makeText(context, "Display bounds updated!", Toast.LENGTH_SHORT).show()
@@ -753,7 +792,10 @@ fun MainHomeScreen(
     if (showGamepadSettingsDialog) {
         GamepadSettingsDialog(
             settings = gamepadSettings,
-            onDismiss = { showGamepadSettingsDialog = false },
+            onDismiss = {
+                showGamepadSettingsDialog = false
+                activeFocusZone = ActiveFocusZone.ROM_LIST
+            },
             onSaveSettings = { updated ->
                 viewModel.updateGamepadSettings(updated)
                 Toast.makeText(context, "Gamepad button mappings saved!", Toast.LENGTH_SHORT).show()
@@ -913,6 +955,123 @@ fun MainHomeScreen(
                     ) {
                         TextButton(onClick = { showEmptyFolderAlert = null }) {
                             Text("OK")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Scan Confirmation Dialog
+    showScanConfirmation?.let { system ->
+        ScaledDialog(
+            onDismissRequest = { showScanConfirmation = null }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .wrapContentHeight()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Text(
+                        text = "Scan Directory",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "scanning directory will take longer time depending on how many files in the directory, are you sure want to do it ?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val bottomBgHex = displaySettings.bottomBarColorHex
+                        val textHex = displaySettings.textColorHex
+                        val buttonBgColor = if (bottomBgHex.isNotBlank()) {
+                            com.example.ui.theme.parseColorHex(bottomBgHex, MaterialTheme.colorScheme.primary)
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        }
+                        val buttonContentColor = if (textHex.isNotBlank()) {
+                            com.example.ui.theme.parseColorHex(textHex, MaterialTheme.colorScheme.onPrimary)
+                        } else {
+                            MaterialTheme.colorScheme.onPrimary
+                        }
+
+                        Button(
+                            onClick = { showScanConfirmation = null },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = buttonBgColor,
+                                contentColor = buttonContentColor
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "No",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                                Text(
+                                    text = "Go back",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 11.sp,
+                                        color = buttonContentColor.copy(alpha = 0.7f)
+                                    )
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                showScanConfirmation = null
+                                viewModel.rescanCurrentSystemRoms(system)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = buttonBgColor,
+                                contentColor = buttonContentColor
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Yeah",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                                Text(
+                                    text = "Man, I wanna do it",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 11.sp,
+                                        color = buttonContentColor.copy(alpha = 0.85f)
+                                    )
+                                )
+                            }
                         }
                     }
                 }
