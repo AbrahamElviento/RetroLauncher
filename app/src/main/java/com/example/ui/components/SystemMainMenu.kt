@@ -52,6 +52,7 @@ fun SystemMainMenu(
     onEditSystem: (SystemEntity) -> Unit,
     onAddSystem: () -> Unit,
     systemMainMenuTitle: String = "SYSTEM MAIN MENU",
+    systemMainMenuDescription: String = "Select a console / system to launch games",
     onOpenSystemManager: () -> Unit = {},
     onOpenMainSettings: () -> Unit = {},
     enableNavigationSound: Boolean = true,
@@ -209,7 +210,7 @@ fun SystemMainMenu(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Select a console / system to launch games",
+                            text = systemMainMenuDescription,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,

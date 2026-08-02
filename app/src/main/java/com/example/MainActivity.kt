@@ -12,6 +12,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
@@ -30,6 +32,8 @@ import coil.Coil
 class MainActivity : ComponentActivity() {
 
     private val viewModel: LauncherViewModel by viewModels()
+    private var lastInteractionTime = System.currentTimeMillis()
+    private var sleepJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -118,7 +122,13 @@ class MainActivity : ComponentActivity() {
                 return true
             }
         }
+        lastInteractionTime = System.currentTimeMillis()
         return super.dispatchGenericMotionEvent(event)
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        lastInteractionTime = System.currentTimeMillis()
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
@@ -128,14 +138,55 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+        sleepJob?.cancel()
         com.example.util.SoundManager.pauseBgm()
     }
 
     override fun onResume() {
         super.onResume()
+        lastInteractionTime = System.currentTimeMillis()
         val displaySettings = viewModel.displaySettings.value
         if (displaySettings.enableBgm) {
             com.example.util.SoundManager.resumeBgm(this)
+        }
+        startSleepTimer()
+    }
+
+    private fun startSleepTimer() {
+        sleepJob?.cancel()
+        sleepJob = lifecycleScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                val displaySettings = viewModel.displaySettings.value
+                
+                // If a scan is currently running, keep resetting the interaction time
+                if (viewModel.isScanning.value) {
+                    lastInteractionTime = System.currentTimeMillis()
+                }
+
+                when (displaySettings.sleepTimeoutMode) {
+                    "ALWAYS_ON" -> {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                    "DEVICE" -> {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                    "CUSTOM" -> {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        
+                        val elapsedSeconds = (System.currentTimeMillis() - lastInteractionTime) / 1000
+                        if (elapsedSeconds >= displaySettings.sleepTimeoutSeconds) {
+                            lastInteractionTime = System.currentTimeMillis()
+                            
+                            val dpm = getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager
+                            val adminComponent = android.content.ComponentName(this@MainActivity, com.example.receiver.AdminReceiver::class.java)
+                            if (dpm?.isAdminActive(adminComponent) == true) {
+                                dpm.lockNow()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

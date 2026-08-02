@@ -39,6 +39,7 @@ data class DisplaySettings(
     val marqueeSpeed: Int = 30,
     val marqueeDelayMillis: Int = 1200,
     val systemMainMenuTitle: String = "SYSTEM MAIN MENU",
+    val systemMainMenuDescription: String = "Select a console / system to launch games",
     val enableNavigationSound: Boolean = true,
     val enableBgm: Boolean = true,
     val mainMenuIconGridScalePercent: Int = 100,
@@ -52,5 +53,11 @@ data class DisplaySettings(
     val systemMainMenuIconPath: String = "gamepad",
     val topBarColorHex: String = "",
     val bottomBarColorHex: String = "",
-    val removeCharsFromGameNames: String = ""
+    val removeCharsFromGameNames: String = "",
+    val enableRomIconPopUp: Boolean = false,
+    val romIconPopUpTimeoutMs: Int = 1000,
+    val romIconPopUpAlignment: String = "middle_center",
+    val romIconPopUpWidthPercent: Int = 30,
+    val sleepTimeoutMode: String = "DEVICE",
+    val sleepTimeoutSeconds: Int = 30
 )

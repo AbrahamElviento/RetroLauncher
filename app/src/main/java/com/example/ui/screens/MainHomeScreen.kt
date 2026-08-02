@@ -4,6 +4,7 @@ import android.app.Activity
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -122,6 +124,29 @@ fun MainHomeScreen(
 
     val currentSystem = systems.firstOrNull { it.id == selectedSystemId }
 
+    val isAnyDialogOpen = showSearchDialog ||
+            showAppVisibilityDialog ||
+            showSystemManagementDialog ||
+            showSystemEditDialog ||
+            showXmlEditorDialog ||
+            showDisplaySettingsDialog ||
+            showConfigFileManagerDialog ||
+            showGamepadSettingsDialog ||
+            showBottomBarSettingsDialog ||
+            showRomListStyleDialog ||
+            showGameDetailsDialog != null ||
+            missingPackageAlert != null ||
+            showEmptyFolderAlert != null ||
+            showScanConfirmation != null
+
+    BackHandler(enabled = !isMainMenuActive && !isAnyDialogOpen) {
+        if (activeFocusZone != ActiveFocusZone.ROM_LIST) {
+            activeFocusZone = ActiveFocusZone.ROM_LIST
+        } else {
+            backActionTrigger = System.currentTimeMillis()
+        }
+    }
+
     // Keep bottomBarNotification up to date while scanning
     LaunchedEffect(isScanning, currentSystem) {
         if (isScanning) {
@@ -207,7 +232,7 @@ fun MainHomeScreen(
                         } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
                             systemSelectorFocusedIndex = maxOf(0, systemSelectorFocusedIndex - 1)
                         } else if (activeFocusZone == ActiveFocusZone.TOP_BAR) {
-                            topBarFocusedIndex = maxOf(0, topBarFocusedIndex - 1)
+                            topBarFocusedIndex = 0
                         }
                         true
                     }
@@ -217,7 +242,7 @@ fun MainHomeScreen(
                         } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
                             systemSelectorFocusedIndex = minOf(4, systemSelectorFocusedIndex + 1)
                         } else if (activeFocusZone == ActiveFocusZone.TOP_BAR) {
-                            topBarFocusedIndex = minOf(2, topBarFocusedIndex + 1)
+                            topBarFocusedIndex = 0
                         }
                         true
                     }
@@ -230,7 +255,7 @@ fun MainHomeScreen(
                             } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
                                 if (showTopBar) {
                                     activeFocusZone = ActiveFocusZone.TOP_BAR
-                                    topBarFocusedIndex = 0
+                                    //topBarFocusedIndex = 0
                                 }
                             }
                         } else {
@@ -304,11 +329,7 @@ fun MainHomeScreen(
                         }
                         when (activeFocusZone) {
                             ActiveFocusZone.TOP_BAR -> {
-                                when (topBarFocusedIndex) {
-                                    0 -> showDisplaySettingsDialog = true
-                                    1 -> showGamepadSettingsDialog = true
-                                    2 -> showConfigFileManagerDialog = true
-                                }
+                                showDisplaySettingsDialog = true
                             }
                             ActiveFocusZone.SYSTEM_SELECTOR -> {
                                 val enabledSystems = systems.filter { it.isEnabled }
@@ -424,36 +445,33 @@ fun MainHomeScreen(
                     },
                     actions = {
                         val topActions = listOf(
-                            Icons.Default.Settings to "Display Canvas Settings",
-                            Icons.Default.Gamepad to "Gamepad Button Mapping",
-                            Icons.Default.FolderZip to "Share Configs"
+                            Icons.Default.Settings to "Display Canvas Settings"
                         )
-
-                        topActions.forEachIndexed { idx, (icon, desc) ->
-                            val isFocused = (activeFocusZone == ActiveFocusZone.TOP_BAR && topBarFocusedIndex == idx)
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isFocused) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                border = if (isFocused) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                                modifier = Modifier.padding(horizontal = 2.dp)
+                    topActions.forEachIndexed { idx, (icon, desc) ->
+                        val isFocused = (activeFocusZone == ActiveFocusZone.TOP_BAR && topBarFocusedIndex == idx)
+                        
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 2.dp)
+                                .border(
+                                    width = if (isFocused) 2.dp else 0.dp,
+                                    color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    showDisplaySettingsDialog = true
+                                },
                             ) {
-                                IconButton(
-                                    onClick = {
-                                        when (idx) {
-                                            0 -> showDisplaySettingsDialog = true
-                                            1 -> showGamepadSettingsDialog = true
-                                            2 -> showConfigFileManagerDialog = true
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = desc,
-                                        tint = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = desc,
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
                             }
                         }
+                    }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = if (displaySettings.topBarColorHex.isNotBlank()) com.example.ui.components.parseHexColor(displaySettings.topBarColorHex, MaterialTheme.colorScheme.surface) else MaterialTheme.colorScheme.surface
@@ -520,6 +538,7 @@ fun MainHomeScreen(
                             showSystemManagementDialog = true
                         },
                         systemMainMenuTitle = displaySettings.systemMainMenuTitle,
+                        systemMainMenuDescription = displaySettings.systemMainMenuDescription,
                         onOpenSystemManager = { showSystemManagementDialog = true },
                         onOpenMainSettings = { showDisplaySettingsDialog = true },
                         enableNavigationSound = displaySettings.enableNavigationSound,
@@ -784,6 +803,12 @@ fun MainHomeScreen(
             },
             onSaveBottomBarSettings = { updatedBarSettings ->
                 viewModel.updateBottomBarSettings(updatedBarSettings)
+            },
+            onOpenGamepadSettings = {
+                showGamepadSettingsDialog = true
+            },
+            onOpenConfigFileManager = {
+                showConfigFileManagerDialog = true
             }
         )
     }

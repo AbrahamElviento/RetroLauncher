@@ -394,10 +394,14 @@ fun SystemEditDetailDialog(
     var iconName by remember { mutableStateOf(system.iconName) }
     var isArcade by remember { mutableStateOf(system.isArcade) }
     var defaultRomIcon by remember { mutableStateOf(system.defaultRomIcon) }
+    var manufacturer by remember { mutableStateOf(system.manufacturer) }
+    var releaseYear by remember { mutableStateOf(system.releaseYear) }
+    var retroarchSaveDir by remember { mutableStateOf(system.retroarchSaveDir) }
 
     var showIconPicker by remember { mutableStateOf(false) }
     var showDirectoryPicker by remember { mutableStateOf(false) }
     var showMediaDirectoryPicker by remember { mutableStateOf(false) }
+    var showRetroarchSaveDirPicker by remember { mutableStateOf(false) }
     var expandedCoreDropdown by remember { mutableStateOf(false) }
     var expandedXmlDropdown by remember { mutableStateOf(false) }
 
@@ -511,6 +515,26 @@ fun SystemEditDetailDialog(
                     singleLine = true
                 )
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = manufacturer,
+                        onValueChange = { manufacturer = it },
+                        label = { Text("Manufacturer") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = releaseYear,
+                        onValueChange = { releaseYear = it },
+                        label = { Text("Release Year") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+
                 OutlinedTextField(
                     value = folderPath,
                     onValueChange = { folderPath = it },
@@ -522,6 +546,24 @@ fun SystemEditDetailDialog(
                             Icon(
                                 imageVector = Icons.Default.FolderOpen,
                                 contentDescription = "Browse Directory",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = retroarchSaveDir,
+                    onValueChange = { retroarchSaveDir = it },
+                    label = { Text("RetroArch Save Directory") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = { showRetroarchSaveDirPicker = true }) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = "Browse RetroArch Save Directory",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -723,7 +765,10 @@ fun SystemEditDetailDialog(
                                     customXmlProfileId = customXmlProfileId,
                                     iconName = iconName,
                                     isArcade = isArcade,
-                                    defaultRomIcon = defaultRomIcon
+                                    defaultRomIcon = defaultRomIcon,
+                                    manufacturer = manufacturer,
+                                    releaseYear = releaseYear,
+                                    retroarchSaveDir = retroarchSaveDir
                                 )
                             )
                             onDismiss()
@@ -752,6 +797,16 @@ fun SystemEditDetailDialog(
             onDismiss = { showMediaDirectoryPicker = false },
             onDirectorySelected = { selectedPath ->
                 boxartFolderPath = selectedPath
+            }
+        )
+    }
+
+    if (showRetroarchSaveDirPicker) {
+        DirectoryPickerDialog(
+            initialPath = if (retroarchSaveDir.isNotBlank()) retroarchSaveDir else folderPath,
+            onDismiss = { showRetroarchSaveDirPicker = false },
+            onDirectorySelected = { selectedPath ->
+                retroarchSaveDir = selectedPath
             }
         )
     }

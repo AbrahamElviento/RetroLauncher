@@ -25,6 +25,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.data.db.GameRomEntity
 import com.example.data.db.SystemEntity
+import com.example.data.util.GameIconResolver
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,6 +38,9 @@ fun SearchDialog(
     onLaunchGame: (GameRomEntity) -> Unit
 ) {
     val context = LocalContext.current
+    val customIcons = remember(context) {
+        com.example.data.config.ConfigStorageManager(context).loadCustomIcons()
+    }
     var searchQuery by remember { mutableStateOf("") }
     var filterByCurrentSystemOnly by remember { mutableStateOf(false) }
 
@@ -242,18 +246,15 @@ fun SearchDialog(
                                                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                                                     )
                                                 }
-                                            } else if (!rom.coverArtPath.isNullOrEmpty() && File(rom.coverArtPath).exists()) {
-                                                AsyncImage(
-                                                    model = rom.coverArtPath,
-                                                    contentDescription = rom.title,
-                                                    modifier = Modifier.fillMaxSize()
-                                                )
                                             } else {
-                                                Icon(
-                                                    imageVector = SystemIconHelper.getIconVector(system?.iconName ?: "gamepad"),
-                                                    contentDescription = null,
+                                                val resolvedIcon = remember(rom, system, customIcons) {
+                                                    GameIconResolver.resolveRomIcon(rom, system, customIcons, systems)
+                                                }
+                                                UniversalIconView(
+                                                    iconNameOrPath = resolvedIcon,
+                                                    contentDescription = rom.title,
                                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                    modifier = Modifier.size(24.dp)
+                                                    modifier = Modifier.fillMaxSize()
                                                 )
                                             }
                                         }

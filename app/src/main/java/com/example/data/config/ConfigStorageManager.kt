@@ -353,6 +353,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "marqueeSpeed").text(settings.marqueeSpeed.toString()).endTag("", "marqueeSpeed")
             serializer.startTag("", "marqueeDelayMillis").text(settings.marqueeDelayMillis.toString()).endTag("", "marqueeDelayMillis")
             serializer.startTag("", "systemMainMenuTitle").text(settings.systemMainMenuTitle).endTag("", "systemMainMenuTitle")
+            serializer.startTag("", "systemMainMenuDescription").text(settings.systemMainMenuDescription).endTag("", "systemMainMenuDescription")
             serializer.startTag("", "enableNavigationSound").text(settings.enableNavigationSound.toString()).endTag("", "enableNavigationSound")
             serializer.startTag("", "enableBgm").text(settings.enableBgm.toString()).endTag("", "enableBgm")
             serializer.startTag("", "mainMenuIconGridScalePercent").text(settings.mainMenuIconGridScalePercent.toString()).endTag("", "mainMenuIconGridScalePercent")
@@ -367,6 +368,12 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "topBarColorHex").text(settings.topBarColorHex).endTag("", "topBarColorHex")
             serializer.startTag("", "bottomBarColorHex").text(settings.bottomBarColorHex).endTag("", "bottomBarColorHex")
             serializer.startTag("", "removeCharsFromGameNames").text(settings.removeCharsFromGameNames).endTag("", "removeCharsFromGameNames")
+            serializer.startTag("", "enableRomIconPopUp").text(settings.enableRomIconPopUp.toString()).endTag("", "enableRomIconPopUp")
+            serializer.startTag("", "romIconPopUpTimeoutMs").text(settings.romIconPopUpTimeoutMs.toString()).endTag("", "romIconPopUpTimeoutMs")
+            serializer.startTag("", "romIconPopUpAlignment").text(settings.romIconPopUpAlignment).endTag("", "romIconPopUpAlignment")
+            serializer.startTag("", "romIconPopUpWidthPercent").text(settings.romIconPopUpWidthPercent.toString()).endTag("", "romIconPopUpWidthPercent")
+            serializer.startTag("", "sleepTimeoutMode").text(settings.sleepTimeoutMode).endTag("", "sleepTimeoutMode")
+            serializer.startTag("", "sleepTimeoutSeconds").text(settings.sleepTimeoutSeconds.toString()).endTag("", "sleepTimeoutSeconds")
 
             serializer.endTag("", "DisplaySettings")
             serializer.endDocument()
@@ -419,6 +426,7 @@ class ConfigStorageManager(private val context: Context) {
             var marqueeSpeed = 30
             var marqueeDelayMillis = 1200
             var systemMainMenuTitle = "SYSTEM MAIN MENU"
+            var systemMainMenuDescription = "Select a console / system to launch games"
             var enableNavigationSound = true
             var enableBgm = true
             var mainMenuIconGridScalePercent = 100
@@ -433,6 +441,12 @@ class ConfigStorageManager(private val context: Context) {
             var topBarColorHex = ""
             var bottomBarColorHex = ""
             var removeCharsFromGameNames = ""
+            var enableRomIconPopUp = false
+            var romIconPopUpTimeoutMs = 1000
+            var romIconPopUpAlignment = "middle_center"
+            var romIconPopUpWidthPercent = 30
+            var sleepTimeoutMode = "DEVICE"
+            var sleepTimeoutSeconds = 30
 
             var currentTag = ""
 
@@ -474,6 +488,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "marqueeSpeed" -> marqueeSpeed = text.toIntOrNull() ?: 30
                                 "marqueeDelayMillis" -> marqueeDelayMillis = text.toIntOrNull() ?: 1200
                                 "systemMainMenuTitle" -> systemMainMenuTitle = text
+                                "systemMainMenuDescription" -> systemMainMenuDescription = text
                                 "enableNavigationSound" -> enableNavigationSound = text.toBooleanStrictOrNull() ?: true
                                 "enableBgm" -> enableBgm = text.toBooleanStrictOrNull() ?: true
                                 "mainMenuIconGridScalePercent" -> mainMenuIconGridScalePercent = text.toIntOrNull() ?: 100
@@ -488,6 +503,12 @@ class ConfigStorageManager(private val context: Context) {
                                 "topBarColorHex" -> topBarColorHex = text
                                 "bottomBarColorHex" -> bottomBarColorHex = text
                                 "removeCharsFromGameNames" -> removeCharsFromGameNames = text
+                                "enableRomIconPopUp" -> enableRomIconPopUp = text.toBooleanStrictOrNull() ?: false
+                                "romIconPopUpTimeoutMs" -> romIconPopUpTimeoutMs = text.toIntOrNull() ?: 1000
+                                "romIconPopUpAlignment" -> romIconPopUpAlignment = text
+                                "romIconPopUpWidthPercent" -> romIconPopUpWidthPercent = text.toIntOrNull() ?: 30
+                                "sleepTimeoutMode" -> sleepTimeoutMode = text
+                                "sleepTimeoutSeconds" -> sleepTimeoutSeconds = text.toIntOrNull() ?: 30
                             }
                         }
                     }
@@ -526,6 +547,7 @@ class ConfigStorageManager(private val context: Context) {
                 marqueeSpeed = marqueeSpeed,
                 marqueeDelayMillis = marqueeDelayMillis,
                 systemMainMenuTitle = systemMainMenuTitle,
+                systemMainMenuDescription = systemMainMenuDescription,
                 enableNavigationSound = enableNavigationSound,
                 enableBgm = enableBgm,
                 mainMenuIconGridScalePercent = mainMenuIconGridScalePercent,
@@ -539,7 +561,13 @@ class ConfigStorageManager(private val context: Context) {
                 systemMainMenuIconPath = systemMainMenuIconPath,
                 topBarColorHex = topBarColorHex,
                 bottomBarColorHex = bottomBarColorHex,
-                removeCharsFromGameNames = removeCharsFromGameNames
+                removeCharsFromGameNames = removeCharsFromGameNames,
+                enableRomIconPopUp = enableRomIconPopUp,
+                romIconPopUpTimeoutMs = romIconPopUpTimeoutMs,
+                romIconPopUpAlignment = romIconPopUpAlignment,
+                romIconPopUpWidthPercent = romIconPopUpWidthPercent,
+                sleepTimeoutMode = sleepTimeoutMode,
+                sleepTimeoutSeconds = sleepTimeoutSeconds
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -914,6 +942,7 @@ class ConfigStorageManager(private val context: Context) {
                 serializer.startTag("", "iconName").text(sys.iconName).endTag("", "iconName")
                 serializer.startTag("", "isArcade").text(sys.isArcade.toString()).endTag("", "isArcade")
                 serializer.startTag("", "defaultRomIcon").text(sys.defaultRomIcon).endTag("", "defaultRomIcon")
+                serializer.startTag("", "retroarchSaveDir").text(sys.retroarchSaveDir).endTag("", "retroarchSaveDir")
                 serializer.startTag("", "manufacturer").text(sys.manufacturer).endTag("", "manufacturer")
                 serializer.startTag("", "releaseYear").text(sys.releaseYear).endTag("", "releaseYear")
                 serializer.endTag("", "system")
@@ -953,6 +982,7 @@ class ConfigStorageManager(private val context: Context) {
             var iconName = "gamepad"
             var isArcade = false
             var defaultRomIcon = ""
+            var retroarchSaveDir = ""
             var manufacturer = ""
             var releaseYear = ""
             var displayOrder = 0
@@ -978,6 +1008,7 @@ class ConfigStorageManager(private val context: Context) {
                             iconName = "gamepad"
                             isArcade = false
                             defaultRomIcon = ""
+                            retroarchSaveDir = ""
                             manufacturer = ""
                             releaseYear = ""
                             displayOrder = list.size
@@ -1001,6 +1032,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "iconName" -> iconName = text
                                 "isArcade" -> isArcade = text.toBooleanStrictOrNull() ?: false
                                 "defaultRomIcon" -> defaultRomIcon = text
+                                "retroarchSaveDir" -> retroarchSaveDir = text
                                 "manufacturer" -> manufacturer = text
                                 "releaseYear" -> releaseYear = text
                                 "displayOrder" -> displayOrder = text.toIntOrNull() ?: list.size
@@ -1026,6 +1058,7 @@ class ConfigStorageManager(private val context: Context) {
                                     iconName = iconName,
                                     isArcade = isArcade,
                                     defaultRomIcon = defaultRomIcon,
+                                    retroarchSaveDir = retroarchSaveDir,
                                     manufacturer = manufacturer,
                                     releaseYear = releaseYear,
                                     displayOrder = displayOrder,

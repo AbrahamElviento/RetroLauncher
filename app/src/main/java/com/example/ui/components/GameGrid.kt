@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.db.GameRomEntity
 import com.example.data.db.SystemEntity
+import com.example.data.util.GameIconResolver
 import com.example.data.model.RomListSettings
 import com.example.data.model.RomListStyle
 import com.example.data.model.TextAlignmentOption
@@ -222,6 +223,26 @@ fun GameGrid(
 
     var lastSubfolderPath by remember(currentSystem?.id) { mutableStateOf("") }
     var targetHighlightFolder by remember(currentSystem?.id) { mutableStateOf<String?>(null) }
+
+    val displaySettings = LocalDisplaySettings.current
+    var showRomIconPopUp by remember { mutableStateOf(false) }
+
+    LaunchedEffect(
+        selectedIndex,
+        displayItems,
+        isListFocused,
+        isHeaderFocused,
+        displaySettings.enableRomIconPopUp,
+        displaySettings.romIconPopUpTimeoutMs
+    ) {
+        showRomIconPopUp = false
+        val currentSelectedItem = displayItems.getOrNull(selectedIndex)
+        if (displaySettings.enableRomIconPopUp && isListFocused && !isHeaderFocused && currentSelectedItem is ListDisplayItem.GameItem) {
+            val delayMs = displaySettings.romIconPopUpTimeoutMs.toLong().coerceAtLeast(0L)
+            kotlinx.coroutines.delay(delayMs)
+            showRomIconPopUp = true
+        }
+    }
 
     if (lastSubfolderPath != currentSubfolderPath) {
         val targetFolder = targetHighlightFolder
@@ -659,7 +680,15 @@ fun GameGrid(
             }
         }
 
-        if (displayItems.isEmpty()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            val selectionAreaWidth = maxWidth
+            val selectionAreaHeight = maxHeight
+
+            if (displayItems.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -979,6 +1008,102 @@ fun GameGrid(
                     }
                 }
             }
+
+            // Floating Auto Pop-up Icon Preview Overlay
+            if (showRomIconPopUp) {
+                val currentSelectedItem = displayItems.getOrNull(selectedIndex)
+                if (currentSelectedItem is ListDisplayItem.GameItem) {
+                    val game = currentSelectedItem.game
+                    val popUpAlignment = when (displaySettings.romIconPopUpAlignment) {
+                        "top_left" -> Alignment.TopStart
+                        "top_center" -> Alignment.TopCenter
+                        "top_right" -> Alignment.TopEnd
+                        "middle_left" -> Alignment.CenterStart
+                        "middle_center" -> Alignment.Center
+                        "middle_right" -> Alignment.CenterEnd
+                        "bottom_left" -> Alignment.BottomStart
+                        "bottom_center" -> Alignment.BottomCenter
+                        "bottom_right" -> Alignment.BottomEnd
+                        else -> Alignment.Center
+                    }
+
+                    val popUpWidthPercent = (displaySettings.romIconPopUpWidthPercent / 100f).coerceIn(0.05f, 1.0f)
+                    val popUpWidth = selectionAreaWidth * popUpWidthPercent
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = popUpAlignment
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                            tonalElevation = 8.dp,
+                            shadowElevation = 12.dp,
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier
+                                .width(popUpWidth)
+                                .aspectRatio(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val resolvedIcon = remember(game, currentSystem, customIcons) {
+                                    GameIconResolver.resolveRomIcon(game, currentSystem, customIcons, allSystems)
+                                }
+                                if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || currentSystem?.defaultLaunchMode == "ANDROID_APP") {
+                                    val customIcon = customIcons[game.filePath]
+                                    if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
+                                        UniversalIconView(
+                                            iconNameOrPath = customIcon,
+                                            contentDescription = game.title,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        val appIcon = remember(game.filePath) {
+                                            try {
+                                                context.packageManager.getApplicationIcon(game.filePath)
+                                            } catch (e: Exception) {
+                                                null
+                                            }
+                                        }
+                                        if (appIcon != null) {
+                                            Image(
+                                                bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                                                contentDescription = game.title,
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Fit
+                                            )
+                                        } else {
+                                            UniversalIconView(
+                                                iconNameOrPath = "android",
+                                                contentDescription = game.title,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    UniversalIconView(
+                                        iconNameOrPath = resolvedIcon,
+                                        contentDescription = game.title,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         }
     }
 }
@@ -1298,60 +1423,53 @@ fun GameGridCardItem(
                 .height(120.dp * cardHeightScale)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            if (!game.coverArtPath.isNullOrEmpty()) {
-                AsyncImage(
-                    model = game.coverArtPath,
-                    contentDescription = game.title,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
-                val appIcon = remember(game.filePath) {
-                    try {
-                        context.packageManager.getApplicationIcon(game.filePath)
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-                if (appIcon != null) {
-                    Image(
-                        bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+            val resolvedIcon = remember(game, system, customIcons) {
+                GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
+            }
+            if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
+                val customIcon = customIcons[game.filePath]
+                if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
+                    UniversalIconView(
+                        iconNameOrPath = customIcon,
                         contentDescription = game.title,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    UniversalIconView(
-                        iconNameOrPath = "android",
-                        contentDescription = game.title,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(48.dp)
-                    )
-                }
-            } else {
-                val iconToUse = when {
-                    customIcons.containsKey(game.filePath) -> customIcons[game.filePath] ?: "gamepad"
-                    !system?.defaultRomIcon.isNullOrBlank() -> system!!.defaultRomIcon
-                    system?.id == "favorites" || system?.id == "recently_played" -> {
-                        val matchedSystem = allSystems.firstOrNull { it.id == game.systemId }
-                        when {
-                            matchedSystem != null && !matchedSystem.defaultRomIcon.isNullOrBlank() -> matchedSystem.defaultRomIcon
-                            matchedSystem != null && !matchedSystem.iconName.isNullOrBlank() -> matchedSystem.iconName
-                            else -> game.systemId
+                    val appIcon = remember(game.filePath) {
+                        try {
+                            context.packageManager.getApplicationIcon(game.filePath)
+                        } catch (e: Exception) {
+                            null
                         }
                     }
-                    !system?.iconName.isNullOrBlank() -> system!!.iconName
-                    else -> "gamepad"
+                    if (appIcon != null) {
+                        Image(
+                            bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                            contentDescription = game.title,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp)
+                        )
+                    } else {
+                        UniversalIconView(
+                            iconNameOrPath = "android",
+                            contentDescription = game.title,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(48.dp)
+                        )
+                    }
+                }
+            } else {
+                val isExternal = remember(resolvedIcon) {
+                    resolvedIcon.startsWith("/") || resolvedIcon.startsWith("http") || File(resolvedIcon).exists()
                 }
                 UniversalIconView(
-                    iconNameOrPath = iconToUse,
+                    iconNameOrPath = resolvedIcon,
                     contentDescription = game.title,
                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(48.dp)
+                    modifier = if (isExternal) Modifier.fillMaxSize() else Modifier.align(Alignment.Center).size(48.dp)
                 )
             }
 
@@ -1484,47 +1602,38 @@ fun GameListRowItem(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                if (!game.coverArtPath.isNullOrEmpty() && File(game.coverArtPath).exists()) {
-                    AsyncImage(
-                        model = game.coverArtPath,
-                        contentDescription = game.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
-                    val appIcon = remember(game.filePath) {
-                        try {
-                            context.packageManager.getApplicationIcon(game.filePath)
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                    if (appIcon != null) {
-                        Image(
-                            bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                val resolvedIcon = remember(game, system, customIcons) {
+                    GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
+                }
+                if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
+                    val customIcon = customIcons[game.filePath]
+                    if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
+                        UniversalIconView(
+                            iconNameOrPath = customIcon,
                             contentDescription = game.title,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Icon(Icons.Default.Android, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                } else {
-                    val iconToUse = when {
-                        customIcons.containsKey(game.filePath) -> customIcons[game.filePath] ?: "gamepad"
-                        !system?.defaultRomIcon.isNullOrBlank() -> system!!.defaultRomIcon
-                        system?.id == "favorites" || system?.id == "recently_played" -> {
-                            val matchedSystem = allSystems.firstOrNull { it.id == game.systemId }
-                            when {
-                                matchedSystem != null && !matchedSystem.defaultRomIcon.isNullOrBlank() -> matchedSystem.defaultRomIcon
-                                matchedSystem != null && !matchedSystem.iconName.isNullOrBlank() -> matchedSystem.iconName
-                                else -> game.systemId
+                        val appIcon = remember(game.filePath) {
+                            try {
+                                context.packageManager.getApplicationIcon(game.filePath)
+                            } catch (e: Exception) {
+                                null
                             }
                         }
-                        !system?.iconName.isNullOrBlank() -> system!!.iconName
-                        else -> "gamepad"
+                        if (appIcon != null) {
+                            Image(
+                                bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                                contentDescription = game.title,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        } else {
+                            Icon(Icons.Default.Android, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
                     }
+                } else {
                     UniversalIconView(
-                        iconNameOrPath = iconToUse,
+                        iconNameOrPath = resolvedIcon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
@@ -1636,49 +1745,39 @@ fun GameTextOnlyItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (settings.showArtworkInTextOnly) {
-                if (!game.coverArtPath.isNullOrEmpty() && File(game.coverArtPath).exists()) {
-                    AsyncImage(
-                        model = game.coverArtPath,
-                        contentDescription = game.title,
-                        modifier = Modifier
-                            .size((settings.textSizeSp * 1.5f).dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
-                    val appIcon = remember(game.filePath) {
-                        try {
-                            context.packageManager.getApplicationIcon(game.filePath)
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                    if (appIcon != null) {
-                        Image(
-                            bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                val resolvedIcon = remember(game, system, customIcons) {
+                    GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
+                }
+                if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
+                    val customIcon = customIcons[game.filePath]
+                    if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
+                        UniversalIconView(
+                            iconNameOrPath = customIcon,
                             contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size((settings.textSizeSp * 1.2f).dp)
                         )
                     } else {
-                        Icon(Icons.Default.Android, contentDescription = null, modifier = Modifier.size((settings.textSizeSp * 1.2f).dp))
-                    }
-                } else {
-                    val iconToUse = when {
-                        customIcons.containsKey(game.filePath) -> customIcons[game.filePath] ?: "gamepad"
-                        !system?.defaultRomIcon.isNullOrBlank() -> system!!.defaultRomIcon
-                        system?.id == "favorites" || system?.id == "recently_played" -> {
-                            val matchedSystem = allSystems.firstOrNull { it.id == game.systemId }
-                            when {
-                                matchedSystem != null && !matchedSystem.defaultRomIcon.isNullOrBlank() -> matchedSystem.defaultRomIcon
-                                matchedSystem != null && !matchedSystem.iconName.isNullOrBlank() -> matchedSystem.iconName
-                                else -> game.systemId
+                        val appIcon = remember(game.filePath) {
+                            try {
+                                context.packageManager.getApplicationIcon(game.filePath)
+                            } catch (e: Exception) {
+                                null
                             }
                         }
-                        !system?.iconName.isNullOrBlank() -> system!!.iconName
-                        else -> "gamepad"
+                        if (appIcon != null) {
+                            Image(
+                                bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.size((settings.textSizeSp * 1.2f).dp)
+                            )
+                        } else {
+                            Icon(Icons.Default.Android, contentDescription = null, modifier = Modifier.size((settings.textSizeSp * 1.2f).dp))
+                        }
                     }
+                } else {
                     UniversalIconView(
-                        iconNameOrPath = iconToUse,
+                        iconNameOrPath = resolvedIcon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size((settings.textSizeSp * 1.2f).dp)

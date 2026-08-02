@@ -36,7 +36,9 @@ fun DisplaySettingsDialog(
     bottomBarSettings: BottomBarSettings? = null,
     onDismiss: () -> Unit,
     onSaveSettings: (DisplaySettings) -> Unit,
-    onSaveBottomBarSettings: ((BottomBarSettings) -> Unit)? = null
+    onSaveBottomBarSettings: ((BottomBarSettings) -> Unit)? = null,
+    onOpenGamepadSettings: (() -> Unit)? = null,
+    onOpenConfigFileManager: (() -> Unit)? = null
 ) {
     // Accordion Expansion States
     var expandedScreen by remember { mutableStateOf(true) }
@@ -79,6 +81,7 @@ fun DisplaySettingsDialog(
     // System Main Menu States
     var showSystemMainMenuTitle by remember { mutableStateOf(currentSettings.showSystemMainMenuTitle) }
     var systemMainMenuTitleText by remember { mutableStateOf(currentSettings.systemMainMenuTitle) }
+    var systemMainMenuDescriptionText by remember { mutableStateOf(currentSettings.systemMainMenuDescription) }
     var systemMainMenuIconPathText by remember { mutableStateOf(currentSettings.systemMainMenuIconPath) }
     var systemMenuTileMarginLeftText by remember { mutableStateOf(currentSettings.systemMenuTileMarginLeftDp.toString()) }
     var systemMenuTileMarginRightText by remember { mutableStateOf(currentSettings.systemMenuTileMarginRightDp.toString()) }
@@ -113,6 +116,18 @@ fun DisplaySettingsDialog(
     var autoHideScrollbar by remember { mutableStateOf(currentSettings.autoHideScrollbar) }
     var scrollbarShowDurationMsText by remember { mutableStateOf(currentSettings.scrollbarShowDurationMs.toString()) }
     var removeCharsFromGameNamesText by remember { mutableStateOf(currentSettings.removeCharsFromGameNames) }
+
+    // Auto Pop-up Icon States
+    var enableRomIconPopUp by remember { mutableStateOf(currentSettings.enableRomIconPopUp) }
+    var romIconPopUpTimeoutMsText by remember { mutableStateOf(currentSettings.romIconPopUpTimeoutMs.toString()) }
+    var romIconPopUpAlignment by remember { mutableStateOf(currentSettings.romIconPopUpAlignment) }
+    var romIconPopUpWidthPercentText by remember { mutableStateOf(currentSettings.romIconPopUpWidthPercent.toString()) }
+    var expandedAlignmentDropdown by remember { mutableStateOf(false) }
+
+    // Sleep Timeout States
+    var sleepTimeoutMode by remember { mutableStateOf(currentSettings.sleepTimeoutMode) }
+    var sleepTimeoutSecondsText by remember { mutableStateOf(currentSettings.sleepTimeoutSeconds.toString()) }
+    var expandedSleepModeDropdown by remember { mutableStateOf(false) }
 
     ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
@@ -396,34 +411,6 @@ fun DisplaySettingsDialog(
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            Text(
-                                text = "TEXT MARQUEE SETTINGS",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = marqueeSpeedText,
-                                    onValueChange = { marqueeSpeedText = it.filter { c -> c.isDigit() } },
-                                    label = { Text("Speed (dp/s)") },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true
-                                )
-                                OutlinedTextField(
-                                    value = marqueeDelayMillisText,
-                                    onValueChange = { marqueeDelayMillisText = it.filter { c -> c.isDigit() } },
-                                    label = { Text("Delay (ms)") },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true
-                                )
-                            }
                         }
                     }
 
@@ -441,6 +428,18 @@ fun DisplaySettingsDialog(
                                 onValueChange = { systemMainMenuTitleText = it },
                                 label = { Text("System Main Menu Title") },
                                 placeholder = { Text("e.g. SYSTEM MAIN MENU or CONSOLES") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // System Main Menu Description Customization
+                            OutlinedTextField(
+                                value = systemMainMenuDescriptionText,
+                                onValueChange = { systemMainMenuDescriptionText = it },
+                                label = { Text("System Main Menu Description") },
+                                placeholder = { Text("Select a console / system to launch games") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
@@ -1026,6 +1025,299 @@ fun DisplaySettingsDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "AUTO POP-UP ICON SETTINGS",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Auto Pop-up ROM/Game Icon",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "Shows a larger preview of the selected game icon",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = enableRomIconPopUp,
+                                        onCheckedChange = { enableRomIconPopUp = it }
+                                    )
+                                }
+                            }
+
+                            if (enableRomIconPopUp) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = romIconPopUpTimeoutMsText,
+                                        onValueChange = { romIconPopUpTimeoutMsText = it.filter { c -> c.isDigit() } },
+                                        label = { Text("Pop-up Delay (ms)") },
+                                        placeholder = { Text("e.g. 1000") },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                    OutlinedTextField(
+                                        value = romIconPopUpWidthPercentText,
+                                        onValueChange = { romIconPopUpWidthPercentText = it.filter { c -> c.isDigit() } },
+                                        label = { Text("Width Size (%)") },
+                                        placeholder = { Text("e.g. 30") },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                }
+
+                                val alignmentOptions = listOf(
+                                    "top_left" to "Top Left",
+                                    "top_center" to "Top Center",
+                                    "top_right" to "Top Right",
+                                    "middle_left" to "Middle Left",
+                                    "middle_center" to "Middle Center",
+                                    "middle_right" to "Middle Right",
+                                    "bottom_left" to "Bottom Left",
+                                    "bottom_center" to "Bottom Center",
+                                    "bottom_right" to "Bottom Right"
+                                )
+                                val selectedAlignmentLabel = alignmentOptions.firstOrNull { it.first == romIconPopUpAlignment }?.second ?: "Middle Center"
+
+                                ExposedDropdownMenuBox(
+                                    expanded = expandedAlignmentDropdown,
+                                    onExpandedChange = { expandedAlignmentDropdown = !expandedAlignmentDropdown }
+                                ) {
+                                    OutlinedTextField(
+                                        value = selectedAlignmentLabel,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text("Pop-up Position") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAlignmentDropdown) },
+                                        modifier = Modifier
+                                            .menuAnchor()
+                                            .fillMaxWidth(),
+                                        singleLine = true
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = expandedAlignmentDropdown,
+                                        onDismissRequest = { expandedAlignmentDropdown = false }
+                                    ) {
+                                        alignmentOptions.forEach { (alignVal, alignLabel) ->
+                                            DropdownMenuItem(
+                                                text = { Text(alignLabel, style = MaterialTheme.typography.bodyMedium) },
+                                                onClick = {
+                                                    romIconPopUpAlignment = alignVal
+                                                    expandedAlignmentDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "TEXT MARQUEE SETTINGS",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = marqueeSpeedText,
+                                    onValueChange = { marqueeSpeedText = it.filter { c -> c.isDigit() } },
+                                    label = { Text("Speed (dp/s)") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                                OutlinedTextField(
+                                    value = marqueeDelayMillisText,
+                                    onValueChange = { marqueeDelayMillisText = it.filter { c -> c.isDigit() } },
+                                    label = { Text("Delay (ms)") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "APPLICATION SLEEP TIMEOUT",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            val sleepOptions = listOf(
+                                "DEVICE" to "Use device sleep timeout",
+                                "ALWAYS_ON" to "Always on",
+                                "CUSTOM" to "Override in typed seconds"
+                            )
+                            val selectedSleepLabel = sleepOptions.firstOrNull { it.first == sleepTimeoutMode }?.second ?: "Use device sleep timeout"
+
+                            ExposedDropdownMenuBox(
+                                expanded = expandedSleepModeDropdown,
+                                onExpandedChange = { expandedSleepModeDropdown = !expandedSleepModeDropdown }
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedSleepLabel,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Sleep Timeout Option") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedSleepModeDropdown) },
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                ExposedDropdownMenu(
+                                    expanded = expandedSleepModeDropdown,
+                                    onDismissRequest = { expandedSleepModeDropdown = false }
+                                ) {
+                                    sleepOptions.forEach { (sleepVal, sleepLabel) ->
+                                        DropdownMenuItem(
+                                            text = { Text(sleepLabel, style = MaterialTheme.typography.bodyMedium) },
+                                            onClick = {
+                                                sleepTimeoutMode = sleepVal
+                                                expandedSleepModeDropdown = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (sleepTimeoutMode == "CUSTOM") {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = sleepTimeoutSecondsText,
+                                    onValueChange = { sleepTimeoutSecondsText = it.filter { c -> c.isDigit() } },
+                                    label = { Text("Sleep Timeout (seconds)") },
+                                    placeholder = { Text("e.g. 30") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                val dpm = context.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager
+                                val adminComponent = remember { android.content.ComponentName(context, com.example.receiver.AdminReceiver::class.java) }
+                                val isAdminActive = remember(sleepTimeoutMode) { dpm?.isAdminActive(adminComponent) == true }
+
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isAdminActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                                    modifier = Modifier.fillMaxWidth().border(1.dp, if (isAdminActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.error.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text(
+                                            text = if (isAdminActive) "✅ Lock Permission Active" else "⚠️ Lock Permission Required",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = if (isAdminActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                        )
+                                        Text(
+                                            text = if (isAdminActive) 
+                                                "RetroLauncher has permission to turn off the screen directly." 
+                                                else "To turn off the screen directly on sleep timeout, RetroLauncher needs Device Administrator permission.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        if (!isAdminActive) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Button(
+                                                onClick = {
+                                                    val intent = android.content.Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                                                        putExtra(android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                                                        putExtra(android.app.admin.DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Required to turn off the screen directly on sleep timeout.")
+                                                    }
+                                                    context.startActivity(intent)
+                                                },
+                                                modifier = Modifier.align(Alignment.End),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.error,
+                                                    contentColor = MaterialTheme.colorScheme.onError
+                                                )
+                                            ) {
+                                                Text("Grant Permission", style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "SYSTEM TOOLS",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        onDismiss()
+                                        onOpenGamepadSettings?.invoke()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Gamepad, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Gamepad Mapping")
+                                }
+
+                                Button(
+                                    onClick = {
+                                        onDismiss()
+                                        onOpenConfigFileManager?.invoke()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                ) {
+                                    Icon(Icons.Default.FolderZip, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Share Configs")
+                                }
+                            }
                         }
                     }
                 }
@@ -1083,6 +1375,7 @@ fun DisplaySettingsDialog(
                                 marqueeSpeed = marqueeSpeedText.toIntOrNull() ?: 30,
                                 marqueeDelayMillis = marqueeDelayMillisText.toIntOrNull() ?: 1200,
                                 systemMainMenuTitle = systemMainMenuTitleText.ifBlank { "SYSTEM MAIN MENU" },
+                                systemMainMenuDescription = systemMainMenuDescriptionText.ifBlank { "Select a console / system to launch games" },
                                 enableNavigationSound = enableNavigationSound,
                                 enableBgm = enableBgm,
                                 mainMenuIconGridScalePercent = mainMenuIconGridScalePercent.toInt(),
@@ -1096,7 +1389,13 @@ fun DisplaySettingsDialog(
                                 systemMainMenuIconPath = systemMainMenuIconPathText.ifBlank { "gamepad" },
                                 topBarColorHex = topBarColorHex,
                                 bottomBarColorHex = bottomBarColorHex,
-                                removeCharsFromGameNames = removeCharsFromGameNamesText
+                                removeCharsFromGameNames = removeCharsFromGameNamesText,
+                                enableRomIconPopUp = enableRomIconPopUp,
+                                romIconPopUpTimeoutMs = romIconPopUpTimeoutMsText.toIntOrNull() ?: 1000,
+                                romIconPopUpAlignment = romIconPopUpAlignment,
+                                romIconPopUpWidthPercent = romIconPopUpWidthPercentText.toIntOrNull() ?: 30,
+                                sleepTimeoutMode = sleepTimeoutMode,
+                                sleepTimeoutSeconds = sleepTimeoutSecondsText.toIntOrNull() ?: 30
                             )
                             onSaveSettings(newSettings)
                             if (bottomBarSettings != null && onSaveBottomBarSettings != null) {
