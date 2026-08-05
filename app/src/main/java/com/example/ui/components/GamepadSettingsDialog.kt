@@ -42,6 +42,8 @@ fun GamepadSettingsDialog(
     var keyInfoAction by remember { mutableIntStateOf(settings.keyInfoAction) }
     var keyOpenSearch by remember { mutableIntStateOf(settings.keyOpenSearch) }
     var keySystemManagerAction by remember { mutableIntStateOf(settings.keySystemManagerAction) }
+    var keyToggleTopBarKey1 by remember { mutableIntStateOf(settings.keyToggleTopBarKey1) }
+    var keyToggleTopBarKey2 by remember { mutableIntStateOf(settings.keyToggleTopBarKey2) }
 
     var capturingActionName by remember { mutableStateOf<String?>(null) }
 
@@ -93,6 +95,8 @@ fun GamepadSettingsDialog(
                                 "info_action" -> keyInfoAction = code
                                 "search_action" -> keyOpenSearch = code
                                 "sys_manager" -> keySystemManagerAction = code
+                                "top_bar_1" -> keyToggleTopBarKey1 = code
+                                "top_bar_2" -> keyToggleTopBarKey2 = code
                             }
                             capturingActionName = null
                             true
@@ -147,13 +151,15 @@ fun GamepadSettingsDialog(
                     // Mapping Items
                     KeyMappingRow("Page Up List (L / L1)", getKeyLabel(keyPageUp), capturingActionName == "page_up", onClick = { capturingActionName = "page_up" }, onUnset = { keyPageUp = 0 })
                     KeyMappingRow("Page Down List (R / R1)", getKeyLabel(keyPageDown), capturingActionName == "page_down", onClick = { capturingActionName = "page_down" }, onUnset = { keyPageDown = 0 })
+                    KeyMappingRow("Toggle Top Bar (Combo Key 1)", getKeyLabel(keyToggleTopBarKey1), capturingActionName == "top_bar_1", onClick = { capturingActionName = "top_bar_1" }, onUnset = { keyToggleTopBarKey1 = 0 })
+                    KeyMappingRow("Toggle Top Bar (Combo Key 2)", getKeyLabel(keyToggleTopBarKey2), capturingActionName == "top_bar_2", onClick = { capturingActionName = "top_bar_2" }, onUnset = { keyToggleTopBarKey2 = 0 })
                     KeyMappingRow("Jump to First Item (L2)", getKeyLabel(keyGoToTop), capturingActionName == "go_top", onClick = { capturingActionName = "go_top" }, onUnset = { keyGoToTop = 0 })
                     KeyMappingRow("Jump to Last Item (R2)", getKeyLabel(keyGoToBottom), capturingActionName == "go_bottom", onClick = { capturingActionName = "go_bottom" }, onUnset = { keyGoToBottom = 0 })
                     KeyMappingRow("Open System Settings (START in ROM list)", getKeyLabel(keySystemSettings), capturingActionName == "sys_settings", onClick = { capturingActionName = "sys_settings" }, onUnset = { keySystemSettings = 0 })
                     KeyMappingRow("Open ROM List Settings (SELECT in ROM list)", getKeyLabel(keyRomListSettings), capturingActionName == "rom_settings", onClick = { capturingActionName = "rom_settings" }, onUnset = { keyRomListSettings = 0 })
                     KeyMappingRow("Open Emulator System Manager", getKeyLabel(keySystemManagerAction), capturingActionName == "sys_manager", onClick = { capturingActionName = "sys_manager" }, onUnset = { keySystemManagerAction = 0 })
                     KeyMappingRow("A: Open Folder / Launch ROM", getKeyLabel(keySelectAction), capturingActionName == "select_action", onClick = { capturingActionName = "select_action" }, onUnset = { keySelectAction = 0 })
-                    KeyMappingRow("B: Go Back / Favorites (Main Menu)", getKeyLabel(keyBackAction), capturingActionName == "back_action", onClick = { capturingActionName = "back_action" }, onUnset = { keyBackAction = 0 })
+                    KeyMappingRow("B: Go Back", getKeyLabel(keyBackAction), capturingActionName == "back_action", onClick = { capturingActionName = "back_action" }, onUnset = { keyBackAction = 0 })
                     KeyMappingRow("Y: Toggle Favorite (in ROM list)", getKeyLabel(keyFavoriteAction), capturingActionName == "fav_action", onClick = { capturingActionName = "fav_action" }, onUnset = { keyFavoriteAction = 0 })
                     KeyMappingRow("X: Show ROM Info / Stats (in ROM list)", getKeyLabel(keyInfoAction), capturingActionName == "info_action", onClick = { capturingActionName = "info_action" }, onUnset = { keyInfoAction = 0 })
                 }
@@ -180,6 +186,8 @@ fun GamepadSettingsDialog(
                             keyInfoAction = def.keyInfoAction
                             keyOpenSearch = def.keyOpenSearch
                             keySystemManagerAction = def.keySystemManagerAction
+                            keyToggleTopBarKey1 = def.keyToggleTopBarKey1
+                            keyToggleTopBarKey2 = def.keyToggleTopBarKey2
                         }
                     ) {
                         Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -206,7 +214,9 @@ fun GamepadSettingsDialog(
                                     keyFavoriteAction = keyFavoriteAction,
                                     keyInfoAction = keyInfoAction,
                                     keyOpenSearch = keyOpenSearch,
-                                    keySystemManagerAction = keySystemManagerAction
+                                    keySystemManagerAction = keySystemManagerAction,
+                                    keyToggleTopBarKey1 = keyToggleTopBarKey1,
+                                    keyToggleTopBarKey2 = keyToggleTopBarKey2
                                 )
                             )
                             onDismiss()

@@ -14,6 +14,7 @@ data class GameRomEntity(
     val coverArtPath: String? = null,
     val customEmulatorOverride: String? = null,
     val isFavorite: Boolean = false,
+    val isCompleted: Boolean = false,
     val lastPlayedTimestamp: Long = 0,
     val playCount: Int = 0
 )

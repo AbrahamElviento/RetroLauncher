@@ -19,6 +19,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,6 +86,9 @@ fun MainHomeScreen(
     var showAppVisibilityDialog by remember { mutableStateOf(false) }
 
     var showSystemManagementDialog by remember { mutableStateOf(false) }
+    var showBgmControlDialog by remember { mutableStateOf(false) }
+    var showSlideshowControlDialog by remember { mutableStateOf(false) }
+    var activeSlideshowSystemName by remember { mutableStateOf("") }
     var showSystemEditDialog by remember { mutableStateOf(false) }
     var editingSystem by remember { mutableStateOf<SystemEntity?>(null) }
 
@@ -119,8 +124,9 @@ fun MainHomeScreen(
     var topBarFocusedIndex by remember { mutableIntStateOf(0) }
     var systemSelectorFocusedIndex by remember { mutableIntStateOf(2) }
 
-    var isStartDown by remember { mutableStateOf(false) }
-    var isSelectDown by remember { mutableStateOf(false) }
+    var isTopBarComboKey1Down by remember { mutableStateOf(false) }
+    var isTopBarComboKey2Down by remember { mutableStateOf(false) }
+    var isTopBarComboTriggered by remember { mutableStateOf(false) }
 
     val currentSystem = systems.firstOrNull { it.id == selectedSystemId }
 
@@ -139,11 +145,13 @@ fun MainHomeScreen(
             showEmptyFolderAlert != null ||
             showScanConfirmation != null
 
-    BackHandler(enabled = !isMainMenuActive && !isAnyDialogOpen) {
+    BackHandler(enabled = !isAnyDialogOpen) {
         if (activeFocusZone != ActiveFocusZone.ROM_LIST) {
             activeFocusZone = ActiveFocusZone.ROM_LIST
-        } else {
+        } else if (!isMainMenuActive) {
             backActionTrigger = System.currentTimeMillis()
+        } else {
+            // On system main menu, pressing back does nothing
         }
     }
 
@@ -163,7 +171,9 @@ fun MainHomeScreen(
         viewModel.launchEvent.collect { result ->
             when (result) {
                 is LaunchResult.Success -> {
-                    Toast.makeText(context, "Launching game...", Toast.LENGTH_SHORT).show()
+                    if (viewModel.displaySettings.value.showLaunchToast) {
+                        Toast.makeText(context, "Launching game...", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 is LaunchResult.PackageNotInstalled -> {
                     missingPackageAlert = result
@@ -180,8 +190,14 @@ fun MainHomeScreen(
         viewModel.scanEvent.collect { event ->
             when (event) {
                 is LauncherViewModel.ScanEvent.ScanFinished -> {
+                    val isVirtualOrAndroid = event.systemId.startsWith("widget_") || 
+                            event.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                            viewModel.systems.value.any { it.id == event.systemId && (it.defaultLaunchMode == "ANDROID_APP" || it.defaultLaunchMode == "VIRTUAL") }
+
                     if (event.romCount == 0) {
-                        showEmptyFolderAlert = event.folderPath
+                        if (!isVirtualOrAndroid) {
+                            showEmptyFolderAlert = event.folderPath
+                        }
                         bottomBarNotification = "Scan completed! No games found."
                     } else if (event.romCount > 0) {
                         bottomBarNotification = "Scan completed! Found ${event.romCount} games."
@@ -211,17 +227,48 @@ fun MainHomeScreen(
         // Outer Canvas Layout Wrapper applying resolution bounds & margins!
     CanvasLayoutWrapper(
         displaySettings = displaySettings,
-        modifier = modifier.onPreviewKeyEvent { keyEvent ->
+        modifier = modifier
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    var initialY: Float? = null
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Main)
+                        val changes = event.changes
+                        if (changes.size == 2) {
+                            val avgY = (changes[0].position.y + changes[1].position.y) / 2f
+                            if (initialY == null) {
+                                initialY = avgY
+                            } else {
+                                val deltaY = avgY - initialY
+                                if (deltaY < -150f) { // Swipe up to hide top bar
+                                    showTopBar = false
+                                    initialY = avgY
+                                } else if (deltaY > 150f) { // Swipe down to show top bar
+                                    showTopBar = true
+                                    initialY = avgY
+                                }
+                            }
+                        } else {
+                            initialY = null
+                        }
+                    }
+                }
+            }
+            .onPreviewKeyEvent { keyEvent ->
             val keyCode = keyEvent.nativeKeyEvent.keyCode
             val isActionDown = keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN
 
             if (isActionDown) {
-                if (keyCode == gamepadSettings.keySystemSettings) isStartDown = true
-                if (keyCode == gamepadSettings.keyRomListSettings) isSelectDown = true
+                val k1 = gamepadSettings.keyToggleTopBarKey1
+                val k2 = gamepadSettings.keyToggleTopBarKey2
+                if (k1 > 0 && keyCode == k1) isTopBarComboKey1Down = true
+                if (k2 > 0 && keyCode == k2) isTopBarComboKey2Down = true
 
-                // START + SELECT Combo to hide/show top bar
-                if (isStartDown && isSelectDown) {
-                    showTopBar = !showTopBar
+                if (k1 > 0 && k2 > 0 && isTopBarComboKey1Down && isTopBarComboKey2Down) {
+                    if (!isTopBarComboTriggered) {
+                        showTopBar = !showTopBar
+                        isTopBarComboTriggered = true
+                    }
                     return@onPreviewKeyEvent true
                 }
 
@@ -332,7 +379,11 @@ fun MainHomeScreen(
                                 showDisplaySettingsDialog = true
                             }
                             ActiveFocusZone.SYSTEM_SELECTOR -> {
-                                val enabledSystems = systems.filter { it.isEnabled }
+                                val enabledSystems = systems.filter { 
+                                    it.isEnabled && 
+                                    !it.id.startsWith("widget_") && 
+                                    !it.defaultLaunchMode.startsWith("WIDGET_") 
+                                }
                                 val curIdx = if (currentSystem != null) enabledSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
                                 when (systemSelectorFocusedIndex) {
                                     0 -> {
@@ -382,35 +433,41 @@ fun MainHomeScreen(
                             backActionTrigger = System.currentTimeMillis()
                             true
                         } else {
-                            highlightFavoritesTrigger = System.currentTimeMillis()
+                            // On system main menu, back press does nothing
                             true
                         }
                     }
                     else -> false
                 }
             } else if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_UP) {
-                if (keyCode == gamepadSettings.keySystemSettings) {
-                    if (!isSelectDown) {
-                        if (isMainMenuActive) {
-                            showSystemManagementDialog = true
-                        } else if (currentSystem != null) {
-                            editingSystem = currentSystem
-                            showSystemEditDialog = true
-                        } else {
-                            showSystemManagementDialog = true
-                        }
+                val k1 = gamepadSettings.keyToggleTopBarKey1
+                val k2 = gamepadSettings.keyToggleTopBarKey2
+                if (k1 > 0 && keyCode == k1) isTopBarComboKey1Down = false
+                if (k2 > 0 && keyCode == k2) isTopBarComboKey2Down = false
+
+                if (isTopBarComboTriggered) {
+                    if (!isTopBarComboKey1Down && !isTopBarComboKey2Down) {
+                        isTopBarComboTriggered = false
                     }
-                    isStartDown = false
+                    return@onPreviewKeyEvent true
+                }
+
+                if (keyCode == gamepadSettings.keySystemSettings) {
+                    if (isMainMenuActive) {
+                        showSystemManagementDialog = true
+                    } else if (currentSystem != null) {
+                        editingSystem = currentSystem
+                        showSystemEditDialog = true
+                    } else {
+                        showSystemManagementDialog = true
+                    }
                     true
                 } else if (keyCode == gamepadSettings.keyRomListSettings) {
-                    if (!isStartDown) {
-                        if (isMainMenuActive) {
-                            showSystemManagementDialog = true
-                        } else {
-                            showRomListStyleDialog = true
-                        }
+                    if (isMainMenuActive) {
+                        showSystemManagementDialog = true
+                    } else {
+                        showRomListStyleDialog = true
                     }
-                    isSelectDown = false
                     true
                 } else false
             } else false
@@ -510,11 +567,14 @@ fun MainHomeScreen(
             },
             containerColor = MaterialTheme.colorScheme.background
         ) { innerPadding ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
                 if (isMainMenuActive) {
                     val activeSystemIdFromXml = remember(isMainMenuActive) {
                         viewModel.loadActiveSystemId()
@@ -523,9 +583,17 @@ fun MainHomeScreen(
                         systems = systems.filter { it.isEnabled },
                         selectedSystemId = selectedSystemId ?: activeSystemIdFromXml,
                         onSelectAndEnterSystem = { system ->
-                            viewModel.selectSystem(system.id)
-                            isMainMenuActive = false
-                            activeFocusZone = ActiveFocusZone.ROM_LIST
+                            val isWidget = system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")
+                            if (system.defaultLaunchMode == "WIDGET_BGM") {
+                                showBgmControlDialog = true
+                            } else if (system.defaultLaunchMode == "WIDGET_SLIDESHOW") {
+                                activeSlideshowSystemName = system.name
+                                showSlideshowControlDialog = true
+                            } else if (!isWidget) {
+                                viewModel.selectSystem(system.id)
+                                isMainMenuActive = false
+                                activeFocusZone = ActiveFocusZone.ROM_LIST
+                            }
                         },
                         onActiveSystemHighlighted = { systemId ->
                             viewModel.saveActiveSystemId(systemId)
@@ -537,6 +605,7 @@ fun MainHomeScreen(
                         onAddSystem = {
                             showSystemManagementDialog = true
                         },
+                        totalGamesCount = allRoms.size,
                         systemMainMenuTitle = displaySettings.systemMainMenuTitle,
                         systemMainMenuDescription = displaySettings.systemMainMenuDescription,
                         onOpenSystemManager = { showSystemManagementDialog = true },
@@ -581,7 +650,10 @@ fun MainHomeScreen(
                 } else {
                     // Ultra-Compact System Selector (Icon + Text Title + Prev/Next + Dedicated System Settings)
                     CompactSystemSelector(
-                        systems = systems,
+                        systems = systems.filter { 
+                            !it.id.startsWith("widget_") && 
+                            !it.defaultLaunchMode.startsWith("WIDGET_") 
+                        },
                         selectedSystem = currentSystem,
                         isFocused = (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR),
                         focusedItemIndex = if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) systemSelectorFocusedIndex else -1,
@@ -624,6 +696,9 @@ fun MainHomeScreen(
                         },
                         onFavoriteToggle = { game ->
                             viewModel.toggleFavorite(game)
+                        },
+                        onCompletedToggle = { game ->
+                            viewModel.toggleCompleted(game)
                         },
                         onShowGameInfo = { game ->
                             showGameDetailsDialog = game
@@ -677,7 +752,11 @@ fun MainHomeScreen(
                             activeFocusZone = ActiveFocusZone.ROM_LIST
                         },
                         onPreviousSystem = {
-                            val activeSystems = systems.filter { it.isEnabled }
+                            val activeSystems = systems.filter { 
+                                it.isEnabled && 
+                                !it.id.startsWith("widget_") && 
+                                !it.defaultLaunchMode.startsWith("WIDGET_") 
+                            }
                             if (activeSystems.isNotEmpty()) {
                                 val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
                                 val prevIdx = if (curIdx <= 0) activeSystems.size - 1 else curIdx - 1
@@ -685,7 +764,11 @@ fun MainHomeScreen(
                             }
                         },
                         onNextSystem = {
-                            val activeSystems = systems.filter { it.isEnabled }
+                            val activeSystems = systems.filter { 
+                                it.isEnabled && 
+                                !it.id.startsWith("widget_") && 
+                                !it.defaultLaunchMode.startsWith("WIDGET_") 
+                            }
                             if (activeSystems.isNotEmpty()) {
                                 val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
                                 val nextIdx = (curIdx + 1) % activeSystems.size
@@ -697,8 +780,10 @@ fun MainHomeScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
-            }
-        }
+                
+                } // Closes Column
+            } // Closes Box
+        } // Closes Scaffold
     }
 
     // Dedicated ROM Search Dialog
@@ -752,6 +837,23 @@ fun MainHomeScreen(
             onOpenAppVisibility = {
                 showAppVisibilityDialog = true
             }
+        )
+    }
+
+    if (showBgmControlDialog) {
+        com.example.ui.components.BgmControlDialog(
+            displaySettings = displaySettings,
+            onUpdateBgm = { enabled ->
+                viewModel.updateDisplaySettings(displaySettings.copy(enableBgm = enabled))
+            },
+            onDismiss = { showBgmControlDialog = false }
+        )
+    }
+
+    if (showSlideshowControlDialog) {
+        SlideshowControlDialog(
+            systemName = activeSlideshowSystemName,
+            onDismiss = { showSlideshowControlDialog = false }
         )
     }
 
@@ -875,6 +977,10 @@ fun MainHomeScreen(
             onFavoriteToggle = { g ->
                 viewModel.toggleFavorite(g)
                 showGameDetailsDialog = g.copy(isFavorite = !g.isFavorite)
+            },
+            onCompletedToggle = { g ->
+                viewModel.toggleCompleted(g)
+                showGameDetailsDialog = g.copy(isCompleted = !g.isCompleted)
             },
             onRenameGame = { g, newName ->
                 viewModel.renameGame(g, newName)

@@ -7,6 +7,9 @@ import android.media.AudioTrack
 import android.media.MediaPlayer
 import android.os.Environment
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import kotlin.math.sin
 
@@ -17,6 +20,15 @@ object SoundManager {
     private var isPlayingBgm = false
     private var bgmPlaylist: List<File> = emptyList()
     private var currentTrackIndex = -1
+
+    private val _currentTrackName = MutableStateFlow<String?>(null)
+    val currentTrackName: StateFlow<String?> = _currentTrackName.asStateFlow()
+
+    private val _isPlayingState = MutableStateFlow(false)
+    val isPlayingState: StateFlow<Boolean> = _isPlayingState.asStateFlow()
+
+    private val _hasBgmFiles = MutableStateFlow(false)
+    val hasBgmFiles: StateFlow<Boolean> = _hasBgmFiles.asStateFlow()
 
     // Synthesize a short navigation click sound in memory
     private val clickPcmData: ByteArray by lazy {
@@ -116,30 +128,38 @@ object SoundManager {
     }
 
     fun updateBgmState(context: Context, enabled: Boolean) {
+        val bgmFolder = getBgmDirectory(context)
+        if (!bgmFolder.exists()) {
+            bgmFolder.mkdirs()
+        }
+
+        val audioFiles = bgmFolder.listFiles { file ->
+            val name = file.name.lowercase()
+            file.isFile && (name.endsWith(".mp3") || name.endsWith(".ogg") || name.endsWith(".wav") || name.endsWith(".m4a") || name.endsWith(".flac"))
+        }?.sortedBy { it.name.lowercase() } ?: emptyList()
+
+        val filesExist = audioFiles.isNotEmpty()
+        _hasBgmFiles.value = filesExist
+
         if (!enabled) {
-            stopBgm()
+            stopBgmOnly()
+            isPlayingBgm = false
+            bgmPlaylist = emptyList()
+            currentTrackIndex = -1
+            _currentTrackName.value = null
+            _isPlayingState.value = false
             return
         }
 
         if (isPlayingBgm && mediaPlayer != null) return
 
+        if (!filesExist) {
+            Log.d(TAG, "No BGM files found in ${bgmFolder.absolutePath}")
+            stopBgm()
+            return
+        }
+
         try {
-            val bgmFolder = getBgmDirectory(context)
-            if (!bgmFolder.exists()) {
-                bgmFolder.mkdirs()
-            }
-
-            val audioFiles = bgmFolder.listFiles { file ->
-                val name = file.name.lowercase()
-                file.isFile && (name.endsWith(".mp3") || name.endsWith(".ogg") || name.endsWith(".wav") || name.endsWith(".m4a") || name.endsWith(".flac"))
-            }?.sortedBy { it.name.lowercase() } ?: emptyList()
-
-            if (audioFiles.isEmpty()) {
-                Log.d(TAG, "No BGM files found in ${bgmFolder.absolutePath}")
-                stopBgm()
-                return
-            }
-
             bgmPlaylist = audioFiles
             currentTrackIndex = 0
             isPlayingBgm = true
@@ -173,6 +193,8 @@ object SoundManager {
             }
             mediaPlayer = player
             isPlayingBgm = true
+            _currentTrackName.value = file.name
+            _isPlayingState.value = true
             Log.d(TAG, "Started playing BGM track: ${file.name}")
         } catch (e: Exception) {
             Log.e(TAG, "Error playing BGM track ${file.name}", e)
@@ -186,13 +208,7 @@ object SoundManager {
 
     private fun playNextBgm(context: Context) {
         if (!isPlayingBgm) return
-        if (bgmPlaylist.isEmpty()) {
-            stopBgm()
-            return
-        }
-        currentTrackIndex = (currentTrackIndex + 1) % bgmPlaylist.size
-        val nextFile = bgmPlaylist[currentTrackIndex]
-        playTrack(context, nextFile)
+        playNext(context)
     }
 
     private fun stopBgmOnly() {
@@ -217,6 +233,7 @@ object SoundManager {
                     it.pause()
                 }
             }
+            _isPlayingState.value = false
         } catch (e: Exception) {
             Log.e(TAG, "Error pausing BGM", e)
         }
@@ -227,6 +244,7 @@ object SoundManager {
             mediaPlayer?.let { player ->
                 if (!player.isPlaying) {
                     player.start()
+                    _isPlayingState.value = true
                     return
                 }
             }
@@ -252,6 +270,44 @@ object SoundManager {
             isPlayingBgm = false
             bgmPlaylist = emptyList()
             currentTrackIndex = -1
+            _currentTrackName.value = null
+            _isPlayingState.value = false
+        }
+    }
+
+    fun togglePlayPause(context: Context) {
+        val player = mediaPlayer
+        if (player != null) {
+            if (player.isPlaying) {
+                pauseBgm()
+            } else {
+                try {
+                    player.start()
+                    _isPlayingState.value = true
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error toggling BGM start", e)
+                }
+            }
+        } else {
+            updateBgmState(context, true)
+        }
+    }
+
+    fun playNext(context: Context) {
+        if (bgmPlaylist.isNotEmpty()) {
+            currentTrackIndex = (currentTrackIndex + 1) % bgmPlaylist.size
+            playTrack(context, bgmPlaylist[currentTrackIndex])
+        } else {
+            updateBgmState(context, true)
+        }
+    }
+
+    fun playPrev(context: Context) {
+        if (bgmPlaylist.isNotEmpty()) {
+            currentTrackIndex = if (currentTrackIndex - 1 < 0) bgmPlaylist.size - 1 else currentTrackIndex - 1
+            playTrack(context, bgmPlaylist[currentTrackIndex])
+        } else {
+            updateBgmState(context, true)
         }
     }
 

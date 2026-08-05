@@ -52,7 +52,15 @@ val EXPANDED_ICON_LIST: List<Pair<String, ImageVector>> = listOf(
     "games" to Icons.Default.Games,
     "headset" to Icons.Default.Headset,
     "widgets" to Icons.Default.Widgets,
-    "palette" to Icons.Default.Palette
+    "palette" to Icons.Default.Palette,
+    "clock" to Icons.Default.Schedule,
+    "calendar" to Icons.Default.CalendarToday,
+    "pencil" to Icons.Default.Edit,
+    "brush" to Icons.Default.Brush,
+    "music" to Icons.Default.MusicNote,
+    "volume" to Icons.Default.VolumeUp,
+    "heart" to Icons.Default.Favorite,
+    "home" to Icons.Default.Home
 )
 
 @Composable

@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -71,6 +73,7 @@ fun GameGrid(
     onGameClick: (GameRomEntity) -> Unit,
     onGameLongClick: (GameRomEntity) -> Unit,
     onFavoriteToggle: (GameRomEntity) -> Unit,
+    onCompletedToggle: (GameRomEntity) -> Unit = {},
     onScanFolderClick: () -> Unit,
     isScanning: Boolean = false,
     onOpenAppVisibilityClick: (() -> Unit)? = null,
@@ -280,6 +283,7 @@ fun GameGrid(
     }
 
     fun openSubfolder(folderName: String) {
+        com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
         val parentPath = currentSubfolderPath
         openedFolderHistory[parentPath] = folderName
         currentSubfolderPath = if (currentSubfolderPath.isEmpty()) folderName else "$currentSubfolderPath/$folderName"
@@ -288,6 +292,7 @@ fun GameGrid(
 
     fun navigateUpToParent() {
         if (currentSubfolderPath.isNotEmpty()) {
+            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
             val oldSubfolderPath = currentSubfolderPath
             val parentPath = if (oldSubfolderPath.contains("/")) {
                 oldSubfolderPath.substringBeforeLast("/")
@@ -471,7 +476,6 @@ fun GameGrid(
         if (backActionTrigger > 0L && backActionTrigger != lastHandledBackTrigger) {
             lastHandledBackTrigger = backActionTrigger
             if (currentSubfolderPath.isNotEmpty()) {
-                com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                 navigateUpToParent()
             } else {
                 onBackToMainMenu()
@@ -505,7 +509,35 @@ fun GameGrid(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val currentOnNextSystem by rememberUpdatedState(onNextSystem)
+    val currentOnPreviousSystem by rememberUpdatedState(onPreviousSystem)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(currentSystem?.id) {
+                var totalOffsetX = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { totalOffsetX = 0f },
+                    onDragEnd = {
+                        val density = context.resources.displayMetrics.density
+                        val thresholdPx = 60f * density
+                        if (totalOffsetX < -thresholdPx) {
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            currentOnNextSystem()
+                        } else if (totalOffsetX > thresholdPx) {
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            currentOnPreviousSystem()
+                        }
+                        totalOffsetX = 0f
+                    },
+                    onDragCancel = { totalOffsetX = 0f },
+                    onHorizontalDrag = { _, dragAmount ->
+                        totalOffsetX += dragAmount
+                    }
+                )
+            }
+    ) {
         Column(modifier = modifier.fillMaxSize()) {
         // System Header Bar
         Row(
@@ -786,7 +818,6 @@ fun GameGrid(
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         onClick = {
-                                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                                             isHeaderFocused = false
                                             navigateUpToParent()
                                         },
@@ -805,7 +836,6 @@ fun GameGrid(
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         onClick = {
-                                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                                             isHeaderFocused = false
                                             openSubfolder(item.name)
                                         },
@@ -834,6 +864,7 @@ fun GameGrid(
                                             onGameLongClick(item.game)
                                         },
                                         onFavoriteClick = { onFavoriteToggle(item.game) },
+                                        onCompletedClick = { onCompletedToggle(item.game) },
                                         onInfoClick = { onShowGameInfo?.invoke(item.game) },
                                         onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null,
                                         allSystems = allSystems,
@@ -869,7 +900,6 @@ fun GameGrid(
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         onClick = {
-                                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                                             isHeaderFocused = false
                                             navigateUpToParent()
                                         },
@@ -888,7 +918,6 @@ fun GameGrid(
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         onClick = {
-                                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                                             isHeaderFocused = false
                                             openSubfolder(item.name)
                                         },
@@ -916,6 +945,7 @@ fun GameGrid(
                                             onGameLongClick(item.game)
                                         },
                                         onFavoriteClick = { onFavoriteToggle(item.game) },
+                                        onCompletedClick = { onCompletedToggle(item.game) },
                                         onInfoClick = { onShowGameInfo?.invoke(item.game) },
                                         onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null,
                                         allSystems = allSystems,
@@ -997,6 +1027,7 @@ fun GameGrid(
                                             onGameLongClick(item.game)
                                         },
                                         onFavoriteClick = { onFavoriteToggle(item.game) },
+                                        onCompletedClick = { onCompletedToggle(item.game) },
                                         onInfoClick = { onShowGameInfo?.invoke(item.game) },
                                         onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null,
                                         allSystems = allSystems,
@@ -1394,12 +1425,14 @@ fun GameGridCardItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onCompletedClick: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null,
     allSystems: List<SystemEntity> = emptyList(),
     customIcons: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
+    val displaySettings = LocalDisplaySettings.current
     val cardHeightScale = (gridScalePercent / 100f).coerceIn(0.5f, 2.0f)
 
     Card(
@@ -1474,23 +1507,25 @@ fun GameGridCardItem(
             }
 
             // Info Button (Top Left corner)
-            IconButton(
-                onClick = { onInfoClick?.invoke() },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(4.dp)
-                    .size(28.dp)
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "Info",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
+            if (displaySettings.showRomDetailsButton) {
+                IconButton(
+                    onClick = { onInfoClick?.invoke() },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                        .size(28.dp)
+                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Info",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
 
-            // Top Right Action Buttons (Favorite / Delete)
+            // Top Right Action Buttons (Favorite / Complete / Delete)
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -1513,24 +1548,41 @@ fun GameGridCardItem(
                     }
                 }
 
-                IconButton(
-                    onClick = onFavoriteClick,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = if (game.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = "Favorite",
-                        tint = if (game.isFavorite) Color(0xFFFFD700) else Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
+                if (displaySettings.showRomFavoriteButton) {
+                    IconButton(
+                        onClick = onFavoriteClick,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (game.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = "Favorite",
+                            tint = if (game.isFavorite) Color(0xFFFFD700) else Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                if (displaySettings.showRomCompleteButton) {
+                    IconButton(
+                        onClick = onCompletedClick,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (game.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                            contentDescription = "Complete",
+                            tint = if (game.isCompleted) Color(0xFF4CAF50) else Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
 
         Column(modifier = Modifier.padding(10.dp)) {
-            val displaySettings = LocalDisplaySettings.current
             val cleanedTitle = getCleanedTitle(game.title, displaySettings.removeCharsFromGameNames)
             MarqueeText(
                 text = cleanedTitle,
@@ -1567,12 +1619,14 @@ fun GameListRowItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onCompletedClick: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null,
     allSystems: List<SystemEntity> = emptyList(),
     customIcons: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
+    val displaySettings = LocalDisplaySettings.current
 
     Card(
         modifier = Modifier
@@ -1644,7 +1698,6 @@ fun GameListRowItem(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                val displaySettings = LocalDisplaySettings.current
                 val cleanedTitle = getCleanedTitle(game.title, displaySettings.removeCharsFromGameNames)
                 MarqueeText(
                     text = cleanedTitle,
@@ -1667,7 +1720,7 @@ fun GameListRowItem(
                 )
             }
 
-            if (onInfoClick != null) {
+            if (onInfoClick != null && displaySettings.showRomDetailsButton) {
                 IconButton(onClick = onInfoClick) {
                     Icon(
                         imageVector = Icons.Default.Info,
@@ -1687,12 +1740,24 @@ fun GameListRowItem(
                 }
             }
 
-            IconButton(onClick = onFavoriteClick) {
-                Icon(
-                    imageVector = if (game.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                    contentDescription = "Favorite",
-                    tint = if (game.isFavorite) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
-                )
+            if (displaySettings.showRomFavoriteButton) {
+                IconButton(onClick = onFavoriteClick) {
+                    Icon(
+                        imageVector = if (game.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = "Favorite",
+                        tint = if (game.isFavorite) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+
+            if (displaySettings.showRomCompleteButton) {
+                IconButton(onClick = onCompletedClick) {
+                    Icon(
+                        imageVector = if (game.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = "Complete",
+                        tint = if (game.isCompleted) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outline
+                    )
+                }
             }
         }
     }
@@ -1710,12 +1775,14 @@ fun GameTextOnlyItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onCompletedClick: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null,
     allSystems: List<SystemEntity> = emptyList(),
     customIcons: Map<String, String> = emptyMap()
 ) {
     val context = LocalContext.current
+    val displaySettings = LocalDisplaySettings.current
 
     val textAlign = when (settings.textAlignment) {
         TextAlignmentOption.START -> TextAlign.Start

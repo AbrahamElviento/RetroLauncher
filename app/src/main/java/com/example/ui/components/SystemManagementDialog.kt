@@ -3,6 +3,9 @@ package com.example.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -101,27 +104,143 @@ fun SystemManagementDialog(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
 
-                // Action Bar: Add System Button
-                Button(
-                    onClick = {
-                        isAddingNew = true
-                        editingSystem = SystemEntity(
-                            id = "sys_" + UUID.randomUUID().toString().take(8),
-                            name = "New Emulator System",
-                            shortName = "NEW",
-                            folderPath = "/storage/emulated/0/RetroRoms/new_system",
-                            allowedExtensions = ".zip,.iso",
-                            iconName = "gamepad",
-                            displayOrder = systemList.size,
-                            isEnabled = true
-                        )
-                    },
+                // Action Bar: Add System & Add Widget Buttons
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add System")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add New System")
+                    Button(
+                        onClick = {
+                            isAddingNew = true
+                            editingSystem = SystemEntity(
+                                id = "sys_" + UUID.randomUUID().toString().take(8),
+                                name = "New Emulator System",
+                                shortName = "NEW",
+                                folderPath = "/storage/emulated/0/RetroRoms/new_system",
+                                allowedExtensions = ".zip,.iso",
+                                iconName = "gamepad",
+                                displayOrder = systemList.size,
+                                isEnabled = true
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add System")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add System")
+                    }
+
+                    var showAddWidgetMenu by remember { mutableStateOf(false) }
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        Button(
+                            onClick = { showAddWidgetMenu = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Icon(imageVector = Icons.Default.Widgets, contentDescription = "Add Widget")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Add Widget")
+                        }
+
+                        DropdownMenu(
+                            expanded = showAddWidgetMenu,
+                            onDismissRequest = { showAddWidgetMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Clock Widget") },
+                                onClick = {
+                                    showAddWidgetMenu = false
+                                    isAddingNew = true
+                                    editingSystem = SystemEntity(
+                                        id = "widget_clock_" + UUID.randomUUID().toString().take(8),
+                                        name = "Clock Widget",
+                                        shortName = "CLOCK",
+                                        folderPath = "",
+                                        allowedExtensions = "12h",
+                                        iconName = "date_range",
+                                        defaultLaunchMode = "WIDGET_CLOCK",
+                                        displayOrder = systemList.size,
+                                        isEnabled = true
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Total Games Count") },
+                                onClick = {
+                                    showAddWidgetMenu = false
+                                    isAddingNew = true
+                                    editingSystem = SystemEntity(
+                                        id = "widget_total_games_" + UUID.randomUUID().toString().take(8),
+                                        name = "Games Count",
+                                        shortName = "COUNT",
+                                        folderPath = "",
+                                        allowedExtensions = "",
+                                        iconName = "info",
+                                        defaultLaunchMode = "WIDGET_TOTAL_GAMES",
+                                        displayOrder = systemList.size,
+                                        isEnabled = true
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Custom Text") },
+                                onClick = {
+                                    showAddWidgetMenu = false
+                                    isAddingNew = true
+                                    editingSystem = SystemEntity(
+                                        id = "widget_custom_text_" + UUID.randomUUID().toString().take(8),
+                                        name = "Custom Text",
+                                        shortName = "TEXT",
+                                        folderPath = "",
+                                        allowedExtensions = "",
+                                        iconName = "edit",
+                                        defaultLaunchMode = "WIDGET_CUSTOM_TEXT",
+                                        displayOrder = systemList.size,
+                                        isEnabled = true,
+                                        retroArchCore = "Your custom text goes here!"
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Image Slideshow") },
+                                onClick = {
+                                    showAddWidgetMenu = false
+                                    isAddingNew = true
+                                    editingSystem = SystemEntity(
+                                        id = "widget_slideshow_" + UUID.randomUUID().toString().take(8),
+                                        name = "Slideshow",
+                                        shortName = "SLIDE",
+                                        folderPath = "/storage/emulated/0/Pictures",
+                                        allowedExtensions = "5",
+                                        iconName = "play_arrow",
+                                        defaultLaunchMode = "WIDGET_SLIDESHOW",
+                                        displayOrder = systemList.size,
+                                        isEnabled = true
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("BGM Widget") },
+                                onClick = {
+                                    showAddWidgetMenu = false
+                                    isAddingNew = true
+                                    editingSystem = SystemEntity(
+                                        id = "widget_bgm_" + UUID.randomUUID().toString().take(8),
+                                        name = "BGM Widget",
+                                        shortName = "BGM",
+                                        folderPath = "",
+                                        allowedExtensions = "Tap to view",
+                                        iconName = "music_note",
+                                        defaultLaunchMode = "WIDGET_BGM",
+                                        displayOrder = systemList.size,
+                                        isEnabled = true
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -165,6 +284,26 @@ fun SystemManagementDialog(
                                     onReorderSystems(reordered)
                                 }
                             },
+                            onMoveToFirst = {
+                                if (index > 0) {
+                                    val newList = systemList.toMutableList()
+                                    val item = newList.removeAt(index)
+                                    newList.add(0, item)
+                                    val reordered = newList.mapIndexed { i, s -> s.copy(displayOrder = i) }
+                                    systemList = reordered
+                                    onReorderSystems(reordered)
+                                }
+                            },
+                            onMoveToLast = {
+                                if (index < systemList.size - 1) {
+                                    val newList = systemList.toMutableList()
+                                    val item = newList.removeAt(index)
+                                    newList.add(item)
+                                    val reordered = newList.mapIndexed { i, s -> s.copy(displayOrder = i) }
+                                    systemList = reordered
+                                    onReorderSystems(reordered)
+                                }
+                            },
                             onEdit = {
                                 isAddingNew = false
                                 editingSystem = sys
@@ -192,16 +331,29 @@ fun SystemManagementDialog(
 
     // Edit or Add System Dialog
     editingSystem?.let { sys ->
-        SystemEditDetailDialog(
-            system = sys,
-            isNew = isAddingNew,
-            onDismiss = { editingSystem = null },
-            onSave = { updatedSys ->
-                onSaveSystem(updatedSys)
-                editingSystem = null
-            },
-            onOpenAppVisibility = onOpenAppVisibility
-        )
+        val isWidget = sys.id.startsWith("widget_") || sys.defaultLaunchMode.startsWith("WIDGET_")
+        if (isWidget) {
+            WidgetEditDetailDialog(
+                system = sys,
+                isNew = isAddingNew,
+                onDismiss = { editingSystem = null },
+                onSave = { updatedSys ->
+                    onSaveSystem(updatedSys)
+                    editingSystem = null
+                }
+            )
+        } else {
+            SystemEditDetailDialog(
+                system = sys,
+                isNew = isAddingNew,
+                onDismiss = { editingSystem = null },
+                onSave = { updatedSys ->
+                    onSaveSystem(updatedSys)
+                    editingSystem = null
+                },
+                onOpenAppVisibility = onOpenAppVisibility
+            )
+        }
     }
 }
 
@@ -213,6 +365,8 @@ fun SystemManagementItemRow(
     onToggleEnabled: (Boolean) -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
+    onMoveToFirst: () -> Unit,
+    onMoveToLast: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onOpenAppVisibility: (() -> Unit)? = null
@@ -266,25 +420,49 @@ fun SystemManagementItemRow(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                Column {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
                         text = system.name,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (system.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        color = if (system.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.basicMarquee()
                     )
                     Text(
                         text = "${system.shortName} • ${system.defaultLaunchMode}",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.basicMarquee()
                     )
                 }
             }
 
-            // Reorder Buttons (Move Up / Move Down)
+            val showFirstLast = LocalDisplaySettings.current.showFirstLastReorderButtons
+
+            // Reorder Buttons (Move to Top / Move Up / Move Down / Move to Bottom)
+            if (showFirstLast) {
+                IconButton(
+                    onClick = onMoveToFirst,
+                    enabled = !isFirst,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VerticalAlignTop,
+                        contentDescription = "Move to Top",
+                        tint = if (!isFirst) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                    )
+                }
+            }
+
             IconButton(
                 onClick = onMoveUp,
                 enabled = !isFirst,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(30.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
@@ -296,13 +474,27 @@ fun SystemManagementItemRow(
             IconButton(
                 onClick = onMoveDown,
                 enabled = !isLast,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(30.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = "Move Down",
                     tint = if (!isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
                 )
+            }
+
+            if (showFirstLast) {
+                IconButton(
+                    onClick = onMoveToLast,
+                    enabled = !isLast,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VerticalAlignBottom,
+                        contentDescription = "Move to Bottom",
+                        tint = if (!isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                    )
+                }
             }
 
             // App Visibility Filter Button for Android Apps / Games / Emulators
@@ -426,10 +618,18 @@ fun SystemEditDetailDialog(
             "genesis_plus_gx_libretro_android.so" to "Sega Genesis / MD (Genesis Plus GX)",
             "pcsx_rearmed_libretro_android.so" to "PlayStation (PCSX ReARMed)",
             "mupen64plus_next_libretro_android.so" to "Nintendo 64 (Mupen64Plus)",
+            "mupen64plus_next_gles3_libretro_android.so" to "Nintendo 64 GLES3 (Mupen64Plus GLES3)",
             "mgba_libretro_android.so" to "Game Boy Advance (mGBA)",
             "gambatte_libretro_android.so" to "Game Boy / GBC (Gambatte)",
             "nestopia_libretro_android.so" to "NES (Nestopia)",
+            "fceumm_libretro_android.so" to "NES / FDS (FCEUmm)",
             "fbalpha2012_libretro_android.so" to "Arcade (FB Alpha 2012)",
+            "fbneo_libretro_android.so" to "Neo Geo / Arcade (FBNeo)",
+            "neocd_libretro_android.so" to "Neo Geo CD (NeoCD)",
+            "mednafen_ngp_libretro_android.so" to "Neo Geo Pocket (Mednafen NGP)",
+            "mednafen_pce_fast_libretro_android.so" to "NEC PCE / PCE CD (Mednafen PCE Fast)",
+            "mednafen_wswan_libretro_android.so" to "Bandai WonderSwan (Mednafen WSwan)",
+            "picodrive_libretro_android.so" to "Sega 32X / Genesis (PicoDrive)",
             "desmume_libretro_android.so" to "Nintendo DS (DeSmuME)",
             "melonds_libretro_android.so" to "Nintendo DS (melonDS)",
             "ppsspp_libretro_android.so" to "PSP (PPSSPP)",
@@ -650,17 +850,38 @@ fun SystemEditDetailDialog(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
+                    var coreFilterText by remember { mutableStateOf("") }
+                    val filteredCores = remember(coreFilterText) {
+                        if (coreFilterText.isBlank()) {
+                            popularCores
+                        } else {
+                            popularCores.filter { (soName, coreTitle) ->
+                                coreTitle.contains(coreFilterText, ignoreCase = true) ||
+                                soName.contains(coreFilterText, ignoreCase = true) ||
+                                (coreFilterText.contains("muppen", ignoreCase = true) && soName.contains("mupen", ignoreCase = true))
+                            }
+                        }
+                    }
+
                     ExposedDropdownMenuBox(
                         expanded = expandedCoreDropdown,
-                        onExpandedChange = { expandedCoreDropdown = !expandedCoreDropdown }
+                        onExpandedChange = {
+                            expandedCoreDropdown = it
+                            if (it) {
+                                coreFilterText = ""
+                            }
+                        }
                     ) {
                         val matchedLabel = popularCores.firstOrNull { it.first == retroArchCore }?.second ?: "Custom Core File Name"
 
                         OutlinedTextField(
-                            value = matchedLabel,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Select Core Preset") },
+                            value = if (expandedCoreDropdown) coreFilterText else matchedLabel,
+                            onValueChange = {
+                                coreFilterText = it
+                                expandedCoreDropdown = true
+                            },
+                            readOnly = false,
+                            label = { Text("Select Core Preset (Type to Filter)") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCoreDropdown) },
                             modifier = Modifier
                                 .menuAnchor()
@@ -671,19 +892,28 @@ fun SystemEditDetailDialog(
                             expanded = expandedCoreDropdown,
                             onDismissRequest = { expandedCoreDropdown = false }
                         ) {
-                            popularCores.forEach { (soName, coreTitle) ->
+                            if (filteredCores.isEmpty()) {
                                 DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(coreTitle, fontWeight = FontWeight.Bold)
-                                            Text(soName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    },
-                                    onClick = {
-                                        retroArchCore = soName
-                                        expandedCoreDropdown = false
-                                    }
+                                    text = { Text("No matching cores found", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                    onClick = {},
+                                    enabled = false
                                 )
+                            } else {
+                                filteredCores.forEach { (soName, coreTitle) ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(coreTitle, fontWeight = FontWeight.Bold)
+                                                Text(soName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        },
+                                        onClick = {
+                                            retroArchCore = soName
+                                            coreFilterText = ""
+                                            expandedCoreDropdown = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -807,6 +1037,261 @@ fun SystemEditDetailDialog(
             onDismiss = { showRetroarchSaveDirPicker = false },
             onDirectorySelected = { selectedPath ->
                 retroarchSaveDir = selectedPath
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WidgetEditDetailDialog(
+    system: SystemEntity,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (SystemEntity) -> Unit
+) {
+    var name by remember { mutableStateOf(system.name) }
+    var colorHex by remember { mutableStateOf(system.colorHex) }
+    var folderPath by remember { mutableStateOf(system.folderPath) }
+    var allowedExtensions by remember { mutableStateOf(system.allowedExtensions) }
+    var retroArchCore by remember { mutableStateOf(system.retroArchCore) }
+    var iconName by remember { mutableStateOf(system.iconName) }
+
+    var showDirectoryPicker by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    ScaledDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(24.dp)),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = if (isNew) "Add Widget" else "Edit Widget Settings",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+
+                val typeName = when (system.defaultLaunchMode) {
+                    "WIDGET_CLOCK" -> "Clock (Time & Date)"
+                    "WIDGET_TOTAL_GAMES" -> "Total Games Count"
+                    "WIDGET_CUSTOM_TEXT" -> "Custom Text Display"
+                    "WIDGET_SLIDESHOW" -> "Custom Image Slideshow"
+                    "WIDGET_BGM" -> "BGM (Background Music)"
+                    else -> "Widget"
+                }
+                Text(
+                    text = "Type: $typeName",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Widget Display Title") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Text(
+                    text = "Widget Theme & Style",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                )
+
+                val parsedColor = parseHexColor(colorHex)
+
+                ColorPickerInput(
+                    colorHex = colorHex,
+                    onColorHexChange = { colorHex = it },
+                    label = "Widget Theme Color"
+                )
+
+                IconPickerInput(
+                    iconNameOrPath = iconName,
+                    onIconSelected = { iconName = it },
+                    label = "Widget Icon",
+                    tint = parsedColor
+                )
+
+                when (system.defaultLaunchMode) {
+                    "WIDGET_CLOCK" -> {
+                        Text(
+                            text = "Time Format Pattern",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        val timePresets = listOf(
+                            "hh:mm:ss a" to "12h with Sec",
+                            "hh:mm a" to "12h",
+                            "HH:mm:ss" to "24h with Sec",
+                            "HH:mm" to "24h"
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            timePresets.forEach { (pattern, label) ->
+                                FilterChip(
+                                    selected = allowedExtensions == pattern,
+                                    onClick = { allowedExtensions = pattern },
+                                    label = { Text(label, fontSize = 10.sp) }
+                                )
+                            }
+                        }
+                        OutlinedTextField(
+                            value = allowedExtensions,
+                            onValueChange = { allowedExtensions = it },
+                            label = { Text("Time Pattern (e.g. hh:mm:ss a, HH:mm)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "Date Format Pattern",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        val datePresets = listOf(
+                            "yyyy-MM-dd" to "Y-m-d",
+                            "EEE dd-MM-yyyy" to "e d-m-Y",
+                            "dd/MM/yyyy" to "d/m/Y",
+                            "EEE, MMM dd, yyyy" to "Default"
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            datePresets.forEach { (pattern, label) ->
+                                FilterChip(
+                                    selected = retroArchCore == pattern,
+                                    onClick = { retroArchCore = pattern },
+                                    label = { Text(label, fontSize = 10.sp) }
+                                )
+                            }
+                        }
+                        OutlinedTextField(
+                            value = retroArchCore,
+                            onValueChange = { retroArchCore = it },
+                            label = { Text("Date Pattern (e.g. yyyy-MM-dd, EEE dd-MM-yyyy)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                    "WIDGET_CUSTOM_TEXT" -> {
+                        OutlinedTextField(
+                            value = retroArchCore,
+                            onValueChange = { retroArchCore = it },
+                            label = { Text("Custom Text Content") },
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                            maxLines = 5
+                        )
+                    }
+                    "WIDGET_SLIDESHOW" -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = folderPath,
+                                onValueChange = { folderPath = it },
+                                label = { Text("Slideshow Image Folder") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(onClick = { showDirectoryPicker = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
+                                    contentDescription = "Select Folder",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = allowedExtensions,
+                            onValueChange = { allowedExtensions = it.filter { c -> c.isDigit() } },
+                            label = { Text("Transition Interval (Seconds)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                    "WIDGET_BGM" -> {
+                        Text(
+                            text = "Background Music Widget. Tapping or selecting this widget using gamepad A button in the main menu will bring up a dedicated playback controller dialog.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = allowedExtensions,
+                            onValueChange = { allowedExtensions = it },
+                            label = { Text("Custom Action Label (replaces 'Tap to view')") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Button(
+                        onClick = {
+                            val savedExt = if (system.defaultLaunchMode == "WIDGET_SLIDESHOW") {
+                                if (allowedExtensions.isBlank()) "5" else allowedExtensions
+                            } else {
+                                allowedExtensions
+                            }
+                            onSave(
+                                system.copy(
+                                    name = name,
+                                    colorHex = colorHex,
+                                    folderPath = folderPath,
+                                    allowedExtensions = savedExt,
+                                    retroArchCore = retroArchCore,
+                                    iconName = iconName
+                                )
+                            )
+                            onDismiss()
+                        }
+                    ) {
+                        Text("Save Widget")
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDirectoryPicker) {
+        DirectoryPickerDialog(
+            initialPath = folderPath,
+            onDismiss = { showDirectoryPicker = false },
+            onDirectorySelected = { selectedPath ->
+                folderPath = selectedPath
             }
         )
     }

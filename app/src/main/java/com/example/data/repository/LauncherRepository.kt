@@ -79,6 +79,7 @@ class LauncherRepository(private val context: Context) {
             if (missingDefaults.isNotEmpty()) {
                 systemDao.insertSystems(missingDefaults)
             }
+
             scanAndroidApps("android_apps")
             scanAndroidApps("android_games")
             scanAndroidApps("android_emulators")
@@ -89,7 +90,7 @@ class LauncherRepository(private val context: Context) {
         return gameRomDao.getRomsBySystem(systemId)
     }
 
-    suspend fun insertOrUpdateSystem(system: SystemEntity) = withContext(Dispatchers.IO) {
+    suspend fun insertOrUpdateSystem(system: SystemEntity): Int = withContext(Dispatchers.IO) {
         val existing = systemDao.getSystemById(system.id)
         val systemToSave = if (existing != null) {
             system.copy(displayOrder = existing.displayOrder)
@@ -134,6 +135,7 @@ class LauncherRepository(private val context: Context) {
             ConfigStorageManager.RomUserData(
                 filePath = it.filePath,
                 isFavorite = it.isFavorite,
+                isCompleted = it.isCompleted,
                 lastPlayedTimestamp = it.lastPlayedTimestamp,
                 playCount = it.playCount
             )
@@ -149,11 +151,13 @@ class LauncherRepository(private val context: Context) {
             val savedData = savedUserDataMap[rom.filePath]
             if (savedData != null) {
                 if (rom.isFavorite != savedData.isFavorite ||
+                    rom.isCompleted != savedData.isCompleted ||
                     rom.lastPlayedTimestamp != savedData.lastPlayedTimestamp ||
                     rom.playCount != savedData.playCount) {
                     gameRomDao.updateRom(
                         rom.copy(
                             isFavorite = savedData.isFavorite,
+                            isCompleted = savedData.isCompleted,
                             lastPlayedTimestamp = savedData.lastPlayedTimestamp,
                             playCount = savedData.playCount
                         )
@@ -165,6 +169,11 @@ class LauncherRepository(private val context: Context) {
 
     suspend fun toggleFavorite(rom: GameRomEntity) = withContext(Dispatchers.IO) {
         gameRomDao.updateRom(rom.copy(isFavorite = !rom.isFavorite))
+        syncUserDataToConfig()
+    }
+
+    suspend fun toggleCompleted(rom: GameRomEntity) = withContext(Dispatchers.IO) {
+        gameRomDao.updateRom(rom.copy(isCompleted = !rom.isCompleted))
         syncUserDataToConfig()
     }
 
@@ -284,6 +293,7 @@ class LauncherRepository(private val context: Context) {
                 extension = "apk",
                 coverArtPath = if (artPath.isNotEmpty()) artPath else null,
                 isFavorite = savedData?.isFavorite ?: false,
+                isCompleted = savedData?.isCompleted ?: false,
                 lastPlayedTimestamp = savedData?.lastPlayedTimestamp ?: 0L,
                 playCount = savedData?.playCount ?: 0
             )
@@ -294,6 +304,10 @@ class LauncherRepository(private val context: Context) {
     }
 
     suspend fun scanFolderForRoms(system: SystemEntity): Int = withContext(Dispatchers.IO) {
+        if (system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")) {
+            return@withContext 0
+        }
+
         if (system.id in listOf("android_apps", "android_games", "android_emulators") || system.defaultLaunchMode == "ANDROID_APP") {
             scanAndroidApps(system.id)
             return@withContext 0
@@ -356,6 +370,7 @@ class LauncherRepository(private val context: Context) {
                 extension = ext,
                 coverArtPath = coverPath,
                 isFavorite = savedData?.isFavorite ?: false,
+                isCompleted = savedData?.isCompleted ?: false,
                 lastPlayedTimestamp = savedData?.lastPlayedTimestamp ?: 0L,
                 playCount = savedData?.playCount ?: 0
             )
@@ -472,6 +487,7 @@ class LauncherRepository(private val context: Context) {
 
     private suspend fun generateSampleDemoRoms(systems: List<SystemEntity>) {
         for (sys in systems) {
+            if (sys.defaultLaunchMode == "VIRTUAL" || sys.defaultLaunchMode == "ANDROID_APP") continue
             val folder = File(sys.folderPath)
             if (!folder.exists()) folder.mkdirs()
             createDemoRomInFolder(sys, folder)
@@ -480,17 +496,7 @@ class LauncherRepository(private val context: Context) {
 
     private suspend fun createDemoRomInFolder(sys: SystemEntity, folder: File) {
         val ext = sys.allowedExtensions.split(",").firstOrNull()?.trim() ?: ".zip"
-        val sampleTitles = when (sys.id) {
-            "snes" -> listOf("Super Ario World", "The Legend of Zee - A Link", "Chron A Trigger")
-            "ps2" -> listOf("Grand San Andrea", "Kingdom Hear II", "Shadow of Olossus")
-            "3ds" -> listOf("Poke Sun", "Super Ario 3D Land", "Fire Awaken")
-            "psp" -> listOf("God of Chains of Olympus", "Crisis Core Fantasy", "Tekkan 6")
-            "n64" -> listOf("Super Ario 64", "The Legend of Time", "Golden7")
-            "gba" -> listOf("Poke Emerald", "Metroion", "Castlearia")
-            "ps1" -> listOf("Castlephony of the Night", "Final VII", "Metal Solid")
-            "gc" -> listOf("Super Melee", "The Legend of Zee - The Wind Waker", "Super Ario Shine")
-            else -> listOf("Demo Game 1", "Demo Game 2")
-        }
+        val sampleTitles = listOf("Example Rom 1", "Example Rom 2", "Example Rom 3")
 
         val roms = mutableListOf<GameRomEntity>()
         sampleTitles.forEach { title ->
@@ -498,7 +504,7 @@ class LauncherRepository(private val context: Context) {
             val file = File(folder, fileName)
             if (!file.exists()) {
                 try {
-                    file.writeText("# Sample ROM File for $title ($sys.name)\nCreated by Retro Launcher")
+                    file.writeText("# Sample ROM File for $title (${sys.name})\nCreated by Retro Launcher")
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

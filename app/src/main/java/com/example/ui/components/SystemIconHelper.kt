@@ -29,7 +29,15 @@ object SystemIconHelper {
         "games" to Icons.Default.Games,
         "headset" to Icons.Default.Headset,
         "widgets" to Icons.Default.Widgets,
-        "palette" to Icons.Default.Palette
+        "palette" to Icons.Default.Palette,
+        "clock" to Icons.Default.Schedule,
+        "calendar" to Icons.Default.CalendarToday,
+        "pencil" to Icons.Default.Edit,
+        "brush" to Icons.Default.Brush,
+        "music" to Icons.Default.MusicNote,
+        "volume" to Icons.Default.VolumeUp,
+        "heart" to Icons.Default.Favorite,
+        "home" to Icons.Default.Home
     )
 
     fun getIconVector(iconName: String): ImageVector {
@@ -40,6 +48,14 @@ object SystemIconHelper {
             lower == "android" || lower.contains("android") -> Icons.Default.Android
             lower == "apps" || lower.contains("apps") -> Icons.Default.Apps
             lower == "headset" || lower.contains("headset") -> Icons.Default.Headset
+            lower == "clock" || lower.contains("clock") || lower.contains("schedule") || lower.contains("time") -> Icons.Default.Schedule
+            lower == "calendar" || lower.contains("calendar") || lower.contains("date") || lower.contains("today") -> Icons.Default.CalendarToday
+            lower == "pencil" || lower == "edit" || lower.contains("pencil") || lower.contains("edit") -> Icons.Default.Edit
+            lower == "brush" || lower.contains("brush") || lower.contains("draw") -> Icons.Default.Brush
+            lower == "music" || lower.contains("music") || lower.contains("audio_note") -> Icons.Default.MusicNote
+            lower == "volume" || lower.contains("volume") || lower.contains("audio") || lower.contains("sound") -> Icons.Default.VolumeUp
+            lower == "heart" || lower.contains("heart") || lower.contains("fav_heart") || lower.contains("favorite") -> Icons.Default.Favorite
+            lower == "home" || lower.contains("home") -> Icons.Default.Home
             lower.contains("ps") || lower.contains("playstation") -> Icons.Default.VideogameAsset
             lower.contains("3ds") || lower.contains("ds") -> Icons.Default.Smartphone
             lower.contains("tv") || lower.contains("console") -> Icons.Default.Tv

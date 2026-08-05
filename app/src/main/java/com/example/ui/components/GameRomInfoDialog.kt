@@ -2,6 +2,8 @@ package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -10,11 +12,14 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +37,7 @@ fun GameRomInfoDialog(
     customIcon: String,
     onCustomIconChange: (String) -> Unit,
     onFavoriteToggle: (GameRomEntity) -> Unit,
+    onCompletedToggle: (GameRomEntity) -> Unit,
     onRenameGame: (GameRomEntity, String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -44,11 +50,13 @@ fun GameRomInfoDialog(
 
     var isRenaming by remember { mutableStateOf(false) }
     var renameText by remember(game.title) { mutableStateOf(game.title) }
+    val configuration = LocalConfiguration.current
 
     ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
+                .heightIn(max = (configuration.screenHeightDp * 0.9f).dp)
                 .clip(RoundedCornerShape(20.dp)),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp
@@ -56,7 +64,8 @@ fun GameRomInfoDialog(
             Column(
                 modifier = Modifier
                     .padding(20.dp)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Header
@@ -177,15 +186,19 @@ fun GameRomInfoDialog(
                 InfoDetailRow("Play Count", "${game.playCount} times")
                 InfoDetailRow("Last Played", lastPlayedStr)
                 InfoDetailRow("Favorite", if (game.isFavorite) "Yes ⭐" else "No")
+                InfoDetailRow("Completed", if (game.isCompleted) "Yes ✅" else "No")
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    OutlinedButton(onClick = { onFavoriteToggle(game) }) {
+                    OutlinedButton(
+                        onClick = { onFavoriteToggle(game) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Icon(
                             imageVector = if (game.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = if (game.isFavorite) "Remove from Favorites" else "Add to Favorites",
@@ -194,7 +207,22 @@ fun GameRomInfoDialog(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(if (game.isFavorite) "Favorited" else "Favorite")
                     }
-                    Button(onClick = onDismiss) {
+                    OutlinedButton(
+                        onClick = { onCompletedToggle(game) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = if (game.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                            contentDescription = if (game.isCompleted) "Mark as Incomplete" else "Mark as Completed",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(if (game.isCompleted) "Completed" else "Complete")
+                    }
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text("Close")
                     }
                 }

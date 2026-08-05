@@ -64,7 +64,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
     sealed class ScanEvent {
-        data class ScanFinished(val systemName: String, val romCount: Int, val folderPath: String) : ScanEvent()
+        data class ScanFinished(val systemName: String, val romCount: Int, val folderPath: String, val systemId: String = "") : ScanEvent()
     }
 
     private val _scanEvent = MutableSharedFlow<ScanEvent>()
@@ -187,8 +187,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun saveSystem(system: SystemEntity) {
+        if (_isScanning.value) return
+        _isScanning.value = true
         viewModelScope.launch {
-            repository.insertOrUpdateSystem(system)
+            try {
+                val romCount = repository.insertOrUpdateSystem(system)
+                val isWidget = system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")
+                if (!isWidget) {
+                    _scanEvent.emit(ScanEvent.ScanFinished(system.name, romCount, system.folderPath, system.id))
+                }
+            } finally {
+                _isScanning.value = false
+            }
         }
     }
 
@@ -202,7 +212,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             repository.deleteSystem(system)
             if (_selectedSystemId.value == system.id) {
-                _selectedSystemId.value = systems.value.firstOrNull { it.id != system.id }?.id
+                _selectedSystemId.value = systems.value.firstOrNull { 
+                    it.id != system.id && 
+                    !it.id.startsWith("widget_") && 
+                    !it.defaultLaunchMode.startsWith("WIDGET_") 
+                }?.id
             }
         }
     }
@@ -222,6 +236,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun toggleFavorite(game: GameRomEntity) {
         viewModelScope.launch {
             repository.toggleFavorite(game)
+        }
+    }
+
+    fun toggleCompleted(game: GameRomEntity) {
+        viewModelScope.launch {
+            repository.toggleCompleted(game)
         }
     }
 
@@ -245,7 +265,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val romCount = repository.scanFolderForRoms(system)
-                _scanEvent.emit(ScanEvent.ScanFinished(system.name, romCount, system.folderPath))
+                _scanEvent.emit(ScanEvent.ScanFinished(system.name, romCount, system.folderPath, system.id))
             } finally {
                 _isScanning.value = false
             }

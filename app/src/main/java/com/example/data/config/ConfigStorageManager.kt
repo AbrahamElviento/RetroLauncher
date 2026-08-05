@@ -374,6 +374,12 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "romIconPopUpWidthPercent").text(settings.romIconPopUpWidthPercent.toString()).endTag("", "romIconPopUpWidthPercent")
             serializer.startTag("", "sleepTimeoutMode").text(settings.sleepTimeoutMode).endTag("", "sleepTimeoutMode")
             serializer.startTag("", "sleepTimeoutSeconds").text(settings.sleepTimeoutSeconds.toString()).endTag("", "sleepTimeoutSeconds")
+            serializer.startTag("", "showLaunchToast").text(settings.showLaunchToast.toString()).endTag("", "showLaunchToast")
+            serializer.startTag("", "enableImmersiveMode").text(settings.enableImmersiveMode.toString()).endTag("", "enableImmersiveMode")
+            serializer.startTag("", "showFirstLastReorderButtons").text(settings.showFirstLastReorderButtons.toString()).endTag("", "showFirstLastReorderButtons")
+            serializer.startTag("", "showRomDetailsButton").text(settings.showRomDetailsButton.toString()).endTag("", "showRomDetailsButton")
+            serializer.startTag("", "showRomFavoriteButton").text(settings.showRomFavoriteButton.toString()).endTag("", "showRomFavoriteButton")
+            serializer.startTag("", "showRomCompleteButton").text(settings.showRomCompleteButton.toString()).endTag("", "showRomCompleteButton")
 
             serializer.endTag("", "DisplaySettings")
             serializer.endDocument()
@@ -447,6 +453,12 @@ class ConfigStorageManager(private val context: Context) {
             var romIconPopUpWidthPercent = 30
             var sleepTimeoutMode = "DEVICE"
             var sleepTimeoutSeconds = 30
+            var showLaunchToast = true
+            var enableImmersiveMode = true
+            var showFirstLastReorderButtons = true
+            var showRomDetailsButton = true
+            var showRomFavoriteButton = true
+            var showRomCompleteButton = true
 
             var currentTag = ""
 
@@ -509,6 +521,12 @@ class ConfigStorageManager(private val context: Context) {
                                 "romIconPopUpWidthPercent" -> romIconPopUpWidthPercent = text.toIntOrNull() ?: 30
                                 "sleepTimeoutMode" -> sleepTimeoutMode = text
                                 "sleepTimeoutSeconds" -> sleepTimeoutSeconds = text.toIntOrNull() ?: 30
+                                "showLaunchToast" -> showLaunchToast = text.toBooleanStrictOrNull() ?: true
+                                "enableImmersiveMode" -> enableImmersiveMode = text.toBooleanStrictOrNull() ?: true
+                                "showFirstLastReorderButtons" -> showFirstLastReorderButtons = text.toBooleanStrictOrNull() ?: true
+                                "showRomDetailsButton" -> showRomDetailsButton = text.toBooleanStrictOrNull() ?: true
+                                "showRomFavoriteButton" -> showRomFavoriteButton = text.toBooleanStrictOrNull() ?: true
+                                "showRomCompleteButton" -> showRomCompleteButton = text.toBooleanStrictOrNull() ?: true
                             }
                         }
                     }
@@ -567,7 +585,13 @@ class ConfigStorageManager(private val context: Context) {
                 romIconPopUpAlignment = romIconPopUpAlignment,
                 romIconPopUpWidthPercent = romIconPopUpWidthPercent,
                 sleepTimeoutMode = sleepTimeoutMode,
-                sleepTimeoutSeconds = sleepTimeoutSeconds
+                sleepTimeoutSeconds = sleepTimeoutSeconds,
+                showLaunchToast = showLaunchToast,
+                enableImmersiveMode = enableImmersiveMode,
+                showFirstLastReorderButtons = showFirstLastReorderButtons,
+                showRomDetailsButton = showRomDetailsButton,
+                showRomFavoriteButton = showRomFavoriteButton,
+                showRomCompleteButton = showRomCompleteButton
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -678,6 +702,8 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "keyInfoAction").text(settings.keyInfoAction.toString()).endTag("", "keyInfoAction")
             serializer.startTag("", "keyOpenSearch").text(settings.keyOpenSearch.toString()).endTag("", "keyOpenSearch")
             serializer.startTag("", "keySystemManagerAction").text(settings.keySystemManagerAction.toString()).endTag("", "keySystemManagerAction")
+            serializer.startTag("", "keyToggleTopBarKey1").text(settings.keyToggleTopBarKey1.toString()).endTag("", "keyToggleTopBarKey1")
+            serializer.startTag("", "keyToggleTopBarKey2").text(settings.keyToggleTopBarKey2.toString()).endTag("", "keyToggleTopBarKey2")
 
             serializer.endTag("", "GamepadSettings")
             serializer.endDocument()
@@ -712,6 +738,8 @@ class ConfigStorageManager(private val context: Context) {
             var keyInfoAction = defaults.keyInfoAction
             var keyOpenSearch = defaults.keyOpenSearch
             var keySystemManagerAction = defaults.keySystemManagerAction
+            var keyToggleTopBarKey1 = defaults.keyToggleTopBarKey1
+            var keyToggleTopBarKey2 = defaults.keyToggleTopBarKey2
 
             var currentTag = ""
 
@@ -734,6 +762,8 @@ class ConfigStorageManager(private val context: Context) {
                                 "keyInfoAction" -> keyInfoAction = text.toIntOrNull() ?: defaults.keyInfoAction
                                 "keyOpenSearch" -> keyOpenSearch = text.toIntOrNull() ?: defaults.keyOpenSearch
                                 "keySystemManagerAction" -> keySystemManagerAction = text.toIntOrNull() ?: defaults.keySystemManagerAction
+                                "keyToggleTopBarKey1" -> keyToggleTopBarKey1 = text.toIntOrNull() ?: defaults.keyToggleTopBarKey1
+                                "keyToggleTopBarKey2" -> keyToggleTopBarKey2 = text.toIntOrNull() ?: defaults.keyToggleTopBarKey2
                             }
                         }
                     }
@@ -752,7 +782,9 @@ class ConfigStorageManager(private val context: Context) {
                 keyFavoriteAction = keyFavoriteAction,
                 keyInfoAction = keyInfoAction,
                 keyOpenSearch = keyOpenSearch,
-                keySystemManagerAction = keySystemManagerAction
+                keySystemManagerAction = keySystemManagerAction,
+                keyToggleTopBarKey1 = keyToggleTopBarKey1,
+                keyToggleTopBarKey2 = keyToggleTopBarKey2
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -938,6 +970,7 @@ class ConfigStorageManager(private val context: Context) {
                 serializer.startTag("", "defaultLaunchMode").text(sys.defaultLaunchMode).endTag("", "defaultLaunchMode")
                 serializer.startTag("", "retroArchCore").text(sys.retroArchCore).endTag("", "retroArchCore")
                 serializer.startTag("", "customXmlProfileId").text(sys.customXmlProfileId).endTag("", "customXmlProfileId")
+                serializer.startTag("", "retroArchPackage").text(sys.retroArchPackage).endTag("", "retroArchPackage")
                 serializer.startTag("", "colorHex").text(sys.colorHex).endTag("", "colorHex")
                 serializer.startTag("", "iconName").text(sys.iconName).endTag("", "iconName")
                 serializer.startTag("", "isArcade").text(sys.isArcade.toString()).endTag("", "isArcade")
@@ -945,6 +978,8 @@ class ConfigStorageManager(private val context: Context) {
                 serializer.startTag("", "retroarchSaveDir").text(sys.retroarchSaveDir).endTag("", "retroarchSaveDir")
                 serializer.startTag("", "manufacturer").text(sys.manufacturer).endTag("", "manufacturer")
                 serializer.startTag("", "releaseYear").text(sys.releaseYear).endTag("", "releaseYear")
+                serializer.startTag("", "displayOrder").text(sys.displayOrder.toString()).endTag("", "displayOrder")
+                serializer.startTag("", "isEnabled").text(sys.isEnabled.toString()).endTag("", "isEnabled")
                 serializer.endTag("", "system")
             }
 
@@ -1216,6 +1251,7 @@ class ConfigStorageManager(private val context: Context) {
     data class RomUserData(
         val filePath: String,
         val isFavorite: Boolean,
+        val isCompleted: Boolean = false,
         val lastPlayedTimestamp: Long,
         val playCount: Int
     )
@@ -1230,10 +1266,11 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "UserRomDataList")
 
             for (data in userDataList) {
-                if (data.isFavorite || data.lastPlayedTimestamp > 0) {
+                if (data.isFavorite || data.isCompleted || data.lastPlayedTimestamp > 0) {
                     serializer.startTag("", "RomUserData")
                     serializer.startTag("", "filePath").text(data.filePath).endTag("", "filePath")
                     serializer.startTag("", "isFavorite").text(data.isFavorite.toString()).endTag("", "isFavorite")
+                    serializer.startTag("", "isCompleted").text(data.isCompleted.toString()).endTag("", "isCompleted")
                     serializer.startTag("", "lastPlayedTimestamp").text(data.lastPlayedTimestamp.toString()).endTag("", "lastPlayedTimestamp")
                     serializer.startTag("", "playCount").text(data.playCount.toString()).endTag("", "playCount")
                     serializer.endTag("", "RomUserData")
@@ -1266,6 +1303,7 @@ class ConfigStorageManager(private val context: Context) {
 
                 var currentFilePath = ""
                 var currentIsFav = false
+                var currentIsCompleted = false
                 var currentTimestamp = 0L
                 var currentPlayCount = 0
 
@@ -1276,11 +1314,13 @@ class ConfigStorageManager(private val context: Context) {
                             "RomUserData" -> {
                                 currentFilePath = ""
                                 currentIsFav = false
+                                currentIsCompleted = false
                                 currentTimestamp = 0L
                                 currentPlayCount = 0
                             }
                             "filePath" -> currentFilePath = parser.nextText()
                             "isFavorite" -> currentIsFav = parser.nextText().toBoolean()
+                            "isCompleted" -> currentIsCompleted = parser.nextText().toBoolean()
                             "lastPlayedTimestamp" -> currentTimestamp = parser.nextText().toLongOrNull() ?: 0L
                             "playCount" -> currentPlayCount = parser.nextText().toIntOrNull() ?: 0
                         }
@@ -1289,6 +1329,7 @@ class ConfigStorageManager(private val context: Context) {
                             resultMap[currentFilePath] = RomUserData(
                                 filePath = currentFilePath,
                                 isFavorite = currentIsFav,
+                                isCompleted = currentIsCompleted,
                                 lastPlayedTimestamp = currentTimestamp,
                                 playCount = currentPlayCount
                             )

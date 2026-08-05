@@ -59,5 +59,11 @@ data class DisplaySettings(
     val romIconPopUpAlignment: String = "middle_center",
     val romIconPopUpWidthPercent: Int = 30,
     val sleepTimeoutMode: String = "DEVICE",
-    val sleepTimeoutSeconds: Int = 30
+    val sleepTimeoutSeconds: Int = 30,
+    val showLaunchToast: Boolean = true,
+    val enableImmersiveMode: Boolean = true,
+    val showFirstLastReorderButtons: Boolean = true,
+    val showRomDetailsButton: Boolean = true,
+    val showRomFavoriteButton: Boolean = true,
+    val showRomCompleteButton: Boolean = true
 )

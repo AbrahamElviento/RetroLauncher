@@ -14,5 +14,7 @@ data class GamepadSettings(
     val keyFavoriteAction: Int = KeyEvent.KEYCODE_BUTTON_Y,
     val keyInfoAction: Int = KeyEvent.KEYCODE_BUTTON_X,
     val keyOpenSearch: Int = 0,
-    val keySystemManagerAction: Int = KeyEvent.KEYCODE_BUTTON_START
+    val keySystemManagerAction: Int = KeyEvent.KEYCODE_BUTTON_START,
+    val keyToggleTopBarKey1: Int = KeyEvent.KEYCODE_BUTTON_L1,
+    val keyToggleTopBarKey2: Int = KeyEvent.KEYCODE_BUTTON_R1
 )

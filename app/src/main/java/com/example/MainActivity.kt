@@ -12,6 +12,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,7 +35,6 @@ import coil.Coil
 class MainActivity : ComponentActivity() {
 
     private val viewModel: LauncherViewModel by viewModels()
-    private var lastInteractionTime = System.currentTimeMillis()
     private var sleepJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,6 +49,11 @@ class MainActivity : ComponentActivity() {
         Coil.setImageLoader(imageLoader)
 
         enableEdgeToEdge()
+        lifecycleScope.launch {
+            viewModel.displaySettings.collect { settings ->
+                updateSystemUIVisibility(settings.enableImmersiveMode)
+            }
+        }
         checkAndRequestStoragePermissions()
         setContent {
             val displaySettings by viewModel.displaySettings.collectAsState()
@@ -122,13 +129,7 @@ class MainActivity : ComponentActivity() {
                 return true
             }
         }
-        lastInteractionTime = System.currentTimeMillis()
         return super.dispatchGenericMotionEvent(event)
-    }
-
-    override fun onUserInteraction() {
-        super.onUserInteraction()
-        lastInteractionTime = System.currentTimeMillis()
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
@@ -144,46 +145,43 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        lastInteractionTime = System.currentTimeMillis()
         val displaySettings = viewModel.displaySettings.value
+        updateSystemUIVisibility(displaySettings.enableImmersiveMode)
         if (displaySettings.enableBgm) {
             com.example.util.SoundManager.resumeBgm(this)
         }
         startSleepTimer()
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            updateSystemUIVisibility(viewModel.displaySettings.value.enableImmersiveMode)
+        }
+    }
+
+    private fun updateSystemUIVisibility(enableImmersive: Boolean) {
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        if (enableImmersive) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            WindowCompat.setDecorFitsSystemWindows(window, true)
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
     private fun startSleepTimer() {
         sleepJob?.cancel()
         sleepJob = lifecycleScope.launch {
-            while (true) {
-                kotlinx.coroutines.delay(1000)
-                val displaySettings = viewModel.displaySettings.value
-                
-                // If a scan is currently running, keep resetting the interaction time
-                if (viewModel.isScanning.value) {
-                    lastInteractionTime = System.currentTimeMillis()
-                }
-
+            viewModel.displaySettings.collect { displaySettings ->
                 when (displaySettings.sleepTimeoutMode) {
                     "ALWAYS_ON" -> {
                         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
-                    "DEVICE" -> {
+                    else -> {
                         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                    }
-                    "CUSTOM" -> {
-                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        
-                        val elapsedSeconds = (System.currentTimeMillis() - lastInteractionTime) / 1000
-                        if (elapsedSeconds >= displaySettings.sleepTimeoutSeconds) {
-                            lastInteractionTime = System.currentTimeMillis()
-                            
-                            val dpm = getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager
-                            val adminComponent = android.content.ComponentName(this@MainActivity, com.example.receiver.AdminReceiver::class.java)
-                            if (dpm?.isAdminActive(adminComponent) == true) {
-                                dpm.lockNow()
-                            }
-                        }
                     }
                 }
             }

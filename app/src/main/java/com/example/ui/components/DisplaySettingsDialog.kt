@@ -89,6 +89,10 @@ fun DisplaySettingsDialog(
     var systemMainMenuStyle by remember { mutableStateOf(if (currentSettings.systemMainMenuStyle == "CAROUSEL") "ICON_GRID" else currentSettings.systemMainMenuStyle) }
     var systemMainMenuGridStyle by remember { mutableStateOf(currentSettings.systemMainMenuGridStyle) }
     var showSystemTitle by remember { mutableStateOf(currentSettings.showSystemTitle) }
+    var showFirstLastReorderButtons by remember { mutableStateOf(currentSettings.showFirstLastReorderButtons) }
+    var showRomDetailsButton by remember { mutableStateOf(currentSettings.showRomDetailsButton) }
+    var showRomFavoriteButton by remember { mutableStateOf(currentSettings.showRomFavoriteButton) }
+    var showRomCompleteButton by remember { mutableStateOf(currentSettings.showRomCompleteButton) }
     var expandedMainMenuStyleDropdown by remember { mutableStateOf(false) }
     var expandedGridStyleDropdown by remember { mutableStateOf(false) }
     var systemMenuTextSize by remember { mutableFloatStateOf(currentSettings.systemMenuTextSizeSp.toFloat()) }
@@ -116,6 +120,8 @@ fun DisplaySettingsDialog(
     var autoHideScrollbar by remember { mutableStateOf(currentSettings.autoHideScrollbar) }
     var scrollbarShowDurationMsText by remember { mutableStateOf(currentSettings.scrollbarShowDurationMs.toString()) }
     var removeCharsFromGameNamesText by remember { mutableStateOf(currentSettings.removeCharsFromGameNames) }
+    var showLaunchToast by remember { mutableStateOf(currentSettings.showLaunchToast) }
+    var enableImmersiveMode by remember { mutableStateOf(currentSettings.enableImmersiveMode) }
 
     // Auto Pop-up Icon States
     var enableRomIconPopUp by remember { mutableStateOf(currentSettings.enableRomIconPopUp) }
@@ -337,6 +343,38 @@ fun DisplaySettingsDialog(
                                 onIconSelected = { launcherIconPathText = it },
                                 label = "Title Bar Icon"
                             )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Full Screen Immersive Mode",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "Hide status bar and navigation bar for fully immersive launcher view",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = enableImmersiveMode,
+                                        onCheckedChange = { enableImmersiveMode = it }
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -618,6 +656,134 @@ fun DisplaySettingsDialog(
                                     Switch(
                                         checked = showSystemTitle,
                                         onCheckedChange = { showSystemTitle = it }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Show Move to First/Last Buttons",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "Show shortcuts to quickly move items to the top or bottom in the System Manager",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showFirstLastReorderButtons,
+                                        onCheckedChange = { showFirstLastReorderButtons = it }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Show Details Button",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "Show details button in ROM / game list",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showRomDetailsButton,
+                                        onCheckedChange = { showRomDetailsButton = it }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Show Favorite Button",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "Show favorite toggle button in ROM / game list",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showRomFavoriteButton,
+                                        onCheckedChange = { showRomFavoriteButton = it }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Show Complete Button",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "Show complete toggle button in ROM / game list",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showRomCompleteButton,
+                                        onCheckedChange = { showRomCompleteButton = it }
                                     )
                                 }
                             }
@@ -1008,6 +1174,36 @@ fun DisplaySettingsDialog(
                                 }
                             }
 
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Show Launch Toast Message",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "Display 'Launching game...' toast message when starting a game",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showLaunchToast,
+                                        onCheckedChange = { showLaunchToast = it }
+                                    )
+                                }
+                            }
+
                             OutlinedTextField(
                                 value = scrollbarShowDurationMsText,
                                 onValueChange = { scrollbarShowDurationMsText = it.filter { c -> c.isDigit() } },
@@ -1177,8 +1373,7 @@ fun DisplaySettingsDialog(
 
                             val sleepOptions = listOf(
                                 "DEVICE" to "Use device sleep timeout",
-                                "ALWAYS_ON" to "Always on",
-                                "CUSTOM" to "Override in typed seconds"
+                                "ALWAYS_ON" to "Always on"
                             )
                             val selectedSleepLabel = sleepOptions.firstOrNull { it.first == sleepTimeoutMode }?.second ?: "Use device sleep timeout"
 
@@ -1210,64 +1405,6 @@ fun DisplaySettingsDialog(
                                                 expandedSleepModeDropdown = false
                                             }
                                         )
-                                    }
-                                }
-                            }
-
-                            if (sleepTimeoutMode == "CUSTOM") {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedTextField(
-                                    value = sleepTimeoutSecondsText,
-                                    onValueChange = { sleepTimeoutSecondsText = it.filter { c -> c.isDigit() } },
-                                    label = { Text("Sleep Timeout (seconds)") },
-                                    placeholder = { Text("e.g. 30") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                val dpm = context.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager
-                                val adminComponent = remember { android.content.ComponentName(context, com.example.receiver.AdminReceiver::class.java) }
-                                val isAdminActive = remember(sleepTimeoutMode) { dpm?.isAdminActive(adminComponent) == true }
-
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (isAdminActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
-                                    modifier = Modifier.fillMaxWidth().border(1.dp, if (isAdminActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.error.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                ) {
-                                    Column(modifier = Modifier.padding(10.dp)) {
-                                        Text(
-                                            text = if (isAdminActive) "✅ Lock Permission Active" else "⚠️ Lock Permission Required",
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = if (isAdminActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                                        )
-                                        Text(
-                                            text = if (isAdminActive) 
-                                                "RetroLauncher has permission to turn off the screen directly." 
-                                                else "To turn off the screen directly on sleep timeout, RetroLauncher needs Device Administrator permission.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        if (!isAdminActive) {
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            Button(
-                                                onClick = {
-                                                    val intent = android.content.Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
-                                                        putExtra(android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
-                                                        putExtra(android.app.admin.DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Required to turn off the screen directly on sleep timeout.")
-                                                    }
-                                                    context.startActivity(intent)
-                                                },
-                                                modifier = Modifier.align(Alignment.End),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = MaterialTheme.colorScheme.error,
-                                                    contentColor = MaterialTheme.colorScheme.onError
-                                                )
-                                            ) {
-                                                Text("Grant Permission", style = MaterialTheme.typography.labelMedium)
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -1395,7 +1532,13 @@ fun DisplaySettingsDialog(
                                 romIconPopUpAlignment = romIconPopUpAlignment,
                                 romIconPopUpWidthPercent = romIconPopUpWidthPercentText.toIntOrNull() ?: 30,
                                 sleepTimeoutMode = sleepTimeoutMode,
-                                sleepTimeoutSeconds = sleepTimeoutSecondsText.toIntOrNull() ?: 30
+                                sleepTimeoutSeconds = sleepTimeoutSecondsText.toIntOrNull() ?: 30,
+                                showLaunchToast = showLaunchToast,
+                                enableImmersiveMode = enableImmersiveMode,
+                                showFirstLastReorderButtons = showFirstLastReorderButtons,
+                                showRomDetailsButton = showRomDetailsButton,
+                                showRomFavoriteButton = showRomFavoriteButton,
+                                showRomCompleteButton = showRomCompleteButton
                             )
                             onSaveSettings(newSettings)
                             if (bottomBarSettings != null && onSaveBottomBarSettings != null) {
