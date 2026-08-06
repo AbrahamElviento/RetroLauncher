@@ -264,7 +264,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _isScanning.value = true
         viewModelScope.launch {
             try {
-                val romCount = repository.scanFolderForRoms(system)
+                val romCount = repository.scanFolderForRoms(system, isUserScan = true)
                 _scanEvent.emit(ScanEvent.ScanFinished(system.name, romCount, system.folderPath, system.id))
             } finally {
                 _isScanning.value = false
@@ -284,7 +284,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _isScanning.value = true
         viewModelScope.launch {
             try {
-                repository.scanAllSystemFolders()
+                repository.scanAllSystemFolders(isUserScan = true)
                 _scanEvent.emit(ScanEvent.ScanFinished("All Systems", -1, ""))
             } finally {
                 _isScanning.value = false

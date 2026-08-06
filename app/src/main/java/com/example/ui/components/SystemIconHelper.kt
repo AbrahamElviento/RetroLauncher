@@ -37,7 +37,10 @@ object SystemIconHelper {
         "music" to Icons.Default.MusicNote,
         "volume" to Icons.Default.VolumeUp,
         "heart" to Icons.Default.Favorite,
-        "home" to Icons.Default.Home
+        "home" to Icons.Default.Home,
+        "bar_chart" to Icons.Default.BarChart,
+        "check_box" to Icons.Default.CheckBox,
+        "badge" to Icons.Default.Badge
     )
 
     fun getIconVector(iconName: String): ImageVector {
@@ -56,6 +59,9 @@ object SystemIconHelper {
             lower == "volume" || lower.contains("volume") || lower.contains("audio") || lower.contains("sound") -> Icons.Default.VolumeUp
             lower == "heart" || lower.contains("heart") || lower.contains("fav_heart") || lower.contains("favorite") -> Icons.Default.Favorite
             lower == "home" || lower.contains("home") -> Icons.Default.Home
+            lower == "bar_chart" || lower.contains("bar_chart") || lower.contains("chart") -> Icons.Default.BarChart
+            lower == "check_box" || lower.contains("check_box") || lower.contains("check") -> Icons.Default.CheckBox
+            lower == "badge" || lower.contains("badge") -> Icons.Default.Badge
             lower.contains("ps") || lower.contains("playstation") -> Icons.Default.VideogameAsset
             lower.contains("3ds") || lower.contains("ds") -> Icons.Default.Smartphone
             lower.contains("tv") || lower.contains("console") -> Icons.Default.Tv

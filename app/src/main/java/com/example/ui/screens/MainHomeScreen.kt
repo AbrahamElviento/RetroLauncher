@@ -80,7 +80,7 @@ fun MainHomeScreen(
         }
     }
 
-    var showTopBar by remember { mutableStateOf(true) }
+    val showTopBar = displaySettings.showTopBar
 
     var showSearchDialog by remember { mutableStateOf(false) }
     var showAppVisibilityDialog by remember { mutableStateOf(false) }
@@ -241,10 +241,10 @@ fun MainHomeScreen(
                             } else {
                                 val deltaY = avgY - initialY
                                 if (deltaY < -150f) { // Swipe up to hide top bar
-                                    showTopBar = false
+                                    viewModel.updateDisplaySettings(displaySettings.copy(showTopBar = false))
                                     initialY = avgY
                                 } else if (deltaY > 150f) { // Swipe down to show top bar
-                                    showTopBar = true
+                                    viewModel.updateDisplaySettings(displaySettings.copy(showTopBar = true))
                                     initialY = avgY
                                 }
                             }
@@ -266,7 +266,7 @@ fun MainHomeScreen(
 
                 if (k1 > 0 && k2 > 0 && isTopBarComboKey1Down && isTopBarComboKey2Down) {
                     if (!isTopBarComboTriggered) {
-                        showTopBar = !showTopBar
+                        viewModel.updateDisplaySettings(displaySettings.copy(showTopBar = !showTopBar))
                         isTopBarComboTriggered = true
                     }
                     return@onPreviewKeyEvent true
@@ -606,6 +606,8 @@ fun MainHomeScreen(
                             showSystemManagementDialog = true
                         },
                         totalGamesCount = allRoms.size,
+                        totalFavoritesCount = allRoms.count { it.isFavorite },
+                        totalCompletedCount = allRoms.count { it.isCompleted },
                         systemMainMenuTitle = displaySettings.systemMainMenuTitle,
                         systemMainMenuDescription = displaySettings.systemMainMenuDescription,
                         onOpenSystemManager = { showSystemManagementDialog = true },

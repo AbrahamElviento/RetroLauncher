@@ -60,7 +60,10 @@ val EXPANDED_ICON_LIST: List<Pair<String, ImageVector>> = listOf(
     "music" to Icons.Default.MusicNote,
     "volume" to Icons.Default.VolumeUp,
     "heart" to Icons.Default.Favorite,
-    "home" to Icons.Default.Home
+    "home" to Icons.Default.Home,
+    "bar_chart" to Icons.Default.BarChart,
+    "check_box" to Icons.Default.CheckBox,
+    "badge" to Icons.Default.Badge
 )
 
 @Composable

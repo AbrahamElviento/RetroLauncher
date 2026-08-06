@@ -3,6 +3,7 @@ package com.example.data.config
 import android.content.Context
 import android.os.Environment
 import android.util.Xml
+import com.example.data.db.GameRomEntity
 import com.example.data.db.StandaloneProfileEntity
 import com.example.data.db.SystemEntity
 import com.example.data.model.BottomBarSettings
@@ -54,6 +55,61 @@ class ConfigStorageManager(private val context: Context) {
     }
 
     private val baseDir: File get() = resolveBaseDir()
+
+    private fun createSerializer(writer: java.io.Writer): XmlSerializer {
+        val serializer = Xml.newSerializer()
+        serializer.setOutput(writer)
+        try {
+            serializer.setFeature("http://xmlpull.org/v1/doc/features.html#indent-output", true)
+        } catch (_: Exception) {}
+        try {
+            serializer.setProperty("http://xmlpull.org/v1/doc/properties.html#serializer-indentation", "    ")
+        } catch (_: Exception) {}
+        try {
+            serializer.setProperty("http://xmlpull.org/v1/doc/properties.html#serializer-line-separator", "\n")
+        } catch (_: Exception) {}
+        return serializer
+    }
+
+    fun saveCachedRomList(systemId: String, roms: List<GameRomEntity>): Boolean {
+        return try {
+            val dataDir = File(baseDir, "data")
+            if (!dataDir.exists()) {
+                dataDir.mkdirs()
+            }
+            val file = File(dataDir, systemId)
+            val writer = StringWriter()
+            val serializer = createSerializer(writer)
+            serializer.startDocument("UTF-8", true)
+            serializer.startTag("", "RomList")
+            for (rom in roms) {
+                serializer.startTag("", "Rom")
+                serializer.startTag("", "id").text(rom.id.toString()).endTag("", "id")
+                serializer.startTag("", "systemId").text(rom.systemId).endTag("", "systemId")
+                serializer.startTag("", "title").text(rom.title).endTag("", "title")
+                serializer.startTag("", "filePath").text(rom.filePath).endTag("", "filePath")
+                serializer.startTag("", "fileName").text(rom.fileName).endTag("", "fileName")
+                serializer.startTag("", "extension").text(rom.extension).endTag("", "extension")
+                serializer.startTag("", "coverArtPath").text(rom.coverArtPath ?: "").endTag("", "coverArtPath")
+                serializer.startTag("", "customEmulatorOverride").text(rom.customEmulatorOverride ?: "").endTag("", "customEmulatorOverride")
+                serializer.startTag("", "isFavorite").text(rom.isFavorite.toString()).endTag("", "isFavorite")
+                serializer.startTag("", "isCompleted").text(rom.isCompleted.toString()).endTag("", "isCompleted")
+                serializer.startTag("", "lastPlayedTimestamp").text(rom.lastPlayedTimestamp.toString()).endTag("", "lastPlayedTimestamp")
+                serializer.startTag("", "playCount").text(rom.playCount.toString()).endTag("", "playCount")
+                serializer.endTag("", "Rom")
+            }
+            serializer.endTag("", "RomList")
+            serializer.endDocument()
+
+            FileOutputStream(file).use { out ->
+                out.write(writer.toString().toByteArray())
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
     fun setBaseDirPath(newPath: String, moveCurrentFiles: Boolean): Boolean {
         return try {
@@ -130,8 +186,7 @@ class ConfigStorageManager(private val context: Context) {
         return try {
             val file = File(baseDir, "active_system.xml")
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "ActiveSystem")
             serializer.startTag("", "systemId").text(systemId).endTag("", "systemId")
@@ -177,8 +232,7 @@ class ConfigStorageManager(private val context: Context) {
         return try {
             val file = File(baseDir, "custom_name.xml")
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "CustomNames")
 
@@ -247,8 +301,7 @@ class ConfigStorageManager(private val context: Context) {
         return try {
             val file = File(baseDir, "custom_icon.xml")
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "CustomIcons")
 
@@ -317,8 +370,7 @@ class ConfigStorageManager(private val context: Context) {
         return try {
             val file = File(baseDir, "display_settings.xml")
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "DisplaySettings")
 
@@ -380,6 +432,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "showRomDetailsButton").text(settings.showRomDetailsButton.toString()).endTag("", "showRomDetailsButton")
             serializer.startTag("", "showRomFavoriteButton").text(settings.showRomFavoriteButton.toString()).endTag("", "showRomFavoriteButton")
             serializer.startTag("", "showRomCompleteButton").text(settings.showRomCompleteButton.toString()).endTag("", "showRomCompleteButton")
+            serializer.startTag("", "showTopBar").text(settings.showTopBar.toString()).endTag("", "showTopBar")
 
             serializer.endTag("", "DisplaySettings")
             serializer.endDocument()
@@ -459,6 +512,7 @@ class ConfigStorageManager(private val context: Context) {
             var showRomDetailsButton = true
             var showRomFavoriteButton = true
             var showRomCompleteButton = true
+            var showTopBar = true
 
             var currentTag = ""
 
@@ -527,6 +581,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "showRomDetailsButton" -> showRomDetailsButton = text.toBooleanStrictOrNull() ?: true
                                 "showRomFavoriteButton" -> showRomFavoriteButton = text.toBooleanStrictOrNull() ?: true
                                 "showRomCompleteButton" -> showRomCompleteButton = text.toBooleanStrictOrNull() ?: true
+                                "showTopBar" -> showTopBar = text.toBooleanStrictOrNull() ?: true
                             }
                         }
                     }
@@ -591,7 +646,8 @@ class ConfigStorageManager(private val context: Context) {
                 showFirstLastReorderButtons = showFirstLastReorderButtons,
                 showRomDetailsButton = showRomDetailsButton,
                 showRomFavoriteButton = showRomFavoriteButton,
-                showRomCompleteButton = showRomCompleteButton
+                showRomCompleteButton = showRomCompleteButton,
+                showTopBar = showTopBar
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -605,8 +661,7 @@ class ConfigStorageManager(private val context: Context) {
         return try {
             val file = File(baseDir, "rom_list_settings.xml")
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "RomListSettings")
 
@@ -685,8 +740,7 @@ class ConfigStorageManager(private val context: Context) {
         return try {
             val file = File(baseDir, "gamepad_settings.xml")
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "GamepadSettings")
 
@@ -804,8 +858,7 @@ class ConfigStorageManager(private val context: Context) {
             }
             val file = File(baseDir, fileName)
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "VisibleApps")
             serializer.attribute("", "systemId", systemId)
@@ -867,8 +920,7 @@ class ConfigStorageManager(private val context: Context) {
         return try {
             val file = File(baseDir, "bottom_bar_settings.xml")
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "BottomBarSettings")
 
@@ -954,8 +1006,7 @@ class ConfigStorageManager(private val context: Context) {
                 return true
             }
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "systems")
 
@@ -1118,8 +1169,7 @@ class ConfigStorageManager(private val context: Context) {
     fun generateProfileXmlString(profile: StandaloneProfileEntity): String {
         return try {
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
 
             serializer.startTag("", "emulator")
@@ -1260,8 +1310,7 @@ class ConfigStorageManager(private val context: Context) {
         return try {
             val file = File(baseDir, "favorites_and_recents.xml")
             val writer = StringWriter()
-            val serializer: XmlSerializer = Xml.newSerializer()
-            serializer.setOutput(writer)
+            val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
             serializer.startTag("", "UserRomDataList")
 

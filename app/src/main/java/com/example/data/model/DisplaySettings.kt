@@ -65,5 +65,6 @@ data class DisplaySettings(
     val showFirstLastReorderButtons: Boolean = true,
     val showRomDetailsButton: Boolean = true,
     val showRomFavoriteButton: Boolean = true,
-    val showRomCompleteButton: Boolean = true
+    val showRomCompleteButton: Boolean = true,
+    val showTopBar: Boolean = true
 )

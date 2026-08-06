@@ -31,6 +31,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.config.PresetData
 import com.example.data.db.SystemEntity
+import com.example.data.model.TotalGamesWidgetConfig
+import com.example.data.model.WidgetSubItem
 import java.io.File
 import java.util.UUID
 
@@ -1057,6 +1059,12 @@ fun WidgetEditDetailDialog(
     var retroArchCore by remember { mutableStateOf(system.retroArchCore) }
     var iconName by remember { mutableStateOf(system.iconName) }
 
+    var subItemsList by remember {
+        mutableStateOf(
+            TotalGamesWidgetConfig.parse(system.folderPath, system.colorHex, system.iconName)
+        )
+    }
+
     var showDirectoryPicker by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -1246,6 +1254,132 @@ fun WidgetEditDetailDialog(
                             singleLine = true
                         )
                     }
+                    "WIDGET_TOTAL_GAMES" -> {
+                        Text(
+                            text = "Counter Configurations",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Customize, order, enable/disable, change color and icon of the counters shown in the widget.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                        
+                        subItemsList.forEach { item ->
+                            val parsedItemColor = runCatching { Color(android.graphics.Color.parseColor(item.color)) }.getOrDefault(MaterialTheme.colorScheme.primary)
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = item.enabled,
+                                                onCheckedChange = { isChecked ->
+                                                    subItemsList = subItemsList.map {
+                                                        if (it.key == item.key) it.copy(enabled = isChecked) else it
+                                                    }
+                                                }
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = item.label,
+                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                            )
+                                        }
+                                        
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(
+                                                onClick = {
+                                                    val idx = subItemsList.indexOf(item)
+                                                    if (idx > 0) {
+                                                        val newList = subItemsList.toMutableList()
+                                                        val temp = newList[idx]
+                                                        newList[idx] = newList[idx - 1]
+                                                        newList[idx - 1] = temp
+                                                        subItemsList = newList.mapIndexed { index, subItem -> subItem.copy(order = index) }
+                                                    }
+                                                },
+                                                enabled = subItemsList.indexOf(item) > 0,
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ArrowUpward,
+                                                    contentDescription = "Move Up",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    val idx = subItemsList.indexOf(item)
+                                                    if (idx < subItemsList.size - 1) {
+                                                        val newList = subItemsList.toMutableList()
+                                                        val temp = newList[idx]
+                                                        newList[idx] = newList[idx + 1]
+                                                        newList[idx + 1] = temp
+                                                        subItemsList = newList.mapIndexed { index, subItem -> subItem.copy(order = index) }
+                                                    }
+                                                },
+                                                enabled = subItemsList.indexOf(item) < subItemsList.size - 1,
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ArrowDownward,
+                                                    contentDescription = "Move Down",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (item.enabled) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        OutlinedTextField(
+                                            value = item.label,
+                                            onValueChange = { newLabel ->
+                                                subItemsList = subItemsList.map {
+                                                    if (it.key == item.key) it.copy(label = newLabel) else it
+                                                }
+                                            },
+                                            label = { Text("Display Name") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        ColorPickerInput(
+                                            colorHex = item.color,
+                                            onColorHexChange = { newColor ->
+                                                subItemsList = subItemsList.map {
+                                                    if (it.key == item.key) it.copy(color = newColor) else it
+                                                }
+                                            },
+                                            label = "Color"
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        IconPickerInput(
+                                            iconNameOrPath = item.icon,
+                                            onIconSelected = { newIcon ->
+                                                subItemsList = subItemsList.map {
+                                                    if (it.key == item.key) it.copy(icon = newIcon) else it
+                                                }
+                                            },
+                                            label = "Icon",
+                                            tint = parsedItemColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1266,11 +1400,16 @@ fun WidgetEditDetailDialog(
                             } else {
                                 allowedExtensions
                             }
+                            val finalFolderPath = if (system.defaultLaunchMode == "WIDGET_TOTAL_GAMES") {
+                                TotalGamesWidgetConfig.serialize(subItemsList)
+                            } else {
+                                folderPath
+                            }
                             onSave(
                                 system.copy(
                                     name = name,
                                     colorHex = colorHex,
-                                    folderPath = folderPath,
+                                    folderPath = finalFolderPath,
                                     allowedExtensions = savedExt,
                                     retroArchCore = retroArchCore,
                                     iconName = iconName

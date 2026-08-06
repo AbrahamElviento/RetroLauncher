@@ -36,6 +36,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.db.SystemEntity
+import com.example.data.model.TotalGamesWidgetConfig
+import com.example.data.model.WidgetSubItem
 import kotlinx.coroutines.launch
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -95,6 +97,8 @@ fun SystemMainMenu(
     tileMarginLeftDp: Int = 0,
     tileMarginRightDp: Int = 0,
     totalGamesCount: Int = 0,
+    totalFavoritesCount: Int = 0,
+    totalCompletedCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     var displayStyle by remember(defaultDisplayStyle) {
@@ -476,6 +480,8 @@ fun SystemMainMenu(
                                     marqueeSpeed = marqueeSpeed,
                                     marqueeDelayMillis = marqueeDelayMillis,
                                     totalGamesCount = totalGamesCount,
+                                    totalFavoritesCount = totalFavoritesCount,
+                                    totalCompletedCount = totalCompletedCount,
                                     modifier = Modifier
                                         .padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp)
                                         .fillMaxWidth()
@@ -501,6 +507,8 @@ fun SystemMainMenu(
                                     marqueeSpeed = marqueeSpeed,
                                     marqueeDelayMillis = marqueeDelayMillis,
                                     totalGamesCount = totalGamesCount,
+                                    totalFavoritesCount = totalFavoritesCount,
+                                    totalCompletedCount = totalCompletedCount,
                                     modifier = Modifier
                                         .padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp)
                                         .fillMaxWidth()
@@ -660,9 +668,11 @@ fun SystemMainMenu(
                                 textSizeSp = textSizeSp,
                                 textAlignment = textAlignment,
                                 marqueeSpeed = marqueeSpeed,
-                                marqueeDelayMillis = marqueeDelayMillis,
-                                totalGamesCount = totalGamesCount,
-                                modifier = Modifier.padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp),
+                                                                marqueeDelayMillis = marqueeDelayMillis,
+                                                                totalGamesCount = totalGamesCount,
+                                                                totalFavoritesCount = totalFavoritesCount,
+                                                                totalCompletedCount = totalCompletedCount,
+                                                                modifier = Modifier.padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp),
                                 onClick = {
                                     isHeaderFocused = false
                                     focusedIndex = index
@@ -812,36 +822,116 @@ fun BgmWidgetContent(system: SystemEntity, isFocused: Boolean, style: String) {
 }
 
 @Composable
-fun TotalGamesWidgetContent(system: SystemEntity, totalGamesCount: Int, isFocused: Boolean, style: String) {
+fun TotalGamesWidgetContent(
+    system: SystemEntity, 
+    totalGamesCount: Int, 
+    totalFavoritesCount: Int,
+    totalCompletedCount: Int,
+    isFocused: Boolean, 
+    style: String
+) {
     val parseColor = runCatching {
         Color(android.graphics.Color.parseColor(system.colorHex))
     }.getOrDefault(MaterialTheme.colorScheme.primary)
 
+    val widgetItems = remember(system.folderPath, system.colorHex, system.iconName) {
+        TotalGamesWidgetConfig.parse(system.folderPath, system.colorHex, system.iconName)
+            .filter { it.enabled }
+    }
+
+    if (widgetItems.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "No Counters Enabled",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
+        return
+    }
+
+    val heroItem = widgetItems.first()
+    val secondaryItems = widgetItems.drop(1)
+
+    fun getCountFor(key: String): Int {
+        return when (key) {
+            "games" -> totalGamesCount
+            "favorites" -> totalFavoritesCount
+            "completed" -> totalCompletedCount
+            else -> 0
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(8.dp),
+            .padding(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        UniversalIconView(
-            iconNameOrPath = system.iconName.ifBlank { "games" },
-            tint = parseColor,
-            modifier = Modifier.size(28.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
+        val heroCount = getCountFor(heroItem.key)
+        val heroColor = runCatching { Color(android.graphics.Color.parseColor(heroItem.color)) }.getOrDefault(parseColor)
+        
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            UniversalIconView(
+                iconNameOrPath = heroItem.icon,
+                tint = heroColor,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "$heroCount",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, color = heroColor),
+                maxLines = 1
+            )
+        }
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
-            text = "$totalGamesCount",
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, color = parseColor),
-            maxLines = 1
-        )
-        Text(
-            text = if (system.name.isNotBlank()) system.name else "Total Games",
+            text = heroItem.label,
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+
+        if (secondaryItems.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                secondaryItems.forEach { item ->
+                    val count = getCountFor(item.key)
+                    val itemColor = runCatching { Color(android.graphics.Color.parseColor(item.color)) }.getOrDefault(MaterialTheme.colorScheme.primary)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            UniversalIconView(
+                                iconNameOrPath = item.icon,
+                                tint = itemColor,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "$count",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = item.label,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -992,6 +1082,8 @@ fun SystemGridCard(
     marqueeSpeed: Int = 30,
     marqueeDelayMillis: Int = 1200,
     totalGamesCount: Int = 0,
+    totalFavoritesCount: Int = 0,
+    totalCompletedCount: Int = 0,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
@@ -1051,7 +1143,7 @@ fun SystemGridCard(
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (system.defaultLaunchMode) {
                         "WIDGET_CLOCK" -> ClockWidgetContent(system = system, isFocused = isFocused, style = "GRID")
-                        "WIDGET_TOTAL_GAMES" -> TotalGamesWidgetContent(system = system, totalGamesCount = totalGamesCount, isFocused = isFocused, style = "GRID")
+                        "WIDGET_TOTAL_GAMES" -> TotalGamesWidgetContent(system = system, totalGamesCount = totalGamesCount, totalFavoritesCount = totalFavoritesCount, totalCompletedCount = totalCompletedCount, isFocused = isFocused, style = "GRID")
                         "WIDGET_CUSTOM_TEXT" -> CustomTextWidgetContent(system = system, isFocused = isFocused, style = "GRID")
                         "WIDGET_SLIDESHOW" -> SlideshowWidgetContent(system = system, isFocused = isFocused, style = "GRID")
                         "WIDGET_BGM" -> BgmWidgetContent(system = system, isFocused = isFocused, style = "GRID")
@@ -1155,6 +1247,8 @@ fun SystemTextRow(
     marqueeSpeed: Int = 30,
     marqueeDelayMillis: Int = 1200,
     totalGamesCount: Int = 0,
+    totalFavoritesCount: Int = 0,
+    totalCompletedCount: Int = 0,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     onEdit: () -> Unit = {},
@@ -1254,7 +1348,7 @@ fun SystemTextRow(
                     }
                     "WIDGET_TOTAL_GAMES" -> {
                         Text(
-                            text = "$totalGamesCount",
+                            text = "$totalGamesCount (★$totalFavoritesCount, ✔$totalCompletedCount)",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = parseColor)
                         )
                     }
@@ -1387,6 +1481,8 @@ fun SystemGridCardAlt(
     marqueeSpeed: Int = 30,
     marqueeDelayMillis: Int = 1200,
     totalGamesCount: Int = 0,
+    totalFavoritesCount: Int = 0,
+    totalCompletedCount: Int = 0,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
@@ -1440,7 +1536,7 @@ fun SystemGridCardAlt(
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (system.defaultLaunchMode) {
                         "WIDGET_CLOCK" -> ClockWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT")
-                        "WIDGET_TOTAL_GAMES" -> TotalGamesWidgetContent(system = system, totalGamesCount = totalGamesCount, isFocused = isFocused, style = "GRID_ALT")
+                        "WIDGET_TOTAL_GAMES" -> TotalGamesWidgetContent(system = system, totalGamesCount = totalGamesCount, totalFavoritesCount = totalFavoritesCount, totalCompletedCount = totalCompletedCount, isFocused = isFocused, style = "GRID_ALT")
                         "WIDGET_CUSTOM_TEXT" -> CustomTextWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT")
                         "WIDGET_SLIDESHOW" -> SlideshowWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT")
                         "WIDGET_BGM" -> BgmWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT")

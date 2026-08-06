@@ -236,7 +236,7 @@ class LauncherRepository(private val context: Context) {
         scanAndroidApps("android_apps")
     }
 
-    suspend fun scanAndroidApps(systemId: String = "android_apps") = withContext(Dispatchers.IO) {
+    suspend fun scanAndroidApps(systemId: String = "android_apps", isUserScan: Boolean = false) = withContext(Dispatchers.IO) {
         val existingSys = systemDao.getSystemById(systemId)
         val defaultSys = PresetData.getDefaultSystems(configStorageManager.getBaseDirPath()).find { it.id == systemId }
         if (existingSys == null && defaultSys != null) {
@@ -300,16 +300,21 @@ class LauncherRepository(private val context: Context) {
         }
 
         gameRomDao.deleteRomsBySystem(systemId)
-        gameRomDao.insertRoms(appRoms)
+        if (appRoms.isNotEmpty()) {
+            gameRomDao.insertRoms(appRoms)
+        }
+        if (isUserScan) {
+            configStorageManager.saveCachedRomList(systemId, appRoms)
+        }
     }
 
-    suspend fun scanFolderForRoms(system: SystemEntity): Int = withContext(Dispatchers.IO) {
+    suspend fun scanFolderForRoms(system: SystemEntity, isUserScan: Boolean = false): Int = withContext(Dispatchers.IO) {
         if (system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")) {
             return@withContext 0
         }
 
         if (system.id in listOf("android_apps", "android_games", "android_emulators") || system.defaultLaunchMode == "ANDROID_APP") {
-            scanAndroidApps(system.id)
+            scanAndroidApps(system.id, isUserScan = isUserScan)
             return@withContext 0
         }
 
@@ -378,6 +383,9 @@ class LauncherRepository(private val context: Context) {
 
         if (romEntities.isNotEmpty()) {
             gameRomDao.insertRoms(romEntities)
+        }
+        if (isUserScan) {
+            configStorageManager.saveCachedRomList(system.id, romEntities)
         }
         romEntities.size
     }
@@ -478,10 +486,10 @@ class LauncherRepository(private val context: Context) {
         return null
     }
 
-    suspend fun scanAllSystemFolders() = withContext(Dispatchers.IO) {
+    suspend fun scanAllSystemFolders(isUserScan: Boolean = false) = withContext(Dispatchers.IO) {
         val systems = systemDao.getAllSystems().first()
         for (sys in systems) {
-            scanFolderForRoms(sys)
+            scanFolderForRoms(sys, isUserScan = isUserScan)
         }
     }
 
