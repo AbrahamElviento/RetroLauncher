@@ -25,6 +25,7 @@ data class DisplaySettings(
     val textColorHex: String = "#FFFFFF",
     val cardBackgroundColorHex: String = "#2A2A2A",
     val showSystemMainMenuTitle: Boolean = true,
+    val bottomSystemMainMenuTitle: Boolean = false,
     val showSystemMainMenuEditIcon: Boolean = false,
     val systemMainMenuStyle: String = "ICON_GRID",
     val systemMainMenuGridStyle: String = "ICON_GRID",
@@ -33,8 +34,11 @@ data class DisplaySettings(
     val systemMenuActualColumns: Int = 4,
     val systemMenuActualRows: Int = 4,
     val showSystemTitle: Boolean = true,
+    val bottomSystemTitle: Boolean = false,
+    val showSubSystemTitle: Boolean = true,
     val swapTopAndBottomBar: Boolean = false,
     val systemMenuTextSizeSp: Int = 16,
+    val systemMenuDescTextSizeSp: Int = 12,
     val systemMenuTextAlignment: String = "LEFT",
     val marqueeSpeed: Int = 30,
     val marqueeDelayMillis: Int = 1200,
@@ -66,5 +70,11 @@ data class DisplaySettings(
     val showRomDetailsButton: Boolean = true,
     val showRomFavoriteButton: Boolean = true,
     val showRomCompleteButton: Boolean = true,
-    val showTopBar: Boolean = true
+    val showTopBar: Boolean = true,
+    val showTopBarSettingsIcon: Boolean = true,
+    val showTopBarTitleIcon: Boolean = true,
+    val topBarTitleAlignment: String = "LEFT",
+    val enableSwipeSystemNavigation: Boolean = false,
+    val ignoreSystemAnimationScale: Boolean = false,
+    val centeredLastGridItem: Boolean = false
 )

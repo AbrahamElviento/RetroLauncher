@@ -29,6 +29,9 @@ import androidx.compose.ui.input.key.type
 import android.view.KeyEvent
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.focus.onFocusChanged
 import coil.compose.AsyncImage
 import com.example.util.SlideshowManager
 
@@ -77,7 +80,8 @@ fun SlideshowControlDialog(
             properties = DialogProperties(
                 usePlatformDefaultWidth = false,
                 dismissOnBackPress = true,
-                dismissOnClickOutside = true
+                dismissOnClickOutside = true,
+                decorFitsSystemWindows = false
             )
         ) {
             Box(
@@ -130,7 +134,8 @@ fun SlideshowControlDialog(
                     IconButton(
                         onClick = { isFullScreen = false },
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.5f))
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -155,7 +160,8 @@ fun SlideshowControlDialog(
                             SlideshowManager.prev()
                         },
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.3f))
                     ) {
                         Icon(
                             imageVector = Icons.Default.ChevronLeft,
@@ -180,7 +186,8 @@ fun SlideshowControlDialog(
                             SlideshowManager.next()
                         },
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.3f))
                     ) {
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
@@ -227,7 +234,9 @@ fun SlideshowControlDialog(
                         )
                         IconButton(
                             onClick = onDismiss,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
@@ -295,49 +304,106 @@ fun SlideshowControlDialog(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Previous Button
-                        IconButton(
-                            onClick = { SlideshowManager.prev() },
+                        var isPrevFocused by remember { mutableStateOf(false) }
+                        Box(
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)),
-                            enabled = imageFiles.isNotEmpty()
+                                .onFocusChanged { isPrevFocused = it.isFocused }
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isPrevFocused) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .border(
+                                    width = if (isPrevFocused) 2.dp else 0.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable(enabled = imageFiles.isNotEmpty()) {
+                                    SlideshowManager.prev()
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipPrevious,
                                 contentDescription = "Previous Image",
-                                tint = if (imageFiles.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                tint = if (isPrevFocused) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else if (imageFiles.isNotEmpty()) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                },
                                 modifier = Modifier.size(24.dp)
                             )
                         }
 
                         // Play / Pause Button
-                        IconButton(
-                            onClick = { SlideshowManager.togglePlayPause() },
+                        var isPlayFocused by remember { mutableStateOf(false) }
+                        Box(
                             modifier = Modifier
                                 .size(56.dp)
-                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(28.dp)),
-                            enabled = imageFiles.isNotEmpty()
+                                .onFocusChanged { isPlayFocused = it.isFocused }
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isPlayFocused) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .border(
+                                    width = if (isPlayFocused) 2.dp else 0.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable(enabled = imageFiles.isNotEmpty()) {
+                                    SlideshowManager.togglePlayPause()
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (isPlaying) "Pause Slideshow" else "Play Slideshow",
-                                tint = if (imageFiles.isNotEmpty()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                                tint = if (isPlayFocused) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else if (imageFiles.isNotEmpty()) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                },
                                 modifier = Modifier.size(28.dp)
                             )
                         }
 
                         // Next Button
-                        IconButton(
-                            onClick = { SlideshowManager.next() },
+                        var isNextFocused by remember { mutableStateOf(false) }
+                        Box(
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)),
-                            enabled = imageFiles.isNotEmpty()
+                                .onFocusChanged { isNextFocused = it.isFocused }
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isNextFocused) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .border(
+                                    width = if (isNextFocused) 2.dp else 0.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable(enabled = imageFiles.isNotEmpty()) {
+                                    SlideshowManager.next()
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
                                 contentDescription = "Next Image",
-                                tint = if (imageFiles.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                tint = if (isNextFocused) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else if (imageFiles.isNotEmpty()) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                },
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -345,17 +411,36 @@ fun SlideshowControlDialog(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         // View Full Screen Button
-                        IconButton(
-                            onClick = { isFullScreen = true },
+                        var isFullFocused by remember { mutableStateOf(false) }
+                        Box(
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(24.dp)),
-                            enabled = imageFiles.isNotEmpty()
+                                .onFocusChanged { isFullFocused = it.isFocused }
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isFullFocused) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .border(
+                                    width = if (isFullFocused) 2.dp else 0.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable(enabled = imageFiles.isNotEmpty()) {
+                                    isFullScreen = true
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Fullscreen,
                                 contentDescription = "View Full Screen",
-                                tint = if (imageFiles.isNotEmpty()) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                tint = if (isFullFocused) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else if (imageFiles.isNotEmpty()) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                },
                                 modifier = Modifier.size(24.dp)
                             )
                         }

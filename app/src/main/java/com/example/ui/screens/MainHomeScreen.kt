@@ -9,6 +9,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerSnapDistance
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -58,7 +62,7 @@ fun MainHomeScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
     val allRoms by viewModel.allRoms.collectAsStateWithLifecycle()
-    val romListSettings by viewModel.romListSettings.collectAsStateWithLifecycle()
+    val romListSettings by viewModel.currentRomListSettings.collectAsStateWithLifecycle()
     val gamepadSettings by viewModel.gamepadSettings.collectAsStateWithLifecycle()
     val bottomBarSettings by viewModel.bottomBarSettings.collectAsStateWithLifecycle()
     val hiddenAndroidApps by viewModel.hiddenAndroidApps.collectAsStateWithLifecycle()
@@ -296,18 +300,21 @@ fun MainHomeScreen(
                     keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP -> {
                         if (!displaySettings.swapTopAndBottomBar) {
                             if (activeFocusZone == ActiveFocusZone.BOTTOM_BAR) {
-                                activeFocusZone = ActiveFocusZone.ROM_LIST
+                                activeFocusZone = if (displaySettings.bottomSystemTitle && displaySettings.showSystemTitle && !isMainMenuActive) ActiveFocusZone.SYSTEM_SELECTOR else ActiveFocusZone.ROM_LIST
                             } else if (activeFocusZone == ActiveFocusZone.ROM_LIST) {
                                 dpadUpTrigger = System.currentTimeMillis()
                             } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
-                                if (showTopBar) {
-                                    activeFocusZone = ActiveFocusZone.TOP_BAR
-                                    //topBarFocusedIndex = 0
+                                if (displaySettings.bottomSystemTitle) {
+                                    activeFocusZone = ActiveFocusZone.ROM_LIST
+                                } else {
+                                    if (showTopBar) {
+                                        activeFocusZone = ActiveFocusZone.TOP_BAR
+                                    }
                                 }
                             }
                         } else {
                             if (activeFocusZone == ActiveFocusZone.TOP_BAR) {
-                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR
+                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else (if (displaySettings.bottomSystemTitle) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR)
                             } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
                                 activeFocusZone = ActiveFocusZone.ROM_LIST
                             } else if (activeFocusZone == ActiveFocusZone.ROM_LIST) {
@@ -319,15 +326,15 @@ fun MainHomeScreen(
                     keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
                         if (!displaySettings.swapTopAndBottomBar) {
                             if (activeFocusZone == ActiveFocusZone.TOP_BAR) {
-                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR
+                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else (if (displaySettings.bottomSystemTitle) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR)
                             } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
-                                activeFocusZone = ActiveFocusZone.ROM_LIST
+                                activeFocusZone = if (displaySettings.bottomSystemTitle) ActiveFocusZone.BOTTOM_BAR else ActiveFocusZone.ROM_LIST
                             } else if (activeFocusZone == ActiveFocusZone.ROM_LIST) {
                                 dpadDownTrigger = System.currentTimeMillis()
                             }
                         } else {
                             if (activeFocusZone == ActiveFocusZone.BOTTOM_BAR) {
-                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR
+                                activeFocusZone = if (isMainMenuActive) ActiveFocusZone.ROM_LIST else (if (displaySettings.bottomSystemTitle) ActiveFocusZone.ROM_LIST else ActiveFocusZone.SYSTEM_SELECTOR)
                             } else if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) {
                                 activeFocusZone = ActiveFocusZone.ROM_LIST
                             } else if (activeFocusZone == ActiveFocusZone.ROM_LIST) {
@@ -475,21 +482,41 @@ fun MainHomeScreen(
     ) {
         val HeaderBarContent: @Composable () -> Unit = {
             if (showTopBar) {
+                val alignment = displaySettings.topBarTitleAlignment.uppercase()
+                val arrangement = when (alignment) {
+                    "CENTER" -> Arrangement.Center
+                    "RIGHT" -> Arrangement.End
+                    else -> Arrangement.Start
+                }
                 TopAppBar(
+                    modifier = Modifier.clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        showDisplaySettingsDialog = true
+                    },
                     title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier.size(36.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                UniversalIconView(
-                                    iconNameOrPath = displaySettings.launcherIconPath.ifEmpty { "gamepad" },
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(end = 16.dp),
+                            horizontalArrangement = arrangement,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (displaySettings.showTopBarTitleIcon) {
+                                Box(
+                                    modifier = Modifier.size(36.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    UniversalIconView(
+                                        iconNameOrPath = displaySettings.launcherIconPath.ifEmpty { "gamepad" },
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
                             }
-                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = displaySettings.launcherTitle,
                                 style = MaterialTheme.typography.titleMedium.copy(
@@ -501,34 +528,36 @@ fun MainHomeScreen(
                         }
                     },
                     actions = {
-                        val topActions = listOf(
-                            Icons.Default.Settings to "Display Canvas Settings"
-                        )
-                    topActions.forEachIndexed { idx, (icon, desc) ->
-                        val isFocused = (activeFocusZone == ActiveFocusZone.TOP_BAR && topBarFocusedIndex == idx)
-                        
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 2.dp)
-                                .border(
-                                    width = if (isFocused) 2.dp else 0.dp,
-                                    color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    shape = CircleShape
-                                )
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    showDisplaySettingsDialog = true
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = desc,
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
+                        if (displaySettings.showTopBarSettingsIcon) {
+                            val topActions = listOf(
+                                Icons.Default.Settings to "Display Canvas Settings"
+                            )
+                            topActions.forEachIndexed { idx, (icon, desc) ->
+                                val isFocused = (activeFocusZone == ActiveFocusZone.TOP_BAR && topBarFocusedIndex == idx)
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 2.dp)
+                                        .border(
+                                            width = if (isFocused) 2.dp else 0.dp,
+                                            color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                            shape = CircleShape
+                                        )
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            showDisplaySettingsDialog = true
+                                        },
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = desc,
+                                            tint = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
                             }
                         }
-                    }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = if (displaySettings.topBarColorHex.isNotBlank()) com.example.ui.components.parseHexColor(displaySettings.topBarColorHex, MaterialTheme.colorScheme.surface) else MaterialTheme.colorScheme.surface
@@ -546,6 +575,9 @@ fun MainHomeScreen(
                 onOpenBarSettings = {
                     activeFocusZone = ActiveFocusZone.BOTTOM_BAR
                     showBottomBarSettingsDialog = true
+                },
+                onDoubleTapClock = {
+                    viewModel.updateDisplaySettings(displaySettings.copy(showTopBar = !displaySettings.showTopBar))
                 }
             )
         }
@@ -589,6 +621,10 @@ fun MainHomeScreen(
                             } else if (system.defaultLaunchMode == "WIDGET_SLIDESHOW") {
                                 activeSlideshowSystemName = system.name
                                 showSlideshowControlDialog = true
+                            } else if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
+                                if (system.folderPath.isNotEmpty()) {
+                                    viewModel.launchAndroidApp(system.folderPath)
+                                }
                             } else if (!isWidget) {
                                 viewModel.selectSystem(system.id)
                                 isMainMenuActive = false
@@ -616,13 +652,17 @@ fun MainHomeScreen(
                         selectedSfxFileName = displaySettings.selectedSfxFileName,
                         mainMenuIconGridScalePercent = displaySettings.mainMenuIconGridScalePercent,
                         showMainMenuTitle = displaySettings.showSystemMainMenuTitle,
+                        bottomSystemMainMenuTitle = displaySettings.bottomSystemMainMenuTitle,
                         showEditIcon = displaySettings.showSystemMainMenuEditIcon,
                         defaultDisplayStyle = displaySettings.systemMainMenuStyle,
+                        systemMainMenuGridStyle = displaySettings.systemMainMenuGridStyle,
+                        centeredLastGridItem = displaySettings.centeredLastGridItem,
                         displayColumns = displaySettings.systemMenuDisplayColumns,
                         displayRows = displaySettings.systemMenuDisplayRows,
                         actualColumns = displaySettings.systemMenuActualColumns,
                         actualRows = displaySettings.systemMenuActualRows,
                         textSizeSp = displaySettings.systemMenuTextSizeSp,
+                        descTextSizeSp = displaySettings.systemMenuDescTextSizeSp,
                         textAlignment = displaySettings.systemMenuTextAlignment,
                         marqueeSpeed = displaySettings.marqueeSpeed,
                         marqueeDelayMillis = displaySettings.marqueeDelayMillis,
@@ -647,140 +687,353 @@ fun MainHomeScreen(
                         systemMainMenuIconPath = displaySettings.systemMainMenuIconPath,
                         tileMarginLeftDp = displaySettings.systemMenuTileMarginLeftDp,
                         tileMarginRightDp = displaySettings.systemMenuTileMarginRightDp,
+                        onDoubleTapClock = {
+                            viewModel.updateDisplaySettings(displaySettings.copy(showTopBar = !displaySettings.showTopBar))
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 } else {
                     // Ultra-Compact System Selector (Icon + Text Title + Prev/Next + Dedicated System Settings)
-                    CompactSystemSelector(
-                        systems = systems.filter { 
-                            !it.id.startsWith("widget_") && 
-                            !it.defaultLaunchMode.startsWith("WIDGET_") 
-                        },
-                        selectedSystem = currentSystem,
-                        isFocused = (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR),
-                        focusedItemIndex = if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) systemSelectorFocusedIndex else -1,
-                        showSystemTitle = displaySettings.showSystemTitle,
-                        onSystemSelected = {
-                            viewModel.selectSystem(it.id)
-                            isMainMenuActive = false
-                            activeFocusZone = ActiveFocusZone.ROM_LIST
-                        },
-                        onOpenSystemManager = { showSystemManagementDialog = true },
-                        onOpenMainMenu = {
-                            com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
-                            isMainMenuActive = true
-                            viewModel.selectSystem(null)
-                            activeFocusZone = ActiveFocusZone.ROM_LIST
-                        }
-                    )
-
-                    if (displaySettings.showSystemTitle) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                    val renderCompactSystemSelector = @Composable {
+                        CompactSystemSelector(
+                            systems = systems.filter { 
+                                !it.id.startsWith("widget_") && 
+                                !it.defaultLaunchMode.startsWith("WIDGET_") 
+                            },
+                            selectedSystem = currentSystem,
+                            isFocused = (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR),
+                            focusedItemIndex = if (activeFocusZone == ActiveFocusZone.SYSTEM_SELECTOR) systemSelectorFocusedIndex else -1,
+                            showSystemTitle = displaySettings.showSystemTitle,
+                            onSystemSelected = {
+                                viewModel.selectSystem(it.id)
+                                isMainMenuActive = false
+                                activeFocusZone = ActiveFocusZone.ROM_LIST
+                            },
+                            onOpenSystemManager = { showSystemManagementDialog = true },
+                            onOpenMainMenu = {
+                                com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
+                                isMainMenuActive = true
+                                viewModel.selectSystem(null)
+                                activeFocusZone = ActiveFocusZone.ROM_LIST
+                            }
+                        )
                     }
 
-                    // ROMs Browser View
-                    GameGrid(
-                        currentSystem = currentSystem,
-                        roms = roms,
-                        listSettings = romListSettings,
-                        onUpdateListSettings = { viewModel.updateRomListSettings(it) },
-                        enableNavigationSound = displaySettings.enableNavigationSound,
-                        selectedSfxFileName = displaySettings.selectedSfxFileName,
-                        allSystems = systems,
-                        customIcons = customIcons,
-                        onGameClick = { game ->
+                    if (!displaySettings.bottomSystemTitle) {
+                        renderCompactSystemSelector()
+                        if (displaySettings.showSystemTitle) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+
+                    val activeSystems = remember(systems) {
+                        systems.filter { 
+                            it.isEnabled && 
+                            !it.id.startsWith("widget_") && 
+                            !it.defaultLaunchMode.startsWith("WIDGET_") 
+                        }
+                    }
+
+                    if (displaySettings.enableSwipeSystemNavigation && activeSystems.isNotEmpty()) {
+                        val initialPage = remember(currentSystem) {
+                            if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
+                        }
+                        val pagerState = rememberPagerState(initialPage = initialPage) { activeSystems.size }
+
+                        LaunchedEffect(pagerState.currentPage) {
+                            if (pagerState.currentPage in activeSystems.indices) {
+                                val targetSystem = activeSystems[pagerState.currentPage]
+                                if (currentSystem?.id != targetSystem.id) {
+                                    viewModel.selectSystem(targetSystem.id)
+                                }
+                            }
+                        }
+
+                        LaunchedEffect(currentSystem) {
                             if (currentSystem != null) {
-                                viewModel.launchGame(currentSystem, game)
+                                val targetIdx = activeSystems.indexOfFirst { it.id == currentSystem.id }
+                                if (targetIdx >= 0 && pagerState.currentPage != targetIdx) {
+                                    if (displaySettings.ignoreSystemAnimationScale) {
+                                        kotlinx.coroutines.withContext(FixedMotionDurationScale(1f)) {
+                                            pagerState.animateScrollToPage(targetIdx)
+                                        }
+                                    } else {
+                                        pagerState.animateScrollToPage(targetIdx)
+                                    }
+                                }
                             }
-                        },
-                        onGameLongClick = { game ->
-                            showGameDetailsDialog = game
-                        },
-                        onFavoriteToggle = { game ->
-                            viewModel.toggleFavorite(game)
-                        },
-                        onCompletedToggle = { game ->
-                            viewModel.toggleCompleted(game)
-                        },
-                        onShowGameInfo = { game ->
-                            showGameDetailsDialog = game
-                        },
-                        onDeleteFromRecent = { game ->
-                            viewModel.removeFromRecent(game)
-                        },
-                        onScanFolderClick = {
-                            if (currentSystem != null) {
-                                showScanConfirmation = currentSystem
+                        }
+
+                        val flingBehavior = PagerDefaults.flingBehavior(
+                            state = pagerState,
+                            pagerSnapDistance = PagerSnapDistance.atMost(20)
+                        )
+
+                        HorizontalPager(
+                            state = pagerState,
+                            flingBehavior = flingBehavior,
+                            modifier = Modifier.weight(1f)
+                        ) { page ->
+                            val pageSystem = activeSystems.getOrNull(page)
+                            val isPageActive = (page == pagerState.currentPage)
+                            val pageRoms = remember(allRoms, pageSystem, searchQuery, displaySettings) {
+                                if (pageSystem == null) {
+                                    emptyList()
+                                } else {
+                                    var filtered = when (pageSystem.id) {
+                                        "favorites" -> allRoms.filter { it.isFavorite }
+                                        "recently_played" -> allRoms
+                                            .filter { it.lastPlayedTimestamp > 0 }
+                                            .sortedByDescending { it.lastPlayedTimestamp }
+                                            .take(displaySettings.maxRecentCount)
+                                        else -> allRoms.filter { it.systemId == pageSystem.id }
+                                    }
+                                    if (searchQuery.isNotBlank()) {
+                                        filtered = filtered.filter {
+                                            it.title.contains(searchQuery, ignoreCase = true) ||
+                                                    it.fileName.contains(searchQuery, ignoreCase = true)
+                                        }
+                                    }
+                                    filtered
+                                }
                             }
-                        },
-                        isScanning = isScanning,
-                        onOpenAppVisibilityClick = {
-                            showAppVisibilityDialog = true
-                        },
-                        onOpenSystemSettings = {
-                            if (currentSystem != null) {
-                                editingSystem = currentSystem
-                                showSystemEditDialog = true
-                            } else {
-                                showSystemManagementDialog = true
-                            }
-                        },
-                        onUpdateSystemFolder = { newPath ->
-                            if (currentSystem != null) {
-                                viewModel.saveSystem(currentSystem.copy(folderPath = newPath))
-                            }
-                        },
-                        isListFocused = (activeFocusZone == ActiveFocusZone.ROM_LIST),
-                        marqueeSpeed = displaySettings.marqueeSpeed,
-                        marqueeDelayMillis = displaySettings.marqueeDelayMillis,
-                        dpadUpTrigger = dpadUpTrigger,
-                        dpadDownTrigger = dpadDownTrigger,
-                        dpadLeftTrigger = dpadLeftTrigger,
-                        dpadRightTrigger = dpadRightTrigger,
-                        onMoveFocusUp = { activeFocusZone = ActiveFocusZone.SYSTEM_SELECTOR },
-                        onMoveFocusDown = { activeFocusZone = ActiveFocusZone.BOTTOM_BAR },
-                        pageUpTrigger = pageUpTrigger,
-                        pageDownTrigger = pageDownTrigger,
-                        goToTopTrigger = goToTopTrigger,
-                        goToBottomTrigger = goToBottomTrigger,
-                        selectActionTrigger = selectActionTrigger,
-                        backActionTrigger = backActionTrigger,
-                        favoriteActionTrigger = favoriteActionTrigger,
-                        infoActionTrigger = infoActionTrigger,
-                        onBackToMainMenu = {
-                            com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
-                            isMainMenuActive = true
-                            viewModel.selectSystem(null)
-                            activeFocusZone = ActiveFocusZone.ROM_LIST
-                        },
-                        onPreviousSystem = {
-                            val activeSystems = systems.filter { 
-                                it.isEnabled && 
-                                !it.id.startsWith("widget_") && 
-                                !it.defaultLaunchMode.startsWith("WIDGET_") 
-                            }
-                            if (activeSystems.isNotEmpty()) {
-                                val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
-                                val prevIdx = if (curIdx <= 0) activeSystems.size - 1 else curIdx - 1
-                                viewModel.selectSystem(activeSystems[prevIdx].id)
-                            }
-                        },
-                        onNextSystem = {
-                            val activeSystems = systems.filter { 
-                                it.isEnabled && 
-                                !it.id.startsWith("widget_") && 
-                                !it.defaultLaunchMode.startsWith("WIDGET_") 
-                            }
-                            if (activeSystems.isNotEmpty()) {
-                                val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
-                                val nextIdx = (curIdx + 1) % activeSystems.size
-                                viewModel.selectSystem(activeSystems[nextIdx].id)
-                            }
-                        },
-                        autoHideScrollbar = displaySettings.autoHideScrollbar,
-                        scrollbarShowDurationMs = displaySettings.scrollbarShowDurationMs,
-                        modifier = Modifier.weight(1f)
-                    )
+
+                            GameGrid(
+                                currentSystem = pageSystem,
+                                roms = pageRoms,
+                                listSettings = romListSettings,
+                                onUpdateListSettings = { viewModel.updateRomListSettings(it) },
+                                onApplyToActiveSystem = { viewModel.applyRomListSettingsToActiveSystem(it) },
+                                onApplyToAllSystems = { viewModel.applyRomListSettingsToAllSystems(it) },
+                                displaySettings = displaySettings,
+                                enableNavigationSound = displaySettings.enableNavigationSound,
+                                selectedSfxFileName = displaySettings.selectedSfxFileName,
+                                allSystems = systems,
+                                customIcons = customIcons,
+                                isScrolling = pagerState.isScrollInProgress,
+                                onGameClick = { game ->
+                                    if (!pagerState.isScrollInProgress && pageSystem != null) {
+                                        viewModel.launchGame(pageSystem, game)
+                                    }
+                                },
+                                onGameLongClick = { game ->
+                                    showGameDetailsDialog = game
+                                },
+                                onFavoriteToggle = { game ->
+                                    viewModel.toggleFavorite(game)
+                                },
+                                onCompletedToggle = { game ->
+                                    viewModel.toggleCompleted(game)
+                                },
+                                onShowGameInfo = { game ->
+                                    showGameDetailsDialog = game
+                                },
+                                onDeleteFromRecent = { game ->
+                                    viewModel.removeFromRecent(game)
+                                },
+                                onScanFolderClick = {
+                                    if (pageSystem != null) {
+                                        showScanConfirmation = pageSystem
+                                    }
+                                },
+                                isScanning = isScanning,
+                                onOpenAppVisibilityClick = {
+                                    showAppVisibilityDialog = true
+                                },
+                                onOpenSystemSettings = {
+                                    if (pageSystem != null) {
+                                        editingSystem = pageSystem
+                                        showSystemEditDialog = true
+                                    } else {
+                                        showSystemManagementDialog = true
+                                    }
+                                },
+                                onUpdateSystemFolder = { newPath ->
+                                    if (pageSystem != null) {
+                                        viewModel.saveSystem(pageSystem.copy(folderPath = newPath))
+                                    }
+                                },
+                                isListFocused = (activeFocusZone == ActiveFocusZone.ROM_LIST) && isPageActive,
+                                marqueeSpeed = displaySettings.marqueeSpeed,
+                                marqueeDelayMillis = displaySettings.marqueeDelayMillis,
+                                dpadUpTrigger = dpadUpTrigger,
+                                dpadDownTrigger = dpadDownTrigger,
+                                dpadLeftTrigger = dpadLeftTrigger,
+                                dpadRightTrigger = dpadRightTrigger,
+                                onMoveFocusUp = {
+                                    activeFocusZone = if (displaySettings.bottomSystemTitle || !displaySettings.showSystemTitle) {
+                                        if (showTopBar) ActiveFocusZone.TOP_BAR else ActiveFocusZone.ROM_LIST
+                                    } else {
+                                        ActiveFocusZone.SYSTEM_SELECTOR
+                                    }
+                                },
+                                onMoveFocusDown = {
+                                    activeFocusZone = if (displaySettings.bottomSystemTitle && displaySettings.showSystemTitle) {
+                                        ActiveFocusZone.SYSTEM_SELECTOR
+                                    } else {
+                                        ActiveFocusZone.BOTTOM_BAR
+                                    }
+                                },
+                                pageUpTrigger = pageUpTrigger,
+                                pageDownTrigger = pageDownTrigger,
+                                goToTopTrigger = goToTopTrigger,
+                                goToBottomTrigger = goToBottomTrigger,
+                                selectActionTrigger = selectActionTrigger,
+                                backActionTrigger = backActionTrigger,
+                                favoriteActionTrigger = favoriteActionTrigger,
+                                infoActionTrigger = infoActionTrigger,
+                                onBackToMainMenu = {
+                                    com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
+                                    isMainMenuActive = true
+                                    viewModel.selectSystem(null)
+                                    activeFocusZone = ActiveFocusZone.ROM_LIST
+                                },
+                                onPreviousSystem = {
+                                    if (activeSystems.isNotEmpty()) {
+                                        val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
+                                        val prevIdx = if (curIdx <= 0) activeSystems.size - 1 else curIdx - 1
+                                        viewModel.selectSystem(activeSystems[prevIdx].id)
+                                    }
+                                },
+                                onNextSystem = {
+                                    if (activeSystems.isNotEmpty()) {
+                                        val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
+                                        val nextIdx = (curIdx + 1) % activeSystems.size
+                                        viewModel.selectSystem(activeSystems[nextIdx].id)
+                                    }
+                                },
+                                autoHideScrollbar = displaySettings.autoHideScrollbar,
+                                scrollbarShowDurationMs = displaySettings.scrollbarShowDurationMs,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    } else {
+                        // ROMs Browser View
+                        GameGrid(
+                            currentSystem = currentSystem,
+                            roms = roms,
+                            listSettings = romListSettings,
+                            onUpdateListSettings = { viewModel.updateRomListSettings(it) },
+                            onApplyToActiveSystem = { viewModel.applyRomListSettingsToActiveSystem(it) },
+                            onApplyToAllSystems = { viewModel.applyRomListSettingsToAllSystems(it) },
+                            displaySettings = displaySettings,
+                            enableNavigationSound = displaySettings.enableNavigationSound,
+                            selectedSfxFileName = displaySettings.selectedSfxFileName,
+                            allSystems = systems,
+                            customIcons = customIcons,
+                            onGameClick = { game ->
+                                if (currentSystem != null) {
+                                    viewModel.launchGame(currentSystem, game)
+                                }
+                            },
+                            onGameLongClick = { game ->
+                                showGameDetailsDialog = game
+                            },
+                            onFavoriteToggle = { game ->
+                                viewModel.toggleFavorite(game)
+                            },
+                            onCompletedToggle = { game ->
+                                viewModel.toggleCompleted(game)
+                            },
+                            onShowGameInfo = { game ->
+                                showGameDetailsDialog = game
+                            },
+                            onDeleteFromRecent = { game ->
+                                viewModel.removeFromRecent(game)
+                            },
+                            onScanFolderClick = {
+                                if (currentSystem != null) {
+                                    showScanConfirmation = currentSystem
+                                }
+                            },
+                            isScanning = isScanning,
+                            onOpenAppVisibilityClick = {
+                                showAppVisibilityDialog = true
+                            },
+                            onOpenSystemSettings = {
+                                if (currentSystem != null) {
+                                    editingSystem = currentSystem
+                                    showSystemEditDialog = true
+                                } else {
+                                    showSystemManagementDialog = true
+                                }
+                            },
+                            onUpdateSystemFolder = { newPath ->
+                                if (currentSystem != null) {
+                                    viewModel.saveSystem(currentSystem.copy(folderPath = newPath))
+                                }
+                            },
+                            isListFocused = (activeFocusZone == ActiveFocusZone.ROM_LIST),
+                            marqueeSpeed = displaySettings.marqueeSpeed,
+                            marqueeDelayMillis = displaySettings.marqueeDelayMillis,
+                            dpadUpTrigger = dpadUpTrigger,
+                            dpadDownTrigger = dpadDownTrigger,
+                            dpadLeftTrigger = dpadLeftTrigger,
+                            dpadRightTrigger = dpadRightTrigger,
+                            onMoveFocusUp = {
+                                activeFocusZone = if (displaySettings.bottomSystemTitle || !displaySettings.showSystemTitle) {
+                                    if (showTopBar) ActiveFocusZone.TOP_BAR else ActiveFocusZone.ROM_LIST
+                                } else {
+                                    ActiveFocusZone.SYSTEM_SELECTOR
+                                }
+                            },
+                            onMoveFocusDown = {
+                                activeFocusZone = if (displaySettings.bottomSystemTitle && displaySettings.showSystemTitle) {
+                                    ActiveFocusZone.SYSTEM_SELECTOR
+                                } else {
+                                    ActiveFocusZone.BOTTOM_BAR
+                                }
+                            },
+                            pageUpTrigger = pageUpTrigger,
+                            pageDownTrigger = pageDownTrigger,
+                            goToTopTrigger = goToTopTrigger,
+                            goToBottomTrigger = goToBottomTrigger,
+                            selectActionTrigger = selectActionTrigger,
+                            backActionTrigger = backActionTrigger,
+                            favoriteActionTrigger = favoriteActionTrigger,
+                            infoActionTrigger = infoActionTrigger,
+                            onBackToMainMenu = {
+                                com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
+                                isMainMenuActive = true
+                                viewModel.selectSystem(null)
+                                    activeFocusZone = ActiveFocusZone.ROM_LIST
+                                },
+                                onPreviousSystem = {
+                                    val activeSystems = systems.filter { 
+                                        it.isEnabled && 
+                                        !it.id.startsWith("widget_") && 
+                                        !it.defaultLaunchMode.startsWith("WIDGET_") 
+                                    }
+                                    if (activeSystems.isNotEmpty()) {
+                                        val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
+                                        val prevIdx = if (curIdx <= 0) activeSystems.size - 1 else curIdx - 1
+                                        viewModel.selectSystem(activeSystems[prevIdx].id)
+                                    }
+                                },
+                                onNextSystem = {
+                                    val activeSystems = systems.filter { 
+                                        it.isEnabled && 
+                                        !it.id.startsWith("widget_") && 
+                                        !it.defaultLaunchMode.startsWith("WIDGET_") 
+                                    }
+                                    if (activeSystems.isNotEmpty()) {
+                                        val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
+                                        val nextIdx = (curIdx + 1) % activeSystems.size
+                                        viewModel.selectSystem(activeSystems[nextIdx].id)
+                                    }
+                                },
+                                autoHideScrollbar = displaySettings.autoHideScrollbar,
+                                scrollbarShowDurationMs = displaySettings.scrollbarShowDurationMs,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                    if (displaySettings.bottomSystemTitle) {
+                        if (displaySettings.showSystemTitle) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                        renderCompactSystemSelector()
+                    }
                 }
                 
                 } // Closes Column
@@ -950,6 +1203,9 @@ fun MainHomeScreen(
             settings = romListSettings,
             onDismiss = { showRomListStyleDialog = false },
             onUpdateSettings = { viewModel.updateRomListSettings(it) },
+            onApplyToActiveSystem = { viewModel.applyRomListSettingsToActiveSystem(it) },
+            onApplyToAllSystems = { viewModel.applyRomListSettingsToAllSystems(it) },
+            activeSystemName = currentSystem?.name,
             onOpenAppVisibility = { showAppVisibilityDialog = true },
             isAndroidAppsSystem = currentSystem?.id == "android_apps"
         )
@@ -1213,3 +1469,8 @@ fun MainHomeScreen(
     }
 }
 }
+
+private class FixedMotionDurationScale(override val scaleFactor: Float = 1f) : androidx.compose.ui.MotionDurationScale {
+    override val key: kotlin.coroutines.CoroutineContext.Key<*> get() = androidx.compose.ui.MotionDurationScale
+}
+

@@ -42,6 +42,7 @@ import coil.compose.AsyncImage
 import com.example.data.db.GameRomEntity
 import com.example.data.db.SystemEntity
 import com.example.data.util.GameIconResolver
+import com.example.data.model.DisplaySettings
 import com.example.data.model.RomListSettings
 import com.example.data.model.RomListStyle
 import com.example.data.model.TextAlignmentOption
@@ -107,6 +108,10 @@ fun GameGrid(
     selectedSfxFileName: String = "",
     allSystems: List<SystemEntity> = emptyList(),
     customIcons: Map<String, String> = emptyMap(),
+    isScrolling: Boolean = false,
+    displaySettings: DisplaySettings = DisplaySettings(),
+    onApplyToActiveSystem: ((RomListSettings) -> Unit)? = null,
+    onApplyToAllSystems: ((RomListSettings) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -328,8 +333,12 @@ fun GameGrid(
                     selectedIndex -= step
                     scrollToCenter(selectedIndex)
                 } else {
-                    isHeaderFocused = true
-                    headerFocusedIndex = validHeaderIndices.firstOrNull() ?: 2
+                    if (displaySettings.showSubSystemTitle) {
+                        isHeaderFocused = true
+                        headerFocusedIndex = validHeaderIndices.firstOrNull() ?: 2
+                    } else {
+                        onMoveFocusUp()
+                    }
                 }
             }
         }
@@ -442,6 +451,10 @@ fun GameGrid(
     LaunchedEffect(selectActionTrigger) {
         if (selectActionTrigger > 0L && selectActionTrigger != lastHandledSelectTrigger) {
             lastHandledSelectTrigger = selectActionTrigger
+            if (isScrolling) {
+                // Ignore button press while swipe animation is running on the list
+                return@LaunchedEffect
+            }
             if (isHeaderFocused) {
                 when (headerFocusedIndex) {
                     0 -> {
@@ -513,7 +526,7 @@ fun GameGrid(
     val currentOnPreviousSystem by rememberUpdatedState(onPreviousSystem)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .pointerInput(currentSystem?.id) {
                 var totalOffsetX = 0f
@@ -538,140 +551,153 @@ fun GameGrid(
                 )
             }
     ) {
-        Column(modifier = modifier.fillMaxSize()) {
-        // System Header Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = currentSystem?.name ?: "ALL GAMES",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "${displayItems.size} Items • ${if (currentSubfolderPath.isEmpty()) currentSystem?.folderPath ?: "All" else "${currentSystem?.folderPath}/$currentSubfolderPath"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isAndroidSystem) {
-                    val isAppVisFocused = isListFocused && isHeaderFocused && headerFocusedIndex == 0
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isAppVisFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                        border = if (isAppVisFocused) androidx.compose.foundation.BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary) else null
-                    ) {
-                        IconButton(
-                            onClick = {
-                                isHeaderFocused = true
-                                headerFocusedIndex = 0
-                                onOpenAppVisibilityClick?.invoke()
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Smartphone,
-                                contentDescription = "Choose Visible Android Apps",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                } else if (!isVirtualCollection) {
-                    // Directory Selector button
-                    val isFolderFocused = isListFocused && isHeaderFocused && headerFocusedIndex == 0
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isFolderFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                        border = if (isFolderFocused) androidx.compose.foundation.BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary) else null
-                    ) {
-                        IconButton(
-                            onClick = {
-                                isHeaderFocused = true
-                                headerFocusedIndex = 0
-                                showDirectoryPicker = true
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FolderOpen,
-                                contentDescription = "Select Folder",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // Refresh / Rescan button
-                    val isRefreshFocused = isListFocused && isHeaderFocused && headerFocusedIndex == 1
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isRefreshFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                        border = if (isRefreshFocused) androidx.compose.foundation.BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary) else null
-                    ) {
-                        IconButton(
-                            onClick = {
-                                isHeaderFocused = true
-                                headerFocusedIndex = 1
-                                onScanFolderClick()
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Scan Folder",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-                }
-
-                // List Style Customizer Settings Button
-                val isStyleFocused = isListFocused && isHeaderFocused && headerFocusedIndex == 2
+        val subSystemHeaderBar: @Composable () -> Unit = {
+            if (displaySettings.showSubSystemTitle) {
                 Surface(
-                    shape = CircleShape,
-                    color = if (isStyleFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    border = if (isStyleFocused) androidx.compose.foundation.BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary) else null
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 ) {
-                    IconButton(
-                        onClick = {
-                            isHeaderFocused = true
-                            headerFocusedIndex = 2
-                            showStyleDialog = true
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = when (listSettings.listStyle) {
-                                RomListStyle.GRID -> Icons.Default.GridView
-                                RomListStyle.LIST -> Icons.Default.ViewList
-                                RomListStyle.TEXT_ONLY -> Icons.Default.FormatListBulleted
-                            },
-                            contentDescription = "ROM List Style Settings",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(18.dp)
-                        )
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = currentSystem?.name ?: "ALL GAMES",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = "${displayItems.size} Items • ${if (currentSubfolderPath.isEmpty()) currentSystem?.folderPath ?: "All" else "${currentSystem?.folderPath}/$currentSubfolderPath"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isAndroidSystem) {
+                                    val isAppVisFocused = isListFocused && isHeaderFocused && headerFocusedIndex == 0
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isAppVisFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                        border = if (isAppVisFocused) androidx.compose.foundation.BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary) else null
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                isHeaderFocused = true
+                                                headerFocusedIndex = 0
+                                                onOpenAppVisibilityClick?.invoke()
+                                            },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Smartphone,
+                                                contentDescription = "Choose Visible Android Apps",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                } else if (!isVirtualCollection) {
+                                    // Directory Selector button
+                                    val isFolderFocused = isListFocused && isHeaderFocused && headerFocusedIndex == 0
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isFolderFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                        border = if (isFolderFocused) androidx.compose.foundation.BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary) else null
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                isHeaderFocused = true
+                                                headerFocusedIndex = 0
+                                                showDirectoryPicker = true
+                                            },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.FolderOpen,
+                                                contentDescription = "Select Folder",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(6.dp))
+
+                                    // Refresh / Rescan button
+                                    val isRefreshFocused = isListFocused && isHeaderFocused && headerFocusedIndex == 1
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isRefreshFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                        border = if (isRefreshFocused) androidx.compose.foundation.BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary) else null
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                isHeaderFocused = true
+                                                headerFocusedIndex = 1
+                                                onScanFolderClick()
+                                            },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Refresh,
+                                                contentDescription = "Scan Folder",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
+
+                                // List Style Customizer Settings Button
+                                val isStyleFocused = isListFocused && isHeaderFocused && headerFocusedIndex == 2
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isStyleFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    border = if (isStyleFocused) androidx.compose.foundation.BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary) else null
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            isHeaderFocused = true
+                                            headerFocusedIndex = 2
+                                            showStyleDialog = true
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = when (listSettings.listStyle) {
+                                                RomListStyle.GRID -> Icons.Default.GridView
+                                                RomListStyle.LIST -> Icons.Default.ViewList
+                                                RomListStyle.TEXT_ONLY -> Icons.Default.FormatListBulleted
+                                            },
+                                            contentDescription = "ROM List Style Settings",
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     }
                 }
             }
         }
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            subSystemHeaderBar()
 
         // Subfolder Breadcrumb Navigation Bar (if in subfolder)
         if (currentSubfolderPath.isNotEmpty()) {
@@ -721,74 +747,78 @@ fun GameGrid(
             val selectionAreaHeight = maxHeight
 
             if (displayItems.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = when (currentSystem?.id) {
-                            "favorites" -> Icons.Default.Star
-                            "recently_played" -> Icons.Default.History
-                            else -> Icons.Default.FolderOpen
-                        },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = when (currentSystem?.id) {
-                            "favorites" -> "No favorite games yet"
-                            "recently_played" -> "No recently played games yet"
-                            else -> "No items or ROM files in folder"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = when (currentSystem?.id) {
-                            "favorites" -> "Tap the star icon on any game to add it to your Favorites!"
-                            "recently_played" -> "Launch any game to see your recent history here!"
-                            else -> "Folder: ${currentSystem?.folderPath}\nAllowed exts: ${currentSystem?.allowedExtensions}"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    if (currentSystem?.id != "favorites" && currentSystem?.id != "recently_played") {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                if (isScrolling) {
+                    Box(modifier = Modifier.fillMaxSize())
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            OutlinedButton(
-                                onClick = { showDirectoryPicker = true }
-                            ) {
-                                Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Select Directory")
-                            }
+                            Icon(
+                                imageVector = when (currentSystem?.id) {
+                                    "favorites" -> Icons.Default.Star
+                                    "recently_played" -> Icons.Default.History
+                                    else -> Icons.Default.FolderOpen
+                                },
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = when (currentSystem?.id) {
+                                    "favorites" -> "No favorite games yet"
+                                    "recently_played" -> "No recently played games yet"
+                                    else -> "No items or ROM files in folder"
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = when (currentSystem?.id) {
+                                    "favorites" -> "Tap the star icon on any game to add it to your Favorites!"
+                                    "recently_played" -> "Launch any game to see your recent history here!"
+                                    else -> "Folder: ${currentSystem?.folderPath}\nAllowed exts: ${currentSystem?.allowedExtensions}"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                            if (currentSystem?.id != "favorites" && currentSystem?.id != "recently_played") {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { showDirectoryPicker = true }
+                                    ) {
+                                        Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Select Directory")
+                                    }
 
-                            Button(
-                                onClick = onScanFolderClick,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Re-scan")
+                                    Button(
+                                        onClick = onScanFolderClick,
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Re-scan")
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-        } else {
+            } else {
             when (listSettings.listStyle) {
                 RomListStyle.GRID -> {
                     val gridCardScale = (listSettings.gridScalePercent / 100f).coerceIn(0.5f, 2.0f)
@@ -853,6 +883,7 @@ fun GameGrid(
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
                                         gridScalePercent = listSettings.gridScalePercent,
+                                        showDetails = listSettings.showDetails,
                                         onClick = {
                                             selectedIndex = index
                                             isHeaderFocused = false
@@ -934,6 +965,7 @@ fun GameGrid(
                                         isFocused = isFocused,
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
+                                        showDetails = listSettings.showDetails,
                                         onClick = {
                                             selectedIndex = index
                                             isHeaderFocused = false
@@ -1089,7 +1121,18 @@ fun GameGrid(
                                 val resolvedIcon = remember(game, currentSystem, customIcons) {
                                     GameIconResolver.resolveRomIcon(game, currentSystem, customIcons, allSystems)
                                 }
-                                if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || currentSystem?.defaultLaunchMode == "ANDROID_APP") {
+                                val actualSystem = remember(game, currentSystem, allSystems) {
+                                    if (currentSystem?.id == "favorites" || currentSystem?.id == "recently_played") {
+                                        allSystems.firstOrNull { it.id == game.systemId }
+                                    } else {
+                                        currentSystem
+                                    }
+                                }
+                                val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                                        actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
+                                        game.systemId.startsWith("android_")
+
+                                if (isAndroidApp) {
                                     val customIcon = customIcons[game.filePath]
                                     if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
                                         UniversalIconView(
@@ -1099,15 +1142,11 @@ fun GameGrid(
                                         )
                                     } else {
                                         val appIcon = remember(game.filePath) {
-                                            try {
-                                                context.packageManager.getApplicationIcon(game.filePath)
-                                            } catch (e: Exception) {
-                                                null
-                                            }
+                                            AndroidAppIconHelper.getAppIconBitmap(context, game.filePath)
                                         }
                                         if (appIcon != null) {
                                             Image(
-                                                bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                                                bitmap = appIcon,
                                                 contentDescription = game.title,
                                                 modifier = Modifier.fillMaxSize(),
                                                 contentScale = ContentScale.Fit
@@ -1135,31 +1174,34 @@ fun GameGrid(
                 }
             }
         }
+
+        if (showStyleDialog) {
+            ListStyleSettingsDialog(
+                settings = listSettings,
+                onDismiss = { showStyleDialog = false },
+                onUpdateSettings = onUpdateListSettings,
+                onApplyToActiveSystem = onApplyToActiveSystem,
+                onApplyToAllSystems = onApplyToAllSystems,
+                activeSystemName = currentSystem?.name,
+                onOpenAppVisibility = onOpenAppVisibilityClick,
+                isAndroidAppsSystem = currentSystem?.id == "android_apps"
+            )
+        }
+
+        if (showDirectoryPicker) {
+            DirectoryPickerDialog(
+                initialPath = currentSystem?.folderPath ?: "/storage/emulated/0",
+                onDismiss = { showDirectoryPicker = false },
+                onDirectorySelected = { selectedPath ->
+                    if (onUpdateSystemFolder != null) {
+                        onUpdateSystemFolder(selectedPath)
+                    }
+                }
+            )
         }
     }
 }
-
-    if (showStyleDialog) {
-        ListStyleSettingsDialog(
-            settings = listSettings,
-            onDismiss = { showStyleDialog = false },
-            onUpdateSettings = onUpdateListSettings,
-            onOpenAppVisibility = onOpenAppVisibilityClick,
-            isAndroidAppsSystem = currentSystem?.id == "android_apps"
-        )
-    }
-
-    if (showDirectoryPicker) {
-        DirectoryPickerDialog(
-            initialPath = currentSystem?.folderPath ?: "/storage/emulated/0",
-            onDismiss = { showDirectoryPicker = false },
-            onDirectorySelected = { selectedPath ->
-                if (onUpdateSystemFolder != null) {
-                    onUpdateSystemFolder(selectedPath)
-                }
-            }
-        )
-    }
+}
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -1422,6 +1464,7 @@ fun GameGridCardItem(
     marqueeSpeed: Int = 30,
     marqueeDelayMillis: Int = 1200,
     gridScalePercent: Int = 100,
+    showDetails: Boolean = true,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
@@ -1459,7 +1502,18 @@ fun GameGridCardItem(
             val resolvedIcon = remember(game, system, customIcons) {
                 GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
             }
-            if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
+            val actualSystem = remember(game, system, allSystems) {
+                if (system?.id == "favorites" || system?.id == "recently_played") {
+                    allSystems.firstOrNull { it.id == game.systemId }
+                } else {
+                    system
+                }
+            }
+            val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                    actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
+                    game.systemId.startsWith("android_")
+
+            if (isAndroidApp) {
                 val customIcon = customIcons[game.filePath]
                 if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
                     UniversalIconView(
@@ -1469,15 +1523,11 @@ fun GameGridCardItem(
                     )
                 } else {
                     val appIcon = remember(game.filePath) {
-                        try {
-                            context.packageManager.getApplicationIcon(game.filePath)
-                        } catch (e: Exception) {
-                            null
-                        }
+                        AndroidAppIconHelper.getAppIconBitmap(context, game.filePath)
                     }
                     if (appIcon != null) {
                         Image(
-                            bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                            bitmap = appIcon,
                             contentDescription = game.title,
                             modifier = Modifier
                                 .fillMaxSize()
@@ -1592,18 +1642,20 @@ fun GameGridCardItem(
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
             )
             Spacer(modifier = Modifier.height(2.dp))
-            val subtitleText = if ((system?.id == "favorites" || system?.id == "recently_played") && game.systemId != "android_apps") {
-                "${game.systemId.uppercase()} • ${game.fileName}"
-            } else {
-                game.fileName
+            if (showDetails) {
+                val subtitleText = if ((system?.id == "favorites" || system?.id == "recently_played") && game.systemId != "android_apps") {
+                    "${game.systemId.uppercase()} • ${game.fileName}"
+                } else {
+                    game.fileName
+                }
+                Text(
+                    text = subtitleText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            Text(
-                text = subtitleText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }
@@ -1616,6 +1668,7 @@ fun GameListRowItem(
     isFocused: Boolean = false,
     marqueeSpeed: Int = 30,
     marqueeDelayMillis: Int = 1200,
+    showDetails: Boolean = true,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onFavoriteClick: () -> Unit,
@@ -1659,7 +1712,18 @@ fun GameListRowItem(
                 val resolvedIcon = remember(game, system, customIcons) {
                     GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
                 }
-                if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
+                val actualSystem = remember(game, system, allSystems) {
+                    if (system?.id == "favorites" || system?.id == "recently_played") {
+                        allSystems.firstOrNull { it.id == game.systemId }
+                    } else {
+                        system
+                    }
+                }
+                val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                        actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
+                        game.systemId.startsWith("android_")
+
+                if (isAndroidApp) {
                     val customIcon = customIcons[game.filePath]
                     if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
                         UniversalIconView(
@@ -1669,15 +1733,11 @@ fun GameListRowItem(
                         )
                     } else {
                         val appIcon = remember(game.filePath) {
-                            try {
-                                context.packageManager.getApplicationIcon(game.filePath)
-                            } catch (e: Exception) {
-                                null
-                            }
+                            AndroidAppIconHelper.getAppIconBitmap(context, game.filePath)
                         }
                         if (appIcon != null) {
                             Image(
-                                bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                                bitmap = appIcon,
                                 contentDescription = game.title,
                                 modifier = Modifier.size(32.dp)
                             )
@@ -1706,18 +1766,20 @@ fun GameListRowItem(
                     marqueeDelayMillis = marqueeDelayMillis,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                 )
-                val subtitleText = if ((system?.id == "favorites" || system?.id == "recently_played") && game.systemId != "android_apps") {
-                    "${game.systemId.uppercase()} • ${game.fileName}"
-                } else {
-                    game.fileName
+                if (showDetails) {
+                    val subtitleText = if ((system?.id == "favorites" || system?.id == "recently_played") && game.systemId != "android_apps") {
+                        "${game.systemId.uppercase()} • ${game.fileName}"
+                    } else {
+                        game.fileName
+                    }
+                    Text(
+                        text = subtitleText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-                Text(
-                    text = subtitleText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
 
             if (onInfoClick != null && displaySettings.showRomDetailsButton) {
@@ -1815,7 +1877,18 @@ fun GameTextOnlyItem(
                 val resolvedIcon = remember(game, system, customIcons) {
                     GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
                 }
-                if (game.systemId in listOf("android_apps", "android_games", "android_emulators") || system?.defaultLaunchMode == "ANDROID_APP") {
+                val actualSystem = remember(game, system, allSystems) {
+                    if (system?.id == "favorites" || system?.id == "recently_played") {
+                        allSystems.firstOrNull { it.id == game.systemId }
+                    } else {
+                        system
+                    }
+                }
+                val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                        actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
+                        game.systemId.startsWith("android_")
+
+                if (isAndroidApp) {
                     val customIcon = customIcons[game.filePath]
                     if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
                         UniversalIconView(
@@ -1826,15 +1899,11 @@ fun GameTextOnlyItem(
                         )
                     } else {
                         val appIcon = remember(game.filePath) {
-                            try {
-                                context.packageManager.getApplicationIcon(game.filePath)
-                            } catch (e: Exception) {
-                                null
-                            }
+                            AndroidAppIconHelper.getAppIconBitmap(context, game.filePath)
                         }
                         if (appIcon != null) {
                             Image(
-                                bitmap = drawableToBitmap(appIcon).asImageBitmap(),
+                                bitmap = appIcon,
                                 contentDescription = null,
                                 modifier = Modifier.size((settings.textSizeSp * 1.2f).dp)
                             )
@@ -1868,17 +1937,6 @@ fun GameTextOnlyItem(
                 modifier = Modifier.weight(1f)
             )
 
-            if (onInfoClick != null) {
-                Spacer(modifier = Modifier.width(6.dp))
-                IconButton(onClick = onInfoClick, modifier = Modifier.size((settings.textSizeSp * 1.2f).dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Info",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
             if (onDeleteClick != null) {
                 Spacer(modifier = Modifier.width(6.dp))
                 IconButton(onClick = onDeleteClick, modifier = Modifier.size((settings.textSizeSp * 1.2f).dp)) {
@@ -1888,19 +1946,6 @@ fun GameTextOnlyItem(
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-            IconButton(
-                onClick = onFavoriteClick,
-                modifier = Modifier.size((settings.textSizeSp * 1.3f).dp)
-            ) {
-                Icon(
-                    imageVector = if (game.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                    contentDescription = "Favorite",
-                    tint = if (game.isFavorite) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size((settings.textSizeSp * 1.0f).dp)
-                )
             }
         }
     }

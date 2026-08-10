@@ -243,61 +243,119 @@ class LauncherRepository(private val context: Context) {
             systemDao.insertSystem(defaultSys)
         }
 
-        val pm = context.packageManager
-        val mainIntent = android.content.Intent(android.content.Intent.ACTION_MAIN, null).apply {
-            addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
+        val userManager = context.getSystemService(Context.USER_SERVICE) as? android.os.UserManager
+
+        val installedActivities = mutableListOf<Triple<String, String, Long>>() // pkg, cls, serial
+        val labelsMap = mutableMapOf<String, String>() // compoundId to Label
+
+        if (launcherApps != null && userManager != null) {
+            try {
+                val profiles = userManager.userProfiles
+                for (profile in profiles) {
+                    val serial = userManager.getSerialNumberForUser(profile)
+                    val activities = launcherApps.getActivityList(null, profile)
+                    for (activity in activities) {
+                        val pkg = activity.applicationInfo.packageName
+                        if (pkg == context.packageName) continue
+                        val cls = activity.name
+                        val label = activity.label?.toString()?.trim() ?: pkg
+                        val compId = "$pkg|$cls|$serial"
+                        installedActivities.add(Triple(pkg, cls, serial))
+                        labelsMap[compId] = label
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
-        val resolveInfos = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            pm.queryIntentActivities(mainIntent, android.content.pm.PackageManager.ResolveInfoFlags.of(0))
-        } else {
-            @Suppress("DEPRECATION")
-            pm.queryIntentActivities(mainIntent, 0)
+        // Fallback or union if LauncherApps fails
+        if (installedActivities.isEmpty()) {
+            val pm = context.packageManager
+            val mainIntent = android.content.Intent(android.content.Intent.ACTION_MAIN, null).apply {
+                addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+            }
+            val resolveInfos = try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    pm.queryIntentActivities(mainIntent, android.content.pm.PackageManager.ResolveInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.queryIntentActivities(mainIntent, 0)
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+            for (info in resolveInfos) {
+                try {
+                    val actInfo = info.activityInfo ?: continue
+                    val pkg = actInfo.packageName ?: continue
+                    if (pkg == context.packageName) continue
+                    val cls = actInfo.name ?: ""
+                    val label = info.loadLabel(pm)?.toString()?.trim() ?: pkg
+                    val compId = if (cls.isNotEmpty()) "$pkg|$cls|0" else "$pkg"
+                    installedActivities.add(Triple(pkg, cls, 0L))
+                    labelsMap[compId] = label
+                } catch (e: Exception) {
+                    // ignore
+                }
+            }
         }
 
         var xmlVisibleSet = configStorageManager.loadVisibleAppsXml(systemId)
         if (xmlVisibleSet == null) {
             val hiddenApps = if (systemId == "android_apps") getHiddenAndroidApps() else emptySet()
-            val defaultVisible = resolveInfos.mapNotNull { info ->
-                val pkg = info.activityInfo.packageName
-                if (pkg == context.packageName || hiddenApps.contains(pkg)) null
-                else pkg
+            val defaultVisible = installedActivities.mapNotNull { (pkg, cls, serial) ->
+                val compoundId = "$pkg|$cls|$serial"
+                if (hiddenApps.contains(pkg)) null
+                else compoundId
             }.toSet()
             configStorageManager.saveVisibleAppsXml(systemId, defaultVisible)
             xmlVisibleSet = defaultVisible
         }
+
         val baseDir = configStorageManager.getBaseDirPath()
         val savedUserDataMap = configStorageManager.loadFavoritesAndRecents()
         val customNamesMap = configStorageManager.loadCustomNames()
 
-        val appRoms = resolveInfos.mapNotNull { info ->
-            val pkg = info.activityInfo.packageName
-            if (pkg == context.packageName) return@mapNotNull null
+        val appRoms = installedActivities.mapNotNull { (pkg, cls, serial) ->
+            try {
+                val compoundId = "$pkg|$cls|$serial"
+                // Check XML visibility - supports compoundId or plain package name
+                val isVisible = xmlVisibleSet.contains(compoundId) || xmlVisibleSet.contains(pkg)
+                if (!isVisible) return@mapNotNull null
 
-            // Check XML visibility
-            if (!xmlVisibleSet.contains(pkg)) return@mapNotNull null
+                val customTitle = customNamesMap[compoundId] ?: customNamesMap[pkg]
+                val label = customTitle ?: labelsMap[compoundId] ?: pkg
 
-            val customTitle = customNamesMap[pkg]
-            val label = customTitle ?: info.loadLabel(pm).toString()
+                // Check if user has custom artwork in RetroLauncher/boxart/
+                val escapedCompId = compoundId.replace("|", "_").replace("/", "_")
+                val customArtComp = File("$baseDir/boxart/${escapedCompId}.png")
+                val customArtPkg = File("$baseDir/boxart/${pkg}.png")
+                val artPath = when {
+                    customArtComp.exists() -> customArtComp.absolutePath
+                    customArtPkg.exists() -> customArtPkg.absolutePath
+                    else -> ""
+                }
 
-            // Check if user has custom artwork in RetroLauncher/boxart/
-            val customArt = File("$baseDir/boxart/${pkg}.png")
-            val artPath = if (customArt.exists()) customArt.absolutePath else ""
-            val savedData = savedUserDataMap[pkg]
+                val savedData = savedUserDataMap[compoundId] ?: savedUserDataMap[pkg]
 
-            GameRomEntity(
-                systemId = systemId,
-                title = label,
-                filePath = pkg,
-                fileName = pkg,
-                extension = "apk",
-                coverArtPath = if (artPath.isNotEmpty()) artPath else null,
-                isFavorite = savedData?.isFavorite ?: false,
-                isCompleted = savedData?.isCompleted ?: false,
-                lastPlayedTimestamp = savedData?.lastPlayedTimestamp ?: 0L,
-                playCount = savedData?.playCount ?: 0
-            )
-        }
+                GameRomEntity(
+                    systemId = systemId,
+                    title = label,
+                    filePath = compoundId,
+                    fileName = compoundId,
+                    extension = "apk",
+                    coverArtPath = if (artPath.isNotEmpty()) artPath else null,
+                    isFavorite = savedData?.isFavorite ?: false,
+                    isCompleted = savedData?.isCompleted ?: false,
+                    lastPlayedTimestamp = savedData?.lastPlayedTimestamp ?: 0L,
+                    playCount = savedData?.playCount ?: 0
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }.distinctBy { it.filePath }
 
         gameRomDao.deleteRomsBySystem(systemId)
         if (appRoms.isNotEmpty()) {
@@ -544,6 +602,14 @@ class LauncherRepository(private val context: Context) {
 
     fun loadRomListSettings(): com.example.data.model.RomListSettings {
         return configStorageManager.loadRomListSettings()
+    }
+
+    fun saveSystemRomListSettingsMap(map: Map<String, com.example.data.model.RomListSettings>): Boolean {
+        return configStorageManager.saveSystemRomListSettingsMap(map)
+    }
+
+    fun loadSystemRomListSettingsMap(): Map<String, com.example.data.model.RomListSettings> {
+        return configStorageManager.loadSystemRomListSettingsMap()
     }
 
     fun saveGamepadSettings(settings: com.example.data.model.GamepadSettings): Boolean {

@@ -18,5 +18,6 @@ data class RomListSettings(
     val marginDp: Int = 8,
     val textAlignment: TextAlignmentOption = TextAlignmentOption.START,
     val showArtworkInTextOnly: Boolean = true,
-    val gridScalePercent: Int = 100
+    val gridScalePercent: Int = 100,
+    val showDetails: Boolean = true
 )

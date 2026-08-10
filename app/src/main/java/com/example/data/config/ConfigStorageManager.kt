@@ -386,14 +386,18 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "launcherTitle").text(settings.launcherTitle).endTag("", "launcherTitle")
             serializer.startTag("", "launcherIconPath").text(settings.launcherIconPath).endTag("", "launcherIconPath")
             serializer.startTag("", "showSystemMainMenuTitle").text(settings.showSystemMainMenuTitle.toString()).endTag("", "showSystemMainMenuTitle")
+            serializer.startTag("", "bottomSystemMainMenuTitle").text(settings.bottomSystemMainMenuTitle.toString()).endTag("", "bottomSystemMainMenuTitle")
             serializer.startTag("", "showSystemMainMenuEditIcon").text(settings.showSystemMainMenuEditIcon.toString()).endTag("", "showSystemMainMenuEditIcon")
             serializer.startTag("", "systemMainMenuStyle").text(settings.systemMainMenuStyle).endTag("", "systemMainMenuStyle")
             serializer.startTag("", "systemMainMenuGridStyle").text(settings.systemMainMenuGridStyle).endTag("", "systemMainMenuGridStyle")
+            serializer.startTag("", "centeredLastGridItem").text(settings.centeredLastGridItem.toString()).endTag("", "centeredLastGridItem")
             serializer.startTag("", "systemMenuDisplayColumns").text(settings.systemMenuDisplayColumns.toString()).endTag("", "systemMenuDisplayColumns")
             serializer.startTag("", "systemMenuDisplayRows").text(settings.systemMenuDisplayRows.toString()).endTag("", "systemMenuDisplayRows")
             serializer.startTag("", "systemMenuActualColumns").text(settings.systemMenuActualColumns.toString()).endTag("", "systemMenuActualColumns")
             serializer.startTag("", "systemMenuActualRows").text(settings.systemMenuActualRows.toString()).endTag("", "systemMenuActualRows")
             serializer.startTag("", "showSystemTitle").text(settings.showSystemTitle.toString()).endTag("", "showSystemTitle")
+            serializer.startTag("", "bottomSystemTitle").text(settings.bottomSystemTitle.toString()).endTag("", "bottomSystemTitle")
+            serializer.startTag("", "showSubSystemTitle").text(settings.showSubSystemTitle.toString()).endTag("", "showSubSystemTitle")
             serializer.startTag("", "swapTopAndBottomBar").text(settings.swapTopAndBottomBar.toString()).endTag("", "swapTopAndBottomBar")
             serializer.startTag("", "systemMenuTextSizeSp").text(settings.systemMenuTextSizeSp.toString()).endTag("", "systemMenuTextSizeSp")
             serializer.startTag("", "systemMenuTextAlignment").text(settings.systemMenuTextAlignment).endTag("", "systemMenuTextAlignment")
@@ -433,6 +437,11 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "showRomFavoriteButton").text(settings.showRomFavoriteButton.toString()).endTag("", "showRomFavoriteButton")
             serializer.startTag("", "showRomCompleteButton").text(settings.showRomCompleteButton.toString()).endTag("", "showRomCompleteButton")
             serializer.startTag("", "showTopBar").text(settings.showTopBar.toString()).endTag("", "showTopBar")
+            serializer.startTag("", "showTopBarSettingsIcon").text(settings.showTopBarSettingsIcon.toString()).endTag("", "showTopBarSettingsIcon")
+            serializer.startTag("", "showTopBarTitleIcon").text(settings.showTopBarTitleIcon.toString()).endTag("", "showTopBarTitleIcon")
+            serializer.startTag("", "topBarTitleAlignment").text(settings.topBarTitleAlignment).endTag("", "topBarTitleAlignment")
+            serializer.startTag("", "enableSwipeSystemNavigation").text(settings.enableSwipeSystemNavigation.toString()).endTag("", "enableSwipeSystemNavigation")
+            serializer.startTag("", "ignoreSystemAnimationScale").text(settings.ignoreSystemAnimationScale.toString()).endTag("", "ignoreSystemAnimationScale")
 
             serializer.endTag("", "DisplaySettings")
             serializer.endDocument()
@@ -466,14 +475,18 @@ class ConfigStorageManager(private val context: Context) {
             var launcherTitle = "RetroLauncher"
             var launcherIconPath = "gamepad"
             var showSystemMainMenuTitle = true
+            var bottomSystemMainMenuTitle = false
             var showSystemMainMenuEditIcon = false
             var systemMainMenuStyle = "ICON_GRID"
             var systemMainMenuGridStyle = "ICON_GRID"
+            var centeredLastGridItem = false
             var systemMenuDisplayColumns = 4
             var systemMenuDisplayRows = 4
             var systemMenuActualColumns = 4
             var systemMenuActualRows = 4
             var showSystemTitle = true
+            var bottomSystemTitle = false
+            var showSubSystemTitle = true
             var swapTopAndBottomBar = false
             var systemMenuTextSizeSp = 16
             var systemMenuTextAlignment = "LEFT"
@@ -513,6 +526,11 @@ class ConfigStorageManager(private val context: Context) {
             var showRomFavoriteButton = true
             var showRomCompleteButton = true
             var showTopBar = true
+            var showTopBarSettingsIcon = true
+            var showTopBarTitleIcon = true
+            var topBarTitleAlignment = "LEFT"
+            var enableSwipeSystemNavigation = false
+            var ignoreSystemAnimationScale = false
 
             var currentTag = ""
 
@@ -535,14 +553,18 @@ class ConfigStorageManager(private val context: Context) {
                                 "launcherTitle" -> launcherTitle = text
                                 "launcherIconPath" -> launcherIconPath = text
                                 "showSystemMainMenuTitle" -> showSystemMainMenuTitle = text.toBooleanStrictOrNull() ?: true
+                                "bottomSystemMainMenuTitle" -> bottomSystemMainMenuTitle = text.toBooleanStrictOrNull() ?: false
                                 "showSystemMainMenuEditIcon" -> showSystemMainMenuEditIcon = text.toBooleanStrictOrNull() ?: false
                                 "systemMainMenuStyle" -> systemMainMenuStyle = text
                                 "systemMainMenuGridStyle" -> systemMainMenuGridStyle = text
+                                "centeredLastGridItem" -> centeredLastGridItem = text.toBooleanStrictOrNull() ?: false
                                 "systemMenuDisplayColumns" -> systemMenuDisplayColumns = text.toIntOrNull() ?: 4
                                 "systemMenuDisplayRows" -> systemMenuDisplayRows = text.toIntOrNull() ?: 4
                                 "systemMenuActualColumns" -> systemMenuActualColumns = text.toIntOrNull() ?: 4
                                 "systemMenuActualRows" -> systemMenuActualRows = text.toIntOrNull() ?: 4
                                 "showSystemTitle" -> showSystemTitle = text.toBooleanStrictOrNull() ?: true
+                                "bottomSystemTitle" -> bottomSystemTitle = text.toBooleanStrictOrNull() ?: false
+                                "showSubSystemTitle" -> showSubSystemTitle = text.toBooleanStrictOrNull() ?: true
                                 "swapTopAndBottomBar" -> swapTopAndBottomBar = text.toBooleanStrictOrNull() ?: false
                                 "systemMenuTextSizeSp" -> systemMenuTextSizeSp = text.toIntOrNull() ?: 16
                                 "systemMenuTextAlignment" -> systemMenuTextAlignment = text
@@ -582,6 +604,11 @@ class ConfigStorageManager(private val context: Context) {
                                 "showRomFavoriteButton" -> showRomFavoriteButton = text.toBooleanStrictOrNull() ?: true
                                 "showRomCompleteButton" -> showRomCompleteButton = text.toBooleanStrictOrNull() ?: true
                                 "showTopBar" -> showTopBar = text.toBooleanStrictOrNull() ?: true
+                                "showTopBarSettingsIcon" -> showTopBarSettingsIcon = text.toBooleanStrictOrNull() ?: true
+                                "showTopBarTitleIcon" -> showTopBarTitleIcon = text.toBooleanStrictOrNull() ?: true
+                                "topBarTitleAlignment" -> topBarTitleAlignment = text
+                                "enableSwipeSystemNavigation" -> enableSwipeSystemNavigation = text.toBooleanStrictOrNull() ?: false
+                                "ignoreSystemAnimationScale" -> ignoreSystemAnimationScale = text.toBooleanStrictOrNull() ?: false
                             }
                         }
                     }
@@ -601,6 +628,7 @@ class ConfigStorageManager(private val context: Context) {
                 launcherTitle = launcherTitle,
                 launcherIconPath = launcherIconPath,
                 showSystemMainMenuTitle = showSystemMainMenuTitle,
+                bottomSystemMainMenuTitle = bottomSystemMainMenuTitle,
                 showSystemMainMenuEditIcon = showSystemMainMenuEditIcon,
                 systemMainMenuStyle = systemMainMenuStyle,
                 systemMainMenuGridStyle = systemMainMenuGridStyle,
@@ -609,6 +637,8 @@ class ConfigStorageManager(private val context: Context) {
                 systemMenuActualColumns = systemMenuActualColumns,
                 systemMenuActualRows = systemMenuActualRows,
                 showSystemTitle = showSystemTitle,
+                bottomSystemTitle = bottomSystemTitle,
+                showSubSystemTitle = showSubSystemTitle,
                 swapTopAndBottomBar = swapTopAndBottomBar,
                 systemMenuTextSizeSp = systemMenuTextSizeSp,
                 systemMenuTextAlignment = systemMenuTextAlignment,
@@ -647,7 +677,13 @@ class ConfigStorageManager(private val context: Context) {
                 showRomDetailsButton = showRomDetailsButton,
                 showRomFavoriteButton = showRomFavoriteButton,
                 showRomCompleteButton = showRomCompleteButton,
-                showTopBar = showTopBar
+                showTopBar = showTopBar,
+                showTopBarSettingsIcon = showTopBarSettingsIcon,
+                showTopBarTitleIcon = showTopBarTitleIcon,
+                topBarTitleAlignment = topBarTitleAlignment,
+                enableSwipeSystemNavigation = enableSwipeSystemNavigation,
+                ignoreSystemAnimationScale = ignoreSystemAnimationScale,
+                centeredLastGridItem = centeredLastGridItem
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -671,6 +707,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "textAlignment").text(settings.textAlignment.name).endTag("", "textAlignment")
             serializer.startTag("", "showArtworkInTextOnly").text(settings.showArtworkInTextOnly.toString()).endTag("", "showArtworkInTextOnly")
             serializer.startTag("", "gridScalePercent").text(settings.gridScalePercent.toString()).endTag("", "gridScalePercent")
+            serializer.startTag("", "showDetails").text(settings.showDetails.toString()).endTag("", "showDetails")
 
             serializer.endTag("", "RomListSettings")
             serializer.endDocument()
@@ -698,6 +735,7 @@ class ConfigStorageManager(private val context: Context) {
             var textAlignment = TextAlignmentOption.START
             var showArtworkInTextOnly = true
             var gridScalePercent = 100
+            var showDetails = true
 
             var currentTag = ""
 
@@ -714,6 +752,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "textAlignment" -> textAlignment = runCatching { TextAlignmentOption.valueOf(text) }.getOrDefault(TextAlignmentOption.START)
                                 "showArtworkInTextOnly" -> showArtworkInTextOnly = text.toBooleanStrictOrNull() ?: true
                                 "gridScalePercent" -> gridScalePercent = text.toIntOrNull() ?: 100
+                                "showDetails" -> showDetails = text.toBooleanStrictOrNull() ?: true
                             }
                         }
                     }
@@ -726,11 +765,120 @@ class ConfigStorageManager(private val context: Context) {
                 marginDp = marginDp,
                 textAlignment = textAlignment,
                 showArtworkInTextOnly = showArtworkInTextOnly,
-                gridScalePercent = gridScalePercent
+                gridScalePercent = gridScalePercent,
+                showDetails = showDetails
             )
         } catch (e: Exception) {
             e.printStackTrace()
             RomListSettings()
+        }
+    }
+
+    // --- PER-SYSTEM ROM LIST SETTINGS XML ---
+
+    fun saveSystemRomListSettingsMap(map: Map<String, RomListSettings>): Boolean {
+        return try {
+            val file = File(baseDir, "system_rom_list_settings.xml")
+            val writer = StringWriter()
+            val serializer = createSerializer(writer)
+            serializer.startDocument("UTF-8", true)
+            serializer.startTag("", "SystemRomListSettingsMap")
+
+            for ((systemId, settings) in map) {
+                serializer.startTag("", "SystemEntry")
+                serializer.attribute("", "id", systemId)
+                serializer.startTag("", "listStyle").text(settings.listStyle.name).endTag("", "listStyle")
+                serializer.startTag("", "textSizeSp").text(settings.textSizeSp.toString()).endTag("", "textSizeSp")
+                serializer.startTag("", "marginDp").text(settings.marginDp.toString()).endTag("", "marginDp")
+                serializer.startTag("", "textAlignment").text(settings.textAlignment.name).endTag("", "textAlignment")
+                serializer.startTag("", "showArtworkInTextOnly").text(settings.showArtworkInTextOnly.toString()).endTag("", "showArtworkInTextOnly")
+                serializer.startTag("", "gridScalePercent").text(settings.gridScalePercent.toString()).endTag("", "gridScalePercent")
+                serializer.startTag("", "showDetails").text(settings.showDetails.toString()).endTag("", "showDetails")
+                serializer.endTag("", "SystemEntry")
+            }
+
+            serializer.endTag("", "SystemRomListSettingsMap")
+            serializer.endDocument()
+
+            file.writeText(writer.toString())
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun loadSystemRomListSettingsMap(): Map<String, RomListSettings> {
+        val file = File(baseDir, "system_rom_list_settings.xml")
+        if (!file.exists()) return emptyMap()
+
+        val resultMap = mutableMapOf<String, RomListSettings>()
+        return try {
+            val parser: XmlPullParser = Xml.newPullParser()
+            parser.setInput(FileInputStream(file), "UTF-8")
+
+            var eventType = parser.eventType
+            var currentSystemId = ""
+            var listStyle = RomListStyle.GRID
+            var textSizeSp = 16
+            var marginDp = 8
+            var textAlignment = TextAlignmentOption.START
+            var showArtworkInTextOnly = true
+            var gridScalePercent = 100
+            var showDetails = true
+
+            var currentTag = ""
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        currentTag = parser.name
+                        if (currentTag == "SystemEntry") {
+                            currentSystemId = parser.getAttributeValue("", "id") ?: ""
+                            listStyle = RomListStyle.GRID
+                            textSizeSp = 16
+                            marginDp = 8
+                            textAlignment = TextAlignmentOption.START
+                            showArtworkInTextOnly = true
+                            gridScalePercent = 100
+                            showDetails = true
+                        }
+                    }
+                    XmlPullParser.TEXT -> {
+                        val text = parser.text.trim()
+                        if (text.isNotEmpty() && currentSystemId.isNotEmpty()) {
+                            when (currentTag) {
+                                "listStyle" -> listStyle = runCatching { RomListStyle.valueOf(text) }.getOrDefault(RomListStyle.GRID)
+                                "textSizeSp" -> textSizeSp = text.toIntOrNull() ?: 16
+                                "marginDp" -> marginDp = text.toIntOrNull() ?: 8
+                                "textAlignment" -> textAlignment = runCatching { TextAlignmentOption.valueOf(text) }.getOrDefault(TextAlignmentOption.START)
+                                "showArtworkInTextOnly" -> showArtworkInTextOnly = text.toBooleanStrictOrNull() ?: true
+                                "gridScalePercent" -> gridScalePercent = text.toIntOrNull() ?: 100
+                                "showDetails" -> showDetails = text.toBooleanStrictOrNull() ?: true
+                            }
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        if (parser.name == "SystemEntry" && currentSystemId.isNotEmpty()) {
+                            resultMap[currentSystemId] = RomListSettings(
+                                listStyle = listStyle,
+                                textSizeSp = textSizeSp,
+                                marginDp = marginDp,
+                                textAlignment = textAlignment,
+                                showArtworkInTextOnly = showArtworkInTextOnly,
+                                gridScalePercent = gridScalePercent,
+                                showDetails = showDetails
+                            )
+                            currentSystemId = ""
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+            resultMap
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyMap()
         }
     }
 
@@ -931,6 +1079,14 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "showBattery").text(settings.showBattery.toString()).endTag("", "showBattery")
             serializer.startTag("", "showWifi").text(settings.showWifi.toString()).endTag("", "showWifi")
             serializer.startTag("", "showBluetooth").text(settings.showBluetooth.toString()).endTag("", "showBluetooth")
+            serializer.startTag("", "showDate").text(settings.showDate.toString()).endTag("", "showDate")
+            serializer.startTag("", "showSettingsIcon").text(settings.showSettingsIcon.toString()).endTag("", "showSettingsIcon")
+            serializer.startTag("", "itemsOrderAndAlign").text(settings.itemsOrderAndAlign).endTag("", "itemsOrderAndAlign")
+            serializer.startTag("", "dateFormat").text(settings.dateFormat).endTag("", "dateFormat")
+            serializer.startTag("", "timeFormat").text(settings.timeFormat).endTag("", "timeFormat")
+            serializer.startTag("", "showClockIcon").text(settings.showClockIcon.toString()).endTag("", "showClockIcon")
+            serializer.startTag("", "showDateIcon").text(settings.showDateIcon.toString()).endTag("", "showDateIcon")
+            serializer.startTag("", "showBatteryIcon").text(settings.showBatteryIcon.toString()).endTag("", "showBatteryIcon")
 
             serializer.endTag("", "BottomBarSettings")
             serializer.endDocument()
@@ -959,6 +1115,14 @@ class ConfigStorageManager(private val context: Context) {
             var showBattery = true
             var showWifi = true
             var showBluetooth = true
+            var showDate = true
+            var showSettingsIcon = true
+            var itemsOrderAndAlign = "bluetooth:left,wifi:left,battery:left,date:right,time:right"
+            var dateFormat = "EEE, MMM d"
+            var timeFormat = "HH:mm"
+            var showClockIcon = true
+            var showDateIcon = true
+            var showBatteryIcon = true
 
             var currentTag = ""
 
@@ -976,6 +1140,14 @@ class ConfigStorageManager(private val context: Context) {
                                 "showBattery" -> showBattery = text.toBooleanStrictOrNull() ?: true
                                 "showWifi" -> showWifi = text.toBooleanStrictOrNull() ?: true
                                 "showBluetooth" -> showBluetooth = text.toBooleanStrictOrNull() ?: true
+                                "showDate" -> showDate = text.toBooleanStrictOrNull() ?: true
+                                "showSettingsIcon" -> showSettingsIcon = text.toBooleanStrictOrNull() ?: true
+                                "itemsOrderAndAlign" -> itemsOrderAndAlign = text
+                                "dateFormat" -> dateFormat = text
+                                "timeFormat" -> timeFormat = text
+                                "showClockIcon" -> showClockIcon = text.toBooleanStrictOrNull() ?: true
+                                "showDateIcon" -> showDateIcon = text.toBooleanStrictOrNull() ?: true
+                                "showBatteryIcon" -> showBatteryIcon = text.toBooleanStrictOrNull() ?: true
                             }
                         }
                     }
@@ -989,7 +1161,15 @@ class ConfigStorageManager(private val context: Context) {
                 showTime = showTime,
                 showBattery = showBattery,
                 showWifi = showWifi,
-                showBluetooth = showBluetooth
+                showBluetooth = showBluetooth,
+                showDate = showDate,
+                showSettingsIcon = showSettingsIcon,
+                itemsOrderAndAlign = itemsOrderAndAlign,
+                dateFormat = dateFormat,
+                timeFormat = timeFormat,
+                showClockIcon = showClockIcon,
+                showDateIcon = showDateIcon,
+                showBatteryIcon = showBatteryIcon
             )
         } catch (e: Exception) {
             e.printStackTrace()

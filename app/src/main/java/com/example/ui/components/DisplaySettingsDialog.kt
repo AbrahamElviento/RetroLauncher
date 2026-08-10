@@ -44,6 +44,7 @@ fun DisplaySettingsDialog(
     var expandedScreen by remember { mutableStateOf(true) }
     var expandedTopBottomBar by remember { mutableStateOf(false) }
     var expandedSystemMainMenu by remember { mutableStateOf(false) }
+    var expandedGameList by remember { mutableStateOf(false) }
     var expandedTheme by remember { mutableStateOf(false) }
     var expandedOther by remember { mutableStateOf(false) }
 
@@ -72,6 +73,10 @@ fun DisplaySettingsDialog(
     var launcherIconPathText by remember { mutableStateOf(currentSettings.launcherIconPath) }
 
     // Top & Bottom Bar States
+    var showTopBar by remember { mutableStateOf(currentSettings.showTopBar) }
+    var showTopBarSettingsIcon by remember { mutableStateOf(currentSettings.showTopBarSettingsIcon) }
+    var showTopBarTitleIcon by remember { mutableStateOf(currentSettings.showTopBarTitleIcon) }
+    var topBarTitleAlignment by remember { mutableStateOf(currentSettings.topBarTitleAlignment) }
     var swapTopAndBottomBar by remember { mutableStateOf(currentSettings.swapTopAndBottomBar) }
     var showBottomBar by remember { mutableStateOf(bottomBarSettings?.showBottomBar ?: true) }
     var marqueeSpeedText by remember { mutableStateOf(currentSettings.marqueeSpeed.toString()) }
@@ -80,6 +85,7 @@ fun DisplaySettingsDialog(
 
     // System Main Menu States
     var showSystemMainMenuTitle by remember { mutableStateOf(currentSettings.showSystemMainMenuTitle) }
+    var bottomSystemMainMenuTitle by remember { mutableStateOf(currentSettings.bottomSystemMainMenuTitle) }
     var systemMainMenuTitleText by remember { mutableStateOf(currentSettings.systemMainMenuTitle) }
     var systemMainMenuDescriptionText by remember { mutableStateOf(currentSettings.systemMainMenuDescription) }
     var systemMainMenuIconPathText by remember { mutableStateOf(currentSettings.systemMainMenuIconPath) }
@@ -88,7 +94,10 @@ fun DisplaySettingsDialog(
     var showSystemMainMenuEditIcon by remember { mutableStateOf(currentSettings.showSystemMainMenuEditIcon) }
     var systemMainMenuStyle by remember { mutableStateOf(if (currentSettings.systemMainMenuStyle == "CAROUSEL") "ICON_GRID" else currentSettings.systemMainMenuStyle) }
     var systemMainMenuGridStyle by remember { mutableStateOf(currentSettings.systemMainMenuGridStyle) }
+    var centeredLastGridItem by remember { mutableStateOf(currentSettings.centeredLastGridItem) }
     var showSystemTitle by remember { mutableStateOf(currentSettings.showSystemTitle) }
+    var bottomSystemTitle by remember { mutableStateOf(currentSettings.bottomSystemTitle) }
+    var showSubSystemTitle by remember { mutableStateOf(currentSettings.showSubSystemTitle) }
     var showFirstLastReorderButtons by remember { mutableStateOf(currentSettings.showFirstLastReorderButtons) }
     var showRomDetailsButton by remember { mutableStateOf(currentSettings.showRomDetailsButton) }
     var showRomFavoriteButton by remember { mutableStateOf(currentSettings.showRomFavoriteButton) }
@@ -96,6 +105,7 @@ fun DisplaySettingsDialog(
     var expandedMainMenuStyleDropdown by remember { mutableStateOf(false) }
     var expandedGridStyleDropdown by remember { mutableStateOf(false) }
     var systemMenuTextSize by remember { mutableFloatStateOf(currentSettings.systemMenuTextSizeSp.toFloat()) }
+    var systemMenuDescTextSize by remember { mutableFloatStateOf(currentSettings.systemMenuDescTextSizeSp.toFloat()) }
     var systemMenuTextAlignment by remember { mutableStateOf(currentSettings.systemMenuTextAlignment) }
 
     // Sound / Audio States
@@ -122,6 +132,8 @@ fun DisplaySettingsDialog(
     var removeCharsFromGameNamesText by remember { mutableStateOf(currentSettings.removeCharsFromGameNames) }
     var showLaunchToast by remember { mutableStateOf(currentSettings.showLaunchToast) }
     var enableImmersiveMode by remember { mutableStateOf(currentSettings.enableImmersiveMode) }
+    var enableSwipeSystemNavigation by remember { mutableStateOf(currentSettings.enableSwipeSystemNavigation) }
+    var ignoreSystemAnimationScale by remember { mutableStateOf(currentSettings.ignoreSystemAnimationScale) }
 
     // Auto Pop-up Icon States
     var enableRomIconPopUp by remember { mutableStateOf(currentSettings.enableRomIconPopUp) }
@@ -319,33 +331,6 @@ fun DisplaySettingsDialog(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            Text(
-                                text = "TOP BAR TITLE & ICON",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            OutlinedTextField(
-                                value = launcherTitleText,
-                                onValueChange = { launcherTitleText = it },
-                                label = { Text("Top Bar Title Text") },
-                                placeholder = { Text("RetroLauncher") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            IconPickerInput(
-                                iconNameOrPath = launcherIconPathText,
-                                onIconSelected = { launcherIconPathText = it },
-                                label = "Title Bar Icon"
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -386,6 +371,13 @@ fun DisplaySettingsDialog(
                         onToggle = { expandedTopBottomBar = !expandedTopBottomBar }
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "BAR LAYOUT & VISIBILITY",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -432,6 +424,38 @@ fun DisplaySettingsDialog(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
+                                            text = "Show Top Bar",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        Text(
+                                            text = "Toggle top header bar visibility",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showTopBar,
+                                        onCheckedChange = { showTopBar = it }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
                                             text = "Show Bottom Status Bar",
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                                         )
@@ -448,13 +472,138 @@ fun DisplaySettingsDialog(
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = "TOP BAR CONFIGURATION",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Show Settings Icon",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        Text(
+                                            text = "Show or hide the settings gear icon in top bar",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showTopBarSettingsIcon,
+                                        onCheckedChange = { showTopBarSettingsIcon = it }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Show Title Icon",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        Text(
+                                            text = "Show or hide the icon next to top bar title text",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showTopBarTitleIcon,
+                                        onCheckedChange = { showTopBarTitleIcon = it }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text(
+                                text = "Top Bar Title Alignment",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                FilterChip(
+                                    selected = topBarTitleAlignment == "LEFT",
+                                    onClick = { topBarTitleAlignment = "LEFT" },
+                                    label = { Text("Left") },
+                                    leadingIcon = { Icon(Icons.Default.FormatAlignLeft, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = topBarTitleAlignment == "CENTER",
+                                    onClick = { topBarTitleAlignment = "CENTER" },
+                                    label = { Text("Center") },
+                                    leadingIcon = { Icon(Icons.Default.FormatAlignCenter, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = topBarTitleAlignment == "RIGHT",
+                                    onClick = { topBarTitleAlignment = "RIGHT" },
+                                    label = { Text("Right") },
+                                    leadingIcon = { Icon(Icons.Default.FormatAlignRight, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = launcherTitleText,
+                                onValueChange = { launcherTitleText = it },
+                                label = { Text("Top Bar Title Text") },
+                                placeholder = { Text("RetroLauncher") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            IconPickerInput(
+                                iconNameOrPath = launcherIconPathText,
+                                onIconSelected = { launcherIconPathText = it },
+                                label = "Title Bar Icon"
+                            )
+
                             Spacer(modifier = Modifier.height(12.dp))
                         }
                     }
 
-                    // 3. SYSTEM MAIN MENU ACCORDION
+                    // 3. MAIN MENU ACCORDION
                     AccordionCard(
-                        title = "System Main Menu",
+                        title = "Main Menu",
                         icon = Icons.Default.GridView,
                         isExpanded = expandedSystemMainMenu,
                         onToggle = { expandedSystemMainMenu = !expandedSystemMainMenu }
@@ -561,7 +710,7 @@ fun DisplaySettingsDialog(
                                     singleLine = true
                                 )
 
-                                ExposedDropdownMenu(
+                                 ExposedDropdownMenu(
                                     expanded = expandedMainMenuStyleDropdown,
                                     onDismissRequest = { expandedMainMenuStyleDropdown = false }
                                 ) {
@@ -570,9 +719,6 @@ fun DisplaySettingsDialog(
                                             text = { Text(styleLabel, fontWeight = FontWeight.SemiBold) },
                                             onClick = {
                                                 systemMainMenuStyle = styleKey
-                                                if (styleKey == "ICON_GRID" || styleKey == "GRID_ALT") {
-                                                    systemMainMenuGridStyle = styleKey
-                                                }
                                                 expandedMainMenuStyleDropdown = false
                                             },
                                             leadingIcon = {
@@ -580,6 +726,96 @@ fun DisplaySettingsDialog(
                                                     Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                                 }
                                             }
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (systemMainMenuStyle == "ICON_GRID" || systemMainMenuStyle == "GRID_ALT") {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "GRID STYLE ARRANGEMENT",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                val gridArrangements = remember {
+                                    listOf(
+                                        "TOP_LEFT" to "Top Left (Default)",
+                                        "TOP_RIGHT" to "Top Right",
+                                        "BOTTOM_LEFT" to "Bottom Left",
+                                        "BOTTOM_RIGHT" to "Bottom Right"
+                                    )
+                                }
+                                val currentArrangementKey = when (systemMainMenuGridStyle) {
+                                    "TOP_RIGHT" -> "TOP_RIGHT"
+                                    "BOTTOM_LEFT" -> "BOTTOM_LEFT"
+                                    "BOTTOM_RIGHT" -> "BOTTOM_RIGHT"
+                                    else -> "TOP_LEFT"
+                                }
+                                val selectedArrangementLabel = gridArrangements.firstOrNull { it.first == currentArrangementKey }?.second ?: "Top Left (Default)"
+
+                                ExposedDropdownMenuBox(
+                                    expanded = expandedGridStyleDropdown,
+                                    onExpandedChange = { expandedGridStyleDropdown = !expandedGridStyleDropdown }
+                                ) {
+                                    OutlinedTextField(
+                                        value = selectedArrangementLabel,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text("Grid Arrangement Corner") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGridStyleDropdown) },
+                                        modifier = Modifier
+                                            .menuAnchor()
+                                            .fillMaxWidth(),
+                                        singleLine = true
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = expandedGridStyleDropdown,
+                                        onDismissRequest = { expandedGridStyleDropdown = false }
+                                    ) {
+                                        gridArrangements.forEach { (arrKey, arrLabel) ->
+                                            DropdownMenuItem(
+                                                text = { Text(arrLabel, fontWeight = FontWeight.SemiBold) },
+                                                onClick = {
+                                                    systemMainMenuGridStyle = arrKey
+                                                    expandedGridStyleDropdown = false
+                                                },
+                                                leadingIcon = {
+                                                    if (currentArrangementKey == arrKey) {
+                                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (systemMainMenuStyle == "ICON_GRID" || systemMainMenuStyle == "GRID_ALT") {
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Centered Last Grid Item",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Switch(
+                                            checked = centeredLastGridItem,
+                                            onCheckedChange = { centeredLastGridItem = it }
                                         )
                                     }
                                 }
@@ -607,6 +843,32 @@ fun DisplaySettingsDialog(
                                         checked = showSystemMainMenuTitle,
                                         onCheckedChange = { showSystemMainMenuTitle = it }
                                     )
+                                }
+                            }
+
+                            if (showSystemMainMenuTitle) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Render Header Bar at Bottom",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Switch(
+                                            checked = bottomSystemMainMenuTitle,
+                                            onCheckedChange = { bottomSystemMainMenuTitle = it }
+                                        )
+                                    }
                                 }
                             }
 
@@ -649,31 +911,6 @@ fun DisplaySettingsDialog(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "Show System Selector Title Bar",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                    )
-                                    Switch(
-                                        checked = showSystemTitle,
-                                        onCheckedChange = { showSystemTitle = it }
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "Show Move to First/Last Buttons",
@@ -692,8 +929,112 @@ fun DisplaySettingsDialog(
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // ICON GRID SIZE PERCENTAGE
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Icon Grid Size (%)", style = MaterialTheme.typography.bodyMedium)
+                                    Text("${mainMenuIconGridScalePercent.toInt()}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = mainMenuIconGridScalePercent,
+                                    onValueChange = { mainMenuIconGridScalePercent = it },
+                                    valueRange = 50f..150f,
+                                    steps = 19
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // TEXT DISPLAY STYLE SETTING (DEDICATED)
+                            Text(
+                                text = "TEXT DISPLAY STYLE SETTINGS",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Text Size", style = MaterialTheme.typography.bodyMedium)
+                                    Text("${systemMenuTextSize.toInt()} sp", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = systemMenuTextSize,
+                                    onValueChange = { systemMenuTextSize = it },
+                                    valueRange = 12f..28f,
+                                    steps = 15
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Description Text Size", style = MaterialTheme.typography.bodyMedium)
+                                    Text("${systemMenuDescTextSize.toInt()} sp", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+                                Slider(
+                                    value = systemMenuDescTextSize,
+                                    onValueChange = { systemMenuDescTextSize = it },
+                                    valueRange = 8f..24f,
+                                    steps = 16
+                                )
+                            }
+
                             Spacer(modifier = Modifier.height(6.dp))
 
+                            Text("Text Alignment", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                FilterChip(
+                                    selected = systemMenuTextAlignment == "LEFT",
+                                    onClick = { systemMenuTextAlignment = "LEFT" },
+                                    label = { Text("Left") },
+                                    leadingIcon = { Icon(Icons.Default.FormatAlignLeft, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = systemMenuTextAlignment == "CENTER",
+                                    onClick = { systemMenuTextAlignment = "CENTER" },
+                                    label = { Text("Center") },
+                                    leadingIcon = { Icon(Icons.Default.FormatAlignCenter, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = systemMenuTextAlignment == "RIGHT",
+                                    onClick = { systemMenuTextAlignment = "RIGHT" },
+                                    label = { Text("Right") },
+                                    leadingIcon = { Icon(Icons.Default.FormatAlignRight, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    // 3b. GAME LIST ACCORDION
+                    AccordionCard(
+                        title = "Game List",
+                        icon = Icons.Default.List,
+                        isExpanded = expandedGameList,
+                        onToggle = { expandedGameList = !expandedGameList }
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -788,83 +1129,186 @@ fun DisplaySettingsDialog(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                            // ICON GRID SIZE PERCENTAGE
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Icon Grid Size (%)", style = MaterialTheme.typography.bodyMedium)
-                                    Text("${mainMenuIconGridScalePercent.toInt()}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Show System Selector Title Bar",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = "Show the visual selector header / title bar",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = showSystemTitle,
+                                            onCheckedChange = { showSystemTitle = it }
+                                        )
+                                    }
+
+                                    AnimatedVisibility(
+                                        visible = showSystemTitle,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
+                                        Column {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(horizontal = 14.dp),
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                            )
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 28.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "Bottom System Selector Title Bar",
+                                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                                    )
+                                                    Text(
+                                                        text = "Display the system selector title bar at the bottom of the game list",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                Switch(
+                                                    checked = bottomSystemTitle,
+                                                    onCheckedChange = { bottomSystemTitle = it }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
-                                Slider(
-                                    value = mainMenuIconGridScalePercent,
-                                    onValueChange = { mainMenuIconGridScalePercent = it },
-                                    valueRange = 50f..150f,
-                                    steps = 19
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // TEXT DISPLAY STYLE SETTING (DEDICATED)
-                            Text(
-                                text = "TEXT DISPLAY STYLE SETTINGS",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Text Size", style = MaterialTheme.typography.bodyMedium)
-                                    Text("${systemMenuTextSize.toInt()} sp", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                }
-                                Slider(
-                                    value = systemMenuTextSize,
-                                    onValueChange = { systemMenuTextSize = it },
-                                    valueRange = 12f..28f,
-                                    steps = 15
-                                )
                             }
 
                             Spacer(modifier = Modifier.height(6.dp))
 
-                            Text("Text Alignment", style = MaterialTheme.typography.bodyMedium)
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                FilterChip(
-                                    selected = systemMenuTextAlignment == "LEFT",
-                                    onClick = { systemMenuTextAlignment = "LEFT" },
-                                    label = { Text("Left") },
-                                    leadingIcon = { Icon(Icons.Default.FormatAlignLeft, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                FilterChip(
-                                    selected = systemMenuTextAlignment == "CENTER",
-                                    onClick = { systemMenuTextAlignment = "CENTER" },
-                                    label = { Text("Center") },
-                                    leadingIcon = { Icon(Icons.Default.FormatAlignCenter, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                FilterChip(
-                                    selected = systemMenuTextAlignment == "RIGHT",
-                                    onClick = { systemMenuTextAlignment = "RIGHT" },
-                                    label = { Text("Right") },
-                                    leadingIcon = { Icon(Icons.Default.FormatAlignRight, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                    modifier = Modifier.weight(1f)
-                                )
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Show Sub System Title Bar",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = "Show or hide the sub system header bar (with list style settings)",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = showSubSystemTitle,
+                                            onCheckedChange = { showSubSystemTitle = it }
+                                        )
+                                    }
+
+                                    AnimatedVisibility(
+                                        visible = showSubSystemTitle,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
+                                        Column {
+                                        }
+                                    }
+                                }
                             }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Swipe to Switch Systems",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = "Fluid horizontal swiping gestures to switch active consoles/game lists",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = enableSwipeSystemNavigation,
+                                            onCheckedChange = { enableSwipeSystemNavigation = it }
+                                        )
+                                    }
+                                    if (enableSwipeSystemNavigation) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Ignore System Animation Scale",
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                                )
+                                                Text(
+                                                    text = "Forces the switch swipe animation to run even if animations are disabled in device settings",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Switch(
+                                                checked = ignoreSystemAnimationScale,
+                                                onCheckedChange = { ignoreSystemAnimationScale = it }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            OutlinedTextField(
+                                value = removeCharsFromGameNamesText,
+                                onValueChange = { removeCharsFromGameNamesText = it },
+                                label = { Text("Remove Characters from Game Names") },
+                                placeholder = { Text("Characters to delete, e.g. -/\\") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
                         }
                     }
 
@@ -1149,28 +1593,39 @@ fun DisplaySettingsDialog(
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Auto-Hide Scrollbar",
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                        )
-                                        Text(
-                                            text = "Automatically hide scrollbar when not scrolling",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Auto-Hide Scrollbar",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = "Automatically hide scrollbar when not scrolling",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = autoHideScrollbar,
+                                            onCheckedChange = { autoHideScrollbar = it }
                                         )
                                     }
-                                    Switch(
-                                        checked = autoHideScrollbar,
-                                        onCheckedChange = { autoHideScrollbar = it }
-                                    )
+                                    if (autoHideScrollbar) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedTextField(
+                                            value = scrollbarShowDurationMsText,
+                                            onValueChange = { scrollbarShowDurationMsText = it.filter { c -> c.isDigit() } },
+                                            label = { Text("Scrollbar Show Duration (ms)") },
+                                            placeholder = { Text("e.g. 1500") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true
+                                        )
+                                    }
                                 }
                             }
 
@@ -1203,24 +1658,6 @@ fun DisplaySettingsDialog(
                                     )
                                 }
                             }
-
-                            OutlinedTextField(
-                                value = scrollbarShowDurationMsText,
-                                onValueChange = { scrollbarShowDurationMsText = it.filter { c -> c.isDigit() } },
-                                label = { Text("Scrollbar Show Duration (ms)") },
-                                placeholder = { Text("e.g. 1500") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            OutlinedTextField(
-                                value = removeCharsFromGameNamesText,
-                                onValueChange = { removeCharsFromGameNamesText = it },
-                                label = { Text("Remove Characters from Game Names") },
-                                placeholder = { Text("Characters to delete, e.g. -/\\") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
 
                             Spacer(modifier = Modifier.height(10.dp))
 
@@ -1502,12 +1939,16 @@ fun DisplaySettingsDialog(
                                 textColorHex = textColorHex,
                                 cardBackgroundColorHex = cardBackgroundColorHex,
                                 showSystemMainMenuTitle = showSystemMainMenuTitle,
+                                bottomSystemMainMenuTitle = bottomSystemMainMenuTitle,
                                 showSystemMainMenuEditIcon = showSystemMainMenuEditIcon,
                                 systemMainMenuStyle = systemMainMenuStyle,
                                 systemMainMenuGridStyle = systemMainMenuGridStyle,
                                 showSystemTitle = showSystemTitle,
+                                bottomSystemTitle = bottomSystemTitle,
+                                showSubSystemTitle = showSubSystemTitle,
                                 swapTopAndBottomBar = swapTopAndBottomBar,
                                 systemMenuTextSizeSp = systemMenuTextSize.toInt(),
+                                systemMenuDescTextSizeSp = systemMenuDescTextSize.toInt(),
                                 systemMenuTextAlignment = systemMenuTextAlignment,
                                 marqueeSpeed = marqueeSpeedText.toIntOrNull() ?: 30,
                                 marqueeDelayMillis = marqueeDelayMillisText.toIntOrNull() ?: 1200,
@@ -1538,7 +1979,14 @@ fun DisplaySettingsDialog(
                                 showFirstLastReorderButtons = showFirstLastReorderButtons,
                                 showRomDetailsButton = showRomDetailsButton,
                                 showRomFavoriteButton = showRomFavoriteButton,
-                                showRomCompleteButton = showRomCompleteButton
+                                showRomCompleteButton = showRomCompleteButton,
+                                enableSwipeSystemNavigation = enableSwipeSystemNavigation,
+                                ignoreSystemAnimationScale = ignoreSystemAnimationScale,
+                                centeredLastGridItem = centeredLastGridItem,
+                                showTopBar = showTopBar,
+                                showTopBarSettingsIcon = showTopBarSettingsIcon,
+                                showTopBarTitleIcon = showTopBarTitleIcon,
+                                topBarTitleAlignment = topBarTitleAlignment
                             )
                             onSaveSettings(newSettings)
                             if (bottomBarSettings != null && onSaveBottomBarSettings != null) {

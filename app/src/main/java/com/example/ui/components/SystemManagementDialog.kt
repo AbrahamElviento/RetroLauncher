@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -223,7 +224,7 @@ fun SystemManagementDialog(
                                     )
                                 }
                             )
-                            DropdownMenuItem(
+                             DropdownMenuItem(
                                 text = { Text("BGM Widget") },
                                 onClick = {
                                     showAddWidgetMenu = false
@@ -236,6 +237,42 @@ fun SystemManagementDialog(
                                         allowedExtensions = "Tap to view",
                                         iconName = "music_note",
                                         defaultLaunchMode = "WIDGET_BGM",
+                                        displayOrder = systemList.size,
+                                        isEnabled = true
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Battery Widget") },
+                                onClick = {
+                                    showAddWidgetMenu = false
+                                    isAddingNew = true
+                                    editingSystem = SystemEntity(
+                                        id = "widget_battery_" + UUID.randomUUID().toString().take(8),
+                                        name = "Battery Widget",
+                                        shortName = "BATTERY",
+                                        folderPath = "",
+                                        allowedExtensions = "",
+                                        iconName = "battery_full",
+                                        defaultLaunchMode = "WIDGET_BATTERY",
+                                        displayOrder = systemList.size,
+                                        isEnabled = true
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("App Launch Widget") },
+                                onClick = {
+                                    showAddWidgetMenu = false
+                                    isAddingNew = true
+                                    editingSystem = SystemEntity(
+                                        id = "widget_app_launch_" + UUID.randomUUID().toString().take(8),
+                                        name = "App Launch Widget",
+                                        shortName = "APP",
+                                        folderPath = "",
+                                        allowedExtensions = "true",
+                                        iconName = "android",
+                                        defaultLaunchMode = "WIDGET_APP_LAUNCH",
                                         displayOrder = systemList.size,
                                         isEnabled = true
                                     )
@@ -1059,6 +1096,26 @@ fun WidgetEditDetailDialog(
     var retroArchCore by remember { mutableStateOf(system.retroArchCore) }
     var iconName by remember { mutableStateOf(system.iconName) }
 
+    var useAppIcon by remember {
+        mutableStateOf(
+            if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
+                system.allowedExtensions != "false"
+            } else {
+                true
+            }
+        )
+    }
+
+    var showLaunchText by remember {
+        mutableStateOf(
+            if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
+                system.retroArchCore != "false"
+            } else {
+                true
+            }
+        )
+    }
+
     var subItemsList by remember {
         mutableStateOf(
             TotalGamesWidgetConfig.parse(system.folderPath, system.colorHex, system.iconName)
@@ -1068,6 +1125,7 @@ fun WidgetEditDetailDialog(
     var showDirectoryPicker by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val appList = remember { AndroidAppIconHelper.getAllInstalledAppsInfo(context) }
 
     ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
@@ -1099,6 +1157,8 @@ fun WidgetEditDetailDialog(
                     "WIDGET_CUSTOM_TEXT" -> "Custom Text Display"
                     "WIDGET_SLIDESHOW" -> "Custom Image Slideshow"
                     "WIDGET_BGM" -> "BGM (Background Music)"
+                    "WIDGET_BATTERY" -> "Battery Status"
+                    "WIDGET_APP_LAUNCH" -> "App Launcher"
                     else -> "Widget"
                 }
                 Text(
@@ -1120,6 +1180,42 @@ fun WidgetEditDetailDialog(
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                 )
 
+                if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = useAppIcon,
+                            onCheckedChange = { useAppIcon = it }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Use App Icon (ignores manual icon choice)",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = showLaunchText,
+                            onCheckedChange = { showLaunchText = it }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Show Launch/Launch App Text",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
                 val parsedColor = parseHexColor(colorHex)
 
                 ColorPickerInput(
@@ -1128,12 +1224,16 @@ fun WidgetEditDetailDialog(
                     label = "Widget Theme Color"
                 )
 
-                IconPickerInput(
-                    iconNameOrPath = iconName,
-                    onIconSelected = { iconName = it },
-                    label = "Widget Icon",
-                    tint = parsedColor
-                )
+                if (system.defaultLaunchMode != "WIDGET_BATTERY" &&
+                    !(system.defaultLaunchMode == "WIDGET_APP_LAUNCH" && useAppIcon)
+                ) {
+                    IconPickerInput(
+                        iconNameOrPath = iconName,
+                        onIconSelected = { iconName = it },
+                        label = "Widget Icon",
+                        tint = parsedColor
+                    )
+                }
 
                 when (system.defaultLaunchMode) {
                     "WIDGET_CLOCK" -> {
@@ -1253,6 +1353,114 @@ fun WidgetEditDetailDialog(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
+                    }
+                    "WIDGET_APP_LAUNCH" -> {
+                        Text(
+                            text = "Select App to Launch",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        var expandedAppMenu by remember { mutableStateOf(false) }
+                        var appSearchQuery by remember { mutableStateOf("") }
+                        val currentApp = appList.find { it.packageName == folderPath }
+                        val appLabel = currentApp?.label ?: if (folderPath.isNotEmpty()) folderPath.split("|").first() else "Select an app..."
+
+                        val filteredAppList = remember(appSearchQuery, appList) {
+                            if (appSearchQuery.isBlank()) {
+                                appList
+                            } else {
+                                appList.filter {
+                                    it.label.contains(appSearchQuery, ignoreCase = true) ||
+                                    it.packageName.contains(appSearchQuery, ignoreCase = true)
+                                }
+                            }
+                        }
+
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(
+                                onClick = { expandedAppMenu = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = appLabel,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = expandedAppMenu,
+                                onDismissRequest = { 
+                                    expandedAppMenu = false 
+                                    appSearchQuery = ""
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .heightIn(max = 400.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = appSearchQuery,
+                                    onValueChange = { appSearchQuery = it },
+                                    label = { Text("Search App...") },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    singleLine = true,
+                                    trailingIcon = {
+                                        if (appSearchQuery.isNotEmpty()) {
+                                            IconButton(onClick = { appSearchQuery = "" }) {
+                                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                                            }
+                                        }
+                                    }
+                                )
+                                
+                                if (filteredAppList.isEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text("No apps found", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                        onClick = {},
+                                        enabled = false
+                                    )
+                                } else {
+                                    filteredAppList.forEach { app ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    val bitmap = remember(app.packageName) {
+                                                        AndroidAppIconHelper.getAppIconBitmap(context, app.packageName)
+                                                    }
+                                                    if (bitmap != null) {
+                                                        Image(
+                                                            bitmap = bitmap,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                    }
+                                                    Text(app.label)
+                                                }
+                                            },
+                                            onClick = {
+                                                folderPath = app.packageName
+                                                if (name.isBlank() || name == "App Launch Widget") {
+                                                    name = app.label
+                                                }
+                                                appSearchQuery = ""
+                                                expandedAppMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                     "WIDGET_TOTAL_GAMES" -> {
                         Text(
@@ -1397,8 +1605,15 @@ fun WidgetEditDetailDialog(
                         onClick = {
                             val savedExt = if (system.defaultLaunchMode == "WIDGET_SLIDESHOW") {
                                 if (allowedExtensions.isBlank()) "5" else allowedExtensions
+                            } else if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
+                                useAppIcon.toString()
                             } else {
                                 allowedExtensions
+                            }
+                            val finalRetroArchCore = if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
+                                showLaunchText.toString()
+                            } else {
+                                retroArchCore
                             }
                             val finalFolderPath = if (system.defaultLaunchMode == "WIDGET_TOTAL_GAMES") {
                                 TotalGamesWidgetConfig.serialize(subItemsList)
@@ -1411,7 +1626,7 @@ fun WidgetEditDetailDialog(
                                     colorHex = colorHex,
                                     folderPath = finalFolderPath,
                                     allowedExtensions = savedExt,
-                                    retroArchCore = retroArchCore,
+                                    retroArchCore = finalRetroArchCore,
                                     iconName = iconName
                                 )
                             )

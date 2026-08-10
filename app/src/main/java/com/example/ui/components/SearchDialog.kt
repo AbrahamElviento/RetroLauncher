@@ -229,7 +229,14 @@ fun SearchDialog(
                                                 .background(MaterialTheme.colorScheme.primaryContainer),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            if (rom.systemId == "android_apps") {
+                                            val actualSystem = remember(rom, systems) {
+                                                systems.find { it.id == rom.systemId }
+                                            }
+                                            val isAndroidApp = rom.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                                                    actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
+                                                    rom.systemId.startsWith("android_")
+
+                                            if (isAndroidApp) {
                                                 val appIcon = remember(rom.filePath) {
                                                     AndroidAppIconHelper.getAppIconBitmap(context, rom.filePath)
                                                 }

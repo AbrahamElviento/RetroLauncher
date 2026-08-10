@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,6 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.util.SoundManager
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.focus.onFocusChanged
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -197,7 +201,9 @@ fun BgmControlDialog(
                     )
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -265,53 +271,108 @@ fun BgmControlDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    IconButton(
-                        onClick = { SoundManager.playPrev(context) },
+                    var isPrevFocused by remember { mutableStateOf(false) }
+                    Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)),
-                        enabled = hasBgmFiles
+                            .onFocusChanged { isPrevFocused = it.isFocused }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isPrevFocused) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            .border(
+                                width = if (isPrevFocused) 2.dp else 0.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable(enabled = hasBgmFiles) {
+                                SoundManager.playPrev(context)
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
                             contentDescription = "Previous Track",
-                            tint = if (hasBgmFiles) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                            tint = if (isPrevFocused) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else if (hasBgmFiles) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            },
                             modifier = Modifier.size(24.dp)
                         )
                     }
 
-                    IconButton(
-                        onClick = {
-                            if (displaySettings.enableBgm) {
-                                onUpdateBgm(false)
-                            } else {
-                                onUpdateBgm(true)
-                            }
-                        },
+                    var isPlayFocused by remember { mutableStateOf(false) }
+                    Box(
                         modifier = Modifier
                             .size(56.dp)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(28.dp)),
-                        enabled = hasBgmFiles
+                            .onFocusChanged { isPlayFocused = it.isFocused }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isPlayFocused) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            .border(
+                                width = if (isPlayFocused) 2.dp else 0.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable(enabled = hasBgmFiles) {
+                                if (displaySettings.enableBgm) {
+                                    onUpdateBgm(false)
+                                } else {
+                                    onUpdateBgm(true)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (displaySettings.enableBgm) Icons.Default.Stop else Icons.Default.PlayArrow,
                             contentDescription = if (displaySettings.enableBgm) "Stop" else "Play BGM",
-                            tint = if (hasBgmFiles) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                            tint = if (isPlayFocused) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else if (hasBgmFiles) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                            },
                             modifier = Modifier.size(28.dp)
                         )
                     }
 
-                    IconButton(
-                        onClick = { SoundManager.playNext(context) },
+                    var isNextFocused by remember { mutableStateOf(false) }
+                    Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp)),
-                        enabled = hasBgmFiles
+                            .onFocusChanged { isNextFocused = it.isFocused }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isNextFocused) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            .border(
+                                width = if (isNextFocused) 2.dp else 0.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable(enabled = hasBgmFiles) {
+                                SoundManager.playNext(context)
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next Track",
-                            tint = if (hasBgmFiles) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                            tint = if (isNextFocused) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else if (hasBgmFiles) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            },
                             modifier = Modifier.size(24.dp)
                         )
                     }

@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.BottomBarSettings
 import kotlinx.coroutines.delay
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,6 +42,7 @@ fun BottomStatusBar(
     isFocused: Boolean = false,
     containerColorHex: String = "",
     notificationText: String? = null,
+    onDoubleTapClock: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (!settings.showBottomBar) return
@@ -49,11 +52,29 @@ fun BottomStatusBar(
 
     // Live Time state
     var currentTimeStr by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) {
-        val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+    LaunchedEffect(settings.timeFormat) {
+        val formatter = try {
+            SimpleDateFormat(settings.timeFormat, Locale.getDefault())
+        } catch (e: Exception) {
+            SimpleDateFormat("HH:mm", Locale.getDefault())
+        }
         while (true) {
             currentTimeStr = formatter.format(Date())
             delay(1000L)
+        }
+    }
+
+    // Live Date state
+    var currentDateStr by remember { mutableStateOf("") }
+    LaunchedEffect(settings.dateFormat) {
+        val formatter = try {
+            SimpleDateFormat(settings.dateFormat, Locale.getDefault())
+        } catch (e: Exception) {
+            SimpleDateFormat("EEE, MMM d", Locale.getDefault())
+        }
+        while (true) {
+            currentDateStr = formatter.format(Date())
+            delay(10000L)
         }
     }
 
@@ -111,6 +132,118 @@ fun BottomStatusBar(
         }
     }
 
+    val orderedItems = remember(settings.itemsOrderAndAlign) {
+        getNormalizedItems(settings.itemsOrderAndAlign)
+    }
+
+    val leftItems = remember(orderedItems) { orderedItems.filter { it.second == "left" } }
+    val rightItems = remember(orderedItems) { orderedItems.filter { it.second == "right" } }
+
+    @Composable
+    fun RenderItem(key: String) {
+        when (key) {
+            "wifi" -> {
+                if (settings.showWifi) {
+                    Icon(
+                        imageVector = if (isWifiConnected) Icons.Default.Wifi else Icons.Default.WifiOff,
+                        contentDescription = "Wi-Fi",
+                        tint = if (isWifiConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.size(settings.iconSizeDp.dp)
+                    )
+                }
+            }
+            "bluetooth" -> {
+                if (settings.showBluetooth) {
+                    Icon(
+                        imageVector = if (isBluetoothEnabled) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
+                        contentDescription = "Bluetooth",
+                        tint = if (isBluetoothEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.size(settings.iconSizeDp.dp)
+                    )
+                }
+            }
+            "battery" -> {
+                if (settings.showBattery) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (settings.showBatteryIcon) {
+                            Icon(
+                                imageVector = if (isCharging) Icons.Default.BatteryChargingFull else if (batteryPercent > 20) Icons.Default.BatteryFull else Icons.Default.BatteryAlert,
+                                contentDescription = "Battery",
+                                tint = if (isCharging || batteryPercent > 20) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(settings.iconSizeDp.dp)
+                            )
+                        }
+                        Text(
+                            text = "$batteryPercent%",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontSize = (settings.iconSizeDp * 0.75f).sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                }
+            }
+            "date" -> {
+                if (settings.showDate) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (settings.showDateIcon) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarToday,
+                                contentDescription = "Date",
+                                modifier = Modifier.size((settings.iconSizeDp * 0.8f).dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = currentDateStr,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontSize = (settings.iconSizeDp * 0.8f).sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        )
+                    }
+                }
+            }
+            "time" -> {
+                if (settings.showTime) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = {
+                                    onDoubleTapClock?.invoke()
+                                }
+                            )
+                        }
+                    ) {
+                        if (settings.showClockIcon) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = "Time",
+                                modifier = Modifier.size((settings.iconSizeDp * 0.85f).dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = currentTimeStr,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontSize = (settings.iconSizeDp * 0.8f).sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -133,55 +266,13 @@ fun BottomStatusBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Side: Status Indicators (Wifi, Bluetooth, Battery)
+            // Left Side: Left-aligned items
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Wi-Fi
-                if (settings.showWifi) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (isWifiConnected) Icons.Default.Wifi else Icons.Default.WifiOff,
-                            contentDescription = "Wi-Fi",
-                            tint = if (isWifiConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.size(settings.iconSizeDp.dp)
-                        )
-                    }
-                }
-
-                // Bluetooth
-                if (settings.showBluetooth) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (isBluetoothEnabled) Icons.Default.Bluetooth else Icons.Default.BluetoothDisabled,
-                            contentDescription = "Bluetooth",
-                            tint = if (isBluetoothEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.size(settings.iconSizeDp.dp)
-                        )
-                    }
-                }
-
-                // Battery
-                if (settings.showBattery) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isCharging) Icons.Default.BatteryChargingFull else if (batteryPercent > 20) Icons.Default.BatteryFull else Icons.Default.BatteryAlert,
-                            contentDescription = "Battery",
-                            tint = if (isCharging || batteryPercent > 20) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(settings.iconSizeDp.dp)
-                        )
-                        Text(
-                            text = "$batteryPercent%",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontSize = (settings.iconSizeDp * 0.75f).sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        )
-                    }
+                leftItems.forEach { (key, _) ->
+                    RenderItem(key = key)
                 }
             }
 
@@ -227,38 +318,58 @@ fun BottomStatusBar(
                 }
             }
 
-            // Right Side: Time & Bar Settings Config Button
+            // Right Side: Right-aligned items & optionally Settings Icon
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (settings.showTime) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = "Time",
-                            modifier = Modifier.size((settings.iconSizeDp * 0.85f).dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = currentTimeStr,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontSize = (settings.iconSizeDp * 0.8f).sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                        )
-                    }
+                rightItems.forEach { (key, _) ->
+                    RenderItem(key = key)
                 }
 
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = "Bar Settings",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size((settings.iconSizeDp * 0.8f).dp)
-                )
+                if (settings.showSettingsIcon) {
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = "Bar Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size((settings.iconSizeDp * 0.8f).dp)
+                    )
+                }
             }
         }
     }
+}
+
+private fun parseItemsOrderAndAlign(input: String): List<Pair<String, String>> {
+    if (input.isBlank()) {
+        return listOf(
+            "bluetooth" to "left",
+            "wifi" to "left",
+            "battery" to "left",
+            "date" to "right",
+            "time" to "right"
+        )
+    }
+    return input.split(",").mapNotNull {
+        val parts = it.split(":")
+        if (parts.size == 2) {
+            parts[0].trim() to parts[1].trim()
+        } else {
+            null
+        }
+    }
+}
+
+private fun getNormalizedItems(input: String): List<Pair<String, String>> {
+    val parsed = parseItemsOrderAndAlign(input).toMutableList()
+    val allKeys = listOf("bluetooth", "wifi", "battery", "date", "time")
+    val missingKeys = allKeys.filter { key -> parsed.none { it.first == key } }
+    for (key in missingKeys) {
+        val defaultAlign = when (key) {
+            "date", "time" -> "right"
+            else -> "left"
+        }
+        parsed.add(key to defaultAlign)
+    }
+    return parsed
 }

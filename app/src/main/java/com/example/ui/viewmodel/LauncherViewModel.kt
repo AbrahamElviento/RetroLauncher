@@ -39,6 +39,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _romListSettings = MutableStateFlow(com.example.data.model.RomListSettings())
     val romListSettings: StateFlow<com.example.data.model.RomListSettings> = _romListSettings.asStateFlow()
 
+    private val _systemRomListSettingsMap = MutableStateFlow<Map<String, com.example.data.model.RomListSettings>>(emptyMap())
+    val systemRomListSettingsMap: StateFlow<Map<String, com.example.data.model.RomListSettings>> = _systemRomListSettingsMap.asStateFlow()
+
+    val currentRomListSettings: StateFlow<com.example.data.model.RomListSettings> = combine(
+        selectedSystemId,
+        romListSettings,
+        systemRomListSettingsMap
+    ) { sysId, global, map ->
+        if (sysId != null && map.containsKey(sysId)) {
+            map[sysId]!!
+        } else {
+            global
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, com.example.data.model.RomListSettings())
+
     private val _gamepadSettings = MutableStateFlow(com.example.data.model.GamepadSettings())
     val gamepadSettings: StateFlow<com.example.data.model.GamepadSettings> = _gamepadSettings.asStateFlow()
 
@@ -103,6 +118,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
             _displaySettings.value = repository.loadDisplaySettings()
             _romListSettings.value = repository.loadRomListSettings()
+            _systemRomListSettingsMap.value = repository.loadSystemRomListSettingsMap()
             _gamepadSettings.value = repository.loadGamepadSettings()
             _bottomBarSettings.value = repository.loadBottomBarSettings()
             _hiddenAndroidApps.value = repository.getHiddenAndroidApps()
@@ -117,11 +133,37 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun updateRomListSettings(settings: com.example.data.model.RomListSettings) {
+    fun applyRomListSettingsToActiveSystem(settings: com.example.data.model.RomListSettings) {
+        val currentSysId = _selectedSystemId.value ?: "global"
+        val updatedMap = _systemRomListSettingsMap.value.toMutableMap()
+        updatedMap[currentSysId] = settings
+        _systemRomListSettingsMap.value = updatedMap
+        viewModelScope.launch {
+            repository.saveSystemRomListSettingsMap(updatedMap)
+        }
+    }
+
+    fun applyRomListSettingsToAllSystems(settings: com.example.data.model.RomListSettings) {
         _romListSettings.value = settings
+        val allSystems = systems.value
+        val updatedMap = mutableMapOf<String, com.example.data.model.RomListSettings>()
+        allSystems.forEach { sys ->
+            updatedMap[sys.id] = settings
+        }
+        updatedMap["android_apps"] = settings
+        updatedMap["recent_played"] = settings
+        updatedMap["all_games"] = settings
+        updatedMap["favorites"] = settings
+
+        _systemRomListSettingsMap.value = updatedMap
         viewModelScope.launch {
             repository.saveRomListSettings(settings)
+            repository.saveSystemRomListSettingsMap(updatedMap)
         }
+    }
+
+    fun updateRomListSettings(settings: com.example.data.model.RomListSettings) {
+        applyRomListSettingsToActiveSystem(settings)
     }
 
     fun updateGamepadSettings(settings: com.example.data.model.GamepadSettings) {
@@ -170,6 +212,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    fun launchAndroidApp(packageName: String) {
+        viewModelScope.launch {
+            val result = intentLauncher.launchAndroidApp(packageName)
+            _launchEvent.emit(result)
+        }
     }
 
     fun launchGame(system: SystemEntity, game: GameRomEntity) {

@@ -25,7 +25,10 @@ import com.example.data.model.TextAlignmentOption
 fun ListStyleSettingsDialog(
     settings: RomListSettings,
     onDismiss: () -> Unit,
-    onUpdateSettings: (RomListSettings) -> Unit,
+    onUpdateSettings: (RomListSettings) -> Unit = {},
+    onApplyToActiveSystem: ((RomListSettings) -> Unit)? = null,
+    onApplyToAllSystems: ((RomListSettings) -> Unit)? = null,
+    activeSystemName: String? = null,
     onOpenAppVisibility: (() -> Unit)? = null,
     isAndroidAppsSystem: Boolean = false
 ) {
@@ -35,6 +38,17 @@ fun ListStyleSettingsDialog(
     var alignment by remember { mutableStateOf(settings.textAlignment) }
     var showArtwork by remember { mutableStateOf(settings.showArtworkInTextOnly) }
     var gridScalePercent by remember { mutableFloatStateOf(settings.gridScalePercent.toFloat()) }
+    var showDetails by remember { mutableStateOf(settings.showDetails) }
+
+    fun getCurrentSettings() = RomListSettings(
+        listStyle = style,
+        textSizeSp = textSize.toInt(),
+        marginDp = margin.toInt(),
+        textAlignment = alignment,
+        showArtworkInTextOnly = showArtwork,
+        gridScalePercent = gridScalePercent.toInt(),
+        showDetails = showDetails
+    )
 
     ScaledDialog(onDismissRequest = onDismiss) {
         Surface(
@@ -96,7 +110,7 @@ fun ListStyleSettingsDialog(
                         selected = style == RomListStyle.GRID,
                         onClick = {
                             style = RomListStyle.GRID
-                            onUpdateSettings(settings.copy(listStyle = RomListStyle.GRID))
+                            onUpdateSettings(getCurrentSettings())
                         },
                         label = { Text("Grid") },
                         modifier = Modifier.weight(1f)
@@ -105,7 +119,7 @@ fun ListStyleSettingsDialog(
                         selected = style == RomListStyle.LIST,
                         onClick = {
                             style = RomListStyle.LIST
-                            onUpdateSettings(settings.copy(listStyle = RomListStyle.LIST))
+                            onUpdateSettings(getCurrentSettings())
                         },
                         label = { Text("Card List") },
                         modifier = Modifier.weight(1f)
@@ -114,31 +128,62 @@ fun ListStyleSettingsDialog(
                         selected = style == RomListStyle.TEXT_ONLY,
                         onClick = {
                             style = RomListStyle.TEXT_ONLY
-                            onUpdateSettings(settings.copy(listStyle = RomListStyle.TEXT_ONLY))
+                            onUpdateSettings(getCurrentSettings())
                         },
                         label = { Text("Text Only") },
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                // Grid / Icon Size Slider
-                Column {
+                // Grid / Icon Size Slider (Hidden if Card List or Text Only is selected)
+                if (style == RomListStyle.GRID) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Icon Grid Size (%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                            Text("${gridScalePercent.toInt()}%", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        }
+                        Slider(
+                            value = gridScalePercent,
+                            onValueChange = {
+                                gridScalePercent = it
+                                onUpdateSettings(getCurrentSettings())
+                            },
+                            valueRange = 50f..150f,
+                            steps = 19
+                        )
+                    }
+                }
+
+                if (style == RomListStyle.GRID || style == RomListStyle.LIST) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Icon Grid Size (%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-                        Text("${gridScalePercent.toInt()}%", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Show Details Display",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Show full file name or android package name",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = showDetails,
+                            onCheckedChange = {
+                                showDetails = it
+                                onUpdateSettings(getCurrentSettings().copy(showDetails = it))
+                            }
+                        )
                     }
-                    Slider(
-                        value = gridScalePercent,
-                        onValueChange = {
-                            gridScalePercent = it
-                            onUpdateSettings(settings.copy(listStyle = style, gridScalePercent = it.toInt()))
-                        },
-                        valueRange = 50f..150f,
-                        steps = 19
-                    )
                 }
 
                 if (style == RomListStyle.TEXT_ONLY) {
@@ -239,10 +284,34 @@ fun ListStyleSettingsDialog(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(onClick = onDismiss) {
-                        Text("Done")
+                    if (onApplyToAllSystems != null) {
+                        Button(
+                            onClick = {
+                                val current = getCurrentSettings()
+                                onApplyToAllSystems(current)
+                                onDismiss()
+                            }
+                        ) {
+                            Text("Apply to All")
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
+                    Button(
+                        onClick = {
+                            val current = getCurrentSettings()
+                            if (onApplyToActiveSystem != null) {
+                                onApplyToActiveSystem(current)
+                            } else {
+                                onUpdateSettings(current)
+                            }
+                            onDismiss()
+                        }
+                    ) {
+                        Text(if (!activeSystemName.isNullOrBlank()) "Apply to $activeSystemName" else "Apply to Active System")
                     }
                 }
             }

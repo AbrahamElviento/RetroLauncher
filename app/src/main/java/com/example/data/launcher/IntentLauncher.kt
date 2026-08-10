@@ -244,7 +244,43 @@ class IntentLauncher(private val context: Context) {
 
     fun launchAndroidApp(packageName: String): LaunchResult {
         return try {
-            val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+            val parts = packageName.split("|")
+            val pkg = parts[0]
+            val cls = if (parts.size > 1) parts[1] else ""
+            val userSerial = if (parts.size > 2) parts[2].toLongOrNull() else null
+
+            if (cls.isNotEmpty() && userSerial != null) {
+                val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
+                val userManager = context.getSystemService(Context.USER_SERVICE) as? android.os.UserManager
+                if (launcherApps != null && userManager != null) {
+                    val userProfiles = userManager.userProfiles
+                    val user = userProfiles.find { userManager.getSerialNumberForUser(it) == userSerial }
+                    if (user != null) {
+                        val compName = android.content.ComponentName(pkg, cls)
+                        launcherApps.startMainActivity(compName, user, null, null)
+                        return LaunchResult.Success
+                    }
+                }
+            }
+
+            // Fallback 1: Split with "/" if any
+            val launchIntent = if (packageName.contains("/")) {
+                val slashParts = packageName.split("/")
+                val slashPkg = slashParts[0]
+                val slashCls = slashParts[1]
+                val intent = Intent(Intent.ACTION_MAIN)
+                intent.addCategory(Intent.CATEGORY_LAUNCHER)
+                intent.setClassName(slashPkg, slashCls)
+                intent
+            } else if (cls.isNotEmpty()) {
+                val intent = Intent(Intent.ACTION_MAIN)
+                intent.addCategory(Intent.CATEGORY_LAUNCHER)
+                intent.setClassName(pkg, cls)
+                intent
+            } else {
+                context.packageManager.getLaunchIntentForPackage(pkg)
+            }
+
             if (launchIntent != null) {
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(launchIntent)
@@ -268,11 +304,12 @@ class IntentLauncher(private val context: Context) {
 
     fun isPackageInstalled(packageName: String): Boolean {
         return try {
+            val pkg = packageName.split("|")[0]
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+                context.packageManager.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0))
             } else {
                 @Suppress("DEPRECATION")
-                context.packageManager.getPackageInfo(packageName, 0)
+                context.packageManager.getPackageInfo(pkg, 0)
             }
             true
         } catch (e: PackageManager.NameNotFoundException) {

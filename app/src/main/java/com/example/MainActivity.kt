@@ -24,8 +24,6 @@ import com.example.ui.screens.MainHomeScreen
 import com.example.ui.theme.RetroLauncherTheme
 import com.example.ui.viewmodel.LauncherViewModel
 
-import android.view.InputDevice
-import android.view.MotionEvent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import coil.ImageLoader
@@ -94,42 +92,6 @@ class MainActivity : ComponentActivity() {
                 requestPermissions(missing.toTypedArray(), 1001)
             }
         }
-    }
-
-    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        if (event.source and InputDevice.SOURCE_CLASS_JOYSTICK != 0 && event.action == MotionEvent.ACTION_MOVE) {
-            // Check right stick vertical axis (AXIS_RZ or AXIS_RY)
-            var ry = event.getAxisValue(MotionEvent.AXIS_RZ)
-            if (kotlin.math.abs(ry) < 0.05f) {
-                ry = event.getAxisValue(MotionEvent.AXIS_RY)
-            }
-
-            if (kotlin.math.abs(ry) > 0.15f) {
-                // Synthesize a vertical scroll MotionEvent (ACTION_SCROLL)
-                val scrollFactor = -ry * 35f
-                val coords = MotionEvent.PointerCoords().apply {
-                    x = event.x
-                    y = event.y
-                    setAxisValue(MotionEvent.AXIS_VSCROLL, scrollFactor)
-                }
-                val props = MotionEvent.PointerProperties().apply {
-                    id = 0
-                }
-                val scrollEvent = MotionEvent.obtain(
-                    event.downTime,
-                    event.eventTime,
-                    MotionEvent.ACTION_SCROLL,
-                    1,
-                    arrayOf(props),
-                    arrayOf(coords),
-                    0, 0, 1f, 1f, event.deviceId, 0, event.source, 0
-                )
-                window.superDispatchGenericMotionEvent(scrollEvent)
-                scrollEvent.recycle()
-                return true
-            }
-        }
-        return super.dispatchGenericMotionEvent(event)
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
