@@ -246,20 +246,36 @@ class IntentLauncher(private val context: Context) {
         return try {
             val parts = packageName.split("|")
             val pkg = parts[0]
-            val cls = if (parts.size > 1) parts[1] else ""
+            var cls = if (parts.size > 1) parts[1] else ""
             val userSerial = if (parts.size > 2) parts[2].toLongOrNull() else null
 
-            if (cls.isNotEmpty() && userSerial != null) {
-                val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
-                val userManager = context.getSystemService(Context.USER_SERVICE) as? android.os.UserManager
-                if (launcherApps != null && userManager != null) {
-                    val userProfiles = userManager.userProfiles
-                    val user = userProfiles.find { userManager.getSerialNumberForUser(it) == userSerial }
-                    if (user != null) {
-                        val compName = android.content.ComponentName(pkg, cls)
-                        launcherApps.startMainActivity(compName, user, null, null)
-                        return LaunchResult.Success
+            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
+            val userManager = context.getSystemService(Context.USER_SERVICE) as? android.os.UserManager
+
+            if (launcherApps != null && userManager != null) {
+                val userProfiles = userManager.userProfiles
+                var targetUser = if (userSerial != null) {
+                    userProfiles.find { userManager.getSerialNumberForUser(it) == userSerial }
+                } else {
+                    null
+                }
+
+                if (targetUser == null) {
+                    targetUser = android.os.Process.myUserHandle()
+                }
+
+                if (cls.isEmpty()) {
+                    val activities = launcherApps.getActivityList(pkg, targetUser)
+                    val mainActivity = activities.firstOrNull()
+                    if (mainActivity != null) {
+                        cls = mainActivity.componentName.className
                     }
+                }
+
+                if (cls.isNotEmpty()) {
+                    val compName = android.content.ComponentName(pkg, cls)
+                    launcherApps.startMainActivity(compName, targetUser, null, null)
+                    return LaunchResult.Success
                 }
             }
 

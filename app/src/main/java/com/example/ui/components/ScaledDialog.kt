@@ -42,14 +42,7 @@ fun ScaledDialog(
                 when (displaySettings.mode) {
                     DisplayMode.FULL_SCREEN -> {
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(
-                                    top = displaySettings.marginTopDp.dp,
-                                    bottom = displaySettings.marginBottomDp.dp,
-                                    start = displaySettings.marginLeftDp.dp,
-                                    end = displaySettings.marginRightDp.dp
-                                ),
+                            modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center,
                             content = content
                         )
@@ -59,13 +52,7 @@ fun ScaledDialog(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .fillMaxHeight(0.5f)
-                                    .padding(
-                                        top = displaySettings.marginTopDp.dp,
-                                        bottom = displaySettings.marginBottomDp.dp,
-                                        start = displaySettings.marginLeftDp.dp,
-                                        end = displaySettings.marginRightDp.dp
-                                    ),
+                                    .fillMaxHeight(0.5f),
                                 contentAlignment = Alignment.Center,
                                 content = content
                             )
@@ -78,13 +65,7 @@ fun ScaledDialog(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .fillMaxHeight()
-                                    .padding(
-                                        top = displaySettings.marginTopDp.dp,
-                                        bottom = displaySettings.marginBottomDp.dp,
-                                        start = displaySettings.marginLeftDp.dp,
-                                        end = displaySettings.marginRightDp.dp
-                                    ),
+                                    .fillMaxHeight(),
                                 contentAlignment = Alignment.Center,
                                 content = content
                             )

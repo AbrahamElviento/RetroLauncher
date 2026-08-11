@@ -15,6 +15,8 @@ import com.example.data.model.RomListStyle
 import com.example.data.model.TextAlignmentOption
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlSerializer
+import android.database.sqlite.SQLiteDatabase
+import android.content.ContentValues
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -72,43 +74,136 @@ class ConfigStorageManager(private val context: Context) {
     }
 
     fun saveCachedRomList(systemId: String, roms: List<GameRomEntity>): Boolean {
+        var db: SQLiteDatabase? = null
         return try {
             val dataDir = File(baseDir, "data")
             if (!dataDir.exists()) {
                 dataDir.mkdirs()
             }
-            val file = File(dataDir, systemId)
-            val writer = StringWriter()
-            val serializer = createSerializer(writer)
-            serializer.startDocument("UTF-8", true)
-            serializer.startTag("", "RomList")
-            for (rom in roms) {
-                serializer.startTag("", "Rom")
-                serializer.startTag("", "id").text(rom.id.toString()).endTag("", "id")
-                serializer.startTag("", "systemId").text(rom.systemId).endTag("", "systemId")
-                serializer.startTag("", "title").text(rom.title).endTag("", "title")
-                serializer.startTag("", "filePath").text(rom.filePath).endTag("", "filePath")
-                serializer.startTag("", "fileName").text(rom.fileName).endTag("", "fileName")
-                serializer.startTag("", "extension").text(rom.extension).endTag("", "extension")
-                serializer.startTag("", "coverArtPath").text(rom.coverArtPath ?: "").endTag("", "coverArtPath")
-                serializer.startTag("", "customEmulatorOverride").text(rom.customEmulatorOverride ?: "").endTag("", "customEmulatorOverride")
-                serializer.startTag("", "isFavorite").text(rom.isFavorite.toString()).endTag("", "isFavorite")
-                serializer.startTag("", "isCompleted").text(rom.isCompleted.toString()).endTag("", "isCompleted")
-                serializer.startTag("", "lastPlayedTimestamp").text(rom.lastPlayedTimestamp.toString()).endTag("", "lastPlayedTimestamp")
-                serializer.startTag("", "playCount").text(rom.playCount.toString()).endTag("", "playCount")
-                serializer.endTag("", "Rom")
+            // Delete old XML cache file if it exists
+            val oldXmlFile = File(dataDir, systemId)
+            if (oldXmlFile.exists() && !oldXmlFile.isDirectory) {
+                oldXmlFile.delete()
             }
-            serializer.endTag("", "RomList")
-            serializer.endDocument()
 
-            FileOutputStream(file).use { out ->
-                out.write(writer.toString().toByteArray())
+            val dbFile = File(dataDir, "rom_cache.db")
+            db = SQLiteDatabase.openOrCreateDatabase(dbFile, null)
+            
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS cached_roms (
+                    id INTEGER,
+                    systemId TEXT,
+                    title TEXT,
+                    filePath TEXT,
+                    fileName TEXT,
+                    extension TEXT,
+                    coverArtPath TEXT,
+                    customEmulatorOverride TEXT,
+                    isFavorite INTEGER,
+                    isCompleted INTEGER,
+                    lastPlayedTimestamp INTEGER,
+                    playCount INTEGER,
+                    PRIMARY KEY (systemId, filePath)
+                )
+            """.trimIndent())
+
+            db.beginTransaction()
+            try {
+                // Delete previous entries for this system
+                db.delete("cached_roms", "systemId = ?", arrayOf(systemId))
+
+                // Insert new ones
+                for (rom in roms) {
+                    val values = ContentValues().apply {
+                        put("id", rom.id)
+                        put("systemId", rom.systemId)
+                        put("title", rom.title)
+                        put("filePath", rom.filePath)
+                        put("fileName", rom.fileName)
+                        put("extension", rom.extension)
+                        put("coverArtPath", rom.coverArtPath)
+                        put("customEmulatorOverride", rom.customEmulatorOverride)
+                        put("isFavorite", if (rom.isFavorite) 1 else 0)
+                        put("isCompleted", if (rom.isCompleted) 1 else 0)
+                        put("lastPlayedTimestamp", rom.lastPlayedTimestamp)
+                        put("playCount", rom.playCount)
+                    }
+                    db.insertWithOnConflict("cached_roms", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                }
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
             }
             true
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        } finally {
+            db?.close()
         }
+    }
+
+    fun loadCachedRomList(systemId: String): List<GameRomEntity> {
+        val list = mutableListOf<GameRomEntity>()
+        var db: SQLiteDatabase? = null
+        try {
+            val dataDir = File(baseDir, "data")
+            val dbFile = File(dataDir, "rom_cache.db")
+            if (!dbFile.exists()) return emptyList()
+
+            db = SQLiteDatabase.openOrCreateDatabase(dbFile, null)
+            
+            // Check if table exists before querying
+            val tableCheckCursor = db.rawQuery(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='cached_roms'",
+                null
+            )
+            val tableExists = tableCheckCursor.use { it.count > 0 }
+            if (!tableExists) return emptyList()
+
+            val cursor = db.rawQuery(
+                "SELECT * FROM cached_roms WHERE systemId = ? ORDER BY title ASC",
+                arrayOf(systemId)
+            )
+            cursor.use { c ->
+                val idCol = c.getColumnIndex("id")
+                val systemIdCol = c.getColumnIndex("systemId")
+                val titleCol = c.getColumnIndex("title")
+                val filePathCol = c.getColumnIndex("filePath")
+                val fileNameCol = c.getColumnIndex("fileName")
+                val extensionCol = c.getColumnIndex("extension")
+                val coverArtPathCol = c.getColumnIndex("coverArtPath")
+                val customEmulatorOverrideCol = c.getColumnIndex("customEmulatorOverride")
+                val isFavoriteCol = c.getColumnIndex("isFavorite")
+                val isCompletedCol = c.getColumnIndex("isCompleted")
+                val lastPlayedTimestampCol = c.getColumnIndex("lastPlayedTimestamp")
+                val playCountCol = c.getColumnIndex("playCount")
+
+                while (c.moveToNext()) {
+                    list.add(
+                        GameRomEntity(
+                            id = if (idCol != -1) c.getLong(idCol) else 0L,
+                            systemId = if (systemIdCol != -1) c.getString(systemIdCol) else systemId,
+                            title = if (titleCol != -1) c.getString(titleCol) else "",
+                            filePath = if (filePathCol != -1) c.getString(filePathCol) else "",
+                            fileName = if (fileNameCol != -1) c.getString(fileNameCol) else "",
+                            extension = if (extensionCol != -1) c.getString(extensionCol) else "",
+                            coverArtPath = if (coverArtPathCol != -1) c.getString(coverArtPathCol) else null,
+                            customEmulatorOverride = if (customEmulatorOverrideCol != -1) c.getString(customEmulatorOverrideCol) else null,
+                            isFavorite = if (isFavoriteCol != -1) c.getInt(isFavoriteCol) == 1 else false,
+                            isCompleted = if (isCompletedCol != -1) c.getInt(isCompletedCol) == 1 else false,
+                            lastPlayedTimestamp = if (lastPlayedTimestampCol != -1) c.getLong(lastPlayedTimestampCol) else 0L,
+                            playCount = if (playCountCol != -1) c.getInt(playCountCol) else 0
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            db?.close()
+        }
+        return list
     }
 
     fun setBaseDirPath(newPath: String, moveCurrentFiles: Boolean): Boolean {
@@ -1207,6 +1302,7 @@ class ConfigStorageManager(private val context: Context) {
                 serializer.startTag("", "isArcade").text(sys.isArcade.toString()).endTag("", "isArcade")
                 serializer.startTag("", "defaultRomIcon").text(sys.defaultRomIcon).endTag("", "defaultRomIcon")
                 serializer.startTag("", "retroarchSaveDir").text(sys.retroarchSaveDir).endTag("", "retroarchSaveDir")
+                serializer.startTag("", "saveAspectRatio").text(sys.saveAspectRatio).endTag("", "saveAspectRatio")
                 serializer.startTag("", "manufacturer").text(sys.manufacturer).endTag("", "manufacturer")
                 serializer.startTag("", "releaseYear").text(sys.releaseYear).endTag("", "releaseYear")
                 serializer.startTag("", "displayOrder").text(sys.displayOrder.toString()).endTag("", "displayOrder")
@@ -1249,6 +1345,7 @@ class ConfigStorageManager(private val context: Context) {
             var isArcade = false
             var defaultRomIcon = ""
             var retroarchSaveDir = ""
+            var saveAspectRatio = "Auto"
             var manufacturer = ""
             var releaseYear = ""
             var displayOrder = 0
@@ -1275,6 +1372,7 @@ class ConfigStorageManager(private val context: Context) {
                             isArcade = false
                             defaultRomIcon = ""
                             retroarchSaveDir = ""
+                            saveAspectRatio = "Auto"
                             manufacturer = ""
                             releaseYear = ""
                             displayOrder = list.size
@@ -1299,6 +1397,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "isArcade" -> isArcade = text.toBooleanStrictOrNull() ?: false
                                 "defaultRomIcon" -> defaultRomIcon = text
                                 "retroarchSaveDir" -> retroarchSaveDir = text
+                                "saveAspectRatio" -> saveAspectRatio = text
                                 "manufacturer" -> manufacturer = text
                                 "releaseYear" -> releaseYear = text
                                 "displayOrder" -> displayOrder = text.toIntOrNull() ?: list.size
@@ -1325,6 +1424,7 @@ class ConfigStorageManager(private val context: Context) {
                                     isArcade = isArcade,
                                     defaultRomIcon = defaultRomIcon,
                                     retroarchSaveDir = retroarchSaveDir,
+                                    saveAspectRatio = saveAspectRatio,
                                     manufacturer = manufacturer,
                                     releaseYear = releaseYear,
                                     displayOrder = displayOrder,
@@ -1487,15 +1587,21 @@ class ConfigStorageManager(private val context: Context) {
     )
 
     fun saveFavoritesAndRecents(userDataList: List<RomUserData>): Boolean {
+        val favSuccess = saveFavorites(userDataList)
+        val recSuccess = saveRecents(userDataList)
+        return favSuccess && recSuccess
+    }
+
+    fun saveFavorites(userDataList: List<RomUserData>): Boolean {
         return try {
-            val file = File(baseDir, "favorites_and_recents.xml")
+            val file = File(baseDir, "favorites.xml")
             val writer = StringWriter()
             val serializer = createSerializer(writer)
             serializer.startDocument("UTF-8", true)
-            serializer.startTag("", "UserRomDataList")
+            serializer.startTag("", "FavoritesList")
 
             for (data in userDataList) {
-                if (data.isFavorite || data.isCompleted || data.lastPlayedTimestamp > 0) {
+                if (data.isFavorite || data.isCompleted) {
                     serializer.startTag("", "RomUserData")
                     serializer.startTag("", "filePath").text(data.filePath).endTag("", "filePath")
                     serializer.startTag("", "isFavorite").text(data.isFavorite.toString()).endTag("", "isFavorite")
@@ -1506,7 +1612,40 @@ class ConfigStorageManager(private val context: Context) {
                 }
             }
 
-            serializer.endTag("", "UserRomDataList")
+            serializer.endTag("", "FavoritesList")
+            serializer.endDocument()
+
+            FileOutputStream(file).use { fos ->
+                fos.write(writer.toString().toByteArray())
+            }
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun saveRecents(userDataList: List<RomUserData>): Boolean {
+        return try {
+            val file = File(baseDir, "recents.xml")
+            val writer = StringWriter()
+            val serializer = createSerializer(writer)
+            serializer.startDocument("UTF-8", true)
+            serializer.startTag("", "RecentsList")
+
+            for (data in userDataList) {
+                if (data.lastPlayedTimestamp > 0 || data.playCount > 0) {
+                    serializer.startTag("", "RomUserData")
+                    serializer.startTag("", "filePath").text(data.filePath).endTag("", "filePath")
+                    serializer.startTag("", "isFavorite").text(data.isFavorite.toString()).endTag("", "isFavorite")
+                    serializer.startTag("", "isCompleted").text(data.isCompleted.toString()).endTag("", "isCompleted")
+                    serializer.startTag("", "lastPlayedTimestamp").text(data.lastPlayedTimestamp.toString()).endTag("", "lastPlayedTimestamp")
+                    serializer.startTag("", "playCount").text(data.playCount.toString()).endTag("", "playCount")
+                    serializer.endTag("", "RomUserData")
+                }
+            }
+
+            serializer.endTag("", "RecentsList")
             serializer.endDocument()
 
             FileOutputStream(file).use { fos ->
@@ -1521,9 +1660,37 @@ class ConfigStorageManager(private val context: Context) {
 
     fun loadFavoritesAndRecents(): Map<String, RomUserData> {
         val resultMap = mutableMapOf<String, RomUserData>()
-        val file = File(baseDir, "favorites_and_recents.xml")
-        if (!file.exists()) return resultMap
+        val fileFav = File(baseDir, "favorites.xml")
+        val fileRec = File(baseDir, "recents.xml")
+        val fileOld = File(baseDir, "favorites_and_recents.xml")
 
+        if (!fileFav.exists() && !fileRec.exists() && fileOld.exists()) {
+            val oldData = loadFromXmlFile(fileOld, "UserRomDataList")
+            saveFavorites(oldData.values.toList())
+            saveRecents(oldData.values.toList())
+            return oldData
+        }
+
+        val favData = if (fileFav.exists()) loadFromXmlFile(fileFav, "FavoritesList") else emptyMap()
+        val recData = if (fileRec.exists()) loadFromXmlFile(fileRec, "RecentsList") else emptyMap()
+
+        val allKeys = favData.keys + recData.keys
+        for (key in allKeys) {
+            val f = favData[key]
+            val r = recData[key]
+            resultMap[key] = RomUserData(
+                filePath = key,
+                isFavorite = f?.isFavorite ?: r?.isFavorite ?: false,
+                isCompleted = f?.isCompleted ?: r?.isCompleted ?: false,
+                lastPlayedTimestamp = maxOf(f?.lastPlayedTimestamp ?: 0L, r?.lastPlayedTimestamp ?: 0L),
+                playCount = maxOf(f?.playCount ?: 0, r?.playCount ?: 0)
+            )
+        }
+        return resultMap
+    }
+
+    private fun loadFromXmlFile(file: File, rootTag: String): Map<String, RomUserData> {
+        val resultMap = mutableMapOf<String, RomUserData>()
         try {
             val parser = Xml.newPullParser()
             FileInputStream(file).use { fis ->

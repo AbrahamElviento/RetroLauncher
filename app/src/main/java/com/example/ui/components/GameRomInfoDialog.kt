@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.example.data.db.GameRomEntity
+import com.example.data.db.GameProgressHelper
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,9 +42,17 @@ fun GameRomInfoDialog(
     onRenameGame: (GameRomEntity, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val progressHelper = remember { GameProgressHelper(context) }
+    val progress = remember(game.systemId, game.fileName) {
+        progressHelper.getProgress(game.systemId, game.fileName)
+    }
+    val displayPlayCount = progress?.launchCount ?: game.playCount
+    val displayLastPlayed = progress?.lastPlayed ?: game.lastPlayedTimestamp
+
     val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-    val lastPlayedStr = if (game.lastPlayedTimestamp > 0) {
-        dateFormat.format(Date(game.lastPlayedTimestamp))
+    val lastPlayedStr = if (displayLastPlayed > 0) {
+        dateFormat.format(Date(displayLastPlayed))
     } else {
         "Never"
     }
@@ -183,7 +192,7 @@ fun GameRomInfoDialog(
 
                 InfoDetailRow("System ID", game.systemId.uppercase())
                 InfoDetailRow("File Name", game.fileName)
-                InfoDetailRow("Play Count", "${game.playCount} times")
+                InfoDetailRow("Play Count", "$displayPlayCount times")
                 InfoDetailRow("Last Played", lastPlayedStr)
                 InfoDetailRow("Favorite", if (game.isFavorite) "Yes ⭐" else "No")
                 InfoDetailRow("Completed", if (game.isCompleted) "Yes ✅" else "No")

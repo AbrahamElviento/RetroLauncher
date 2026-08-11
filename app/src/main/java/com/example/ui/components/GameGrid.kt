@@ -1077,6 +1077,38 @@ fun GameGrid(
                 val currentSelectedItem = displayItems.getOrNull(selectedIndex)
                 if (currentSelectedItem is ListDisplayItem.GameItem) {
                     val game = currentSelectedItem.game
+                    val actualSystem = remember(game, currentSystem, allSystems) {
+                        if (currentSystem?.id == "favorites" || currentSystem?.id == "recently_played") {
+                            allSystems.firstOrNull { it.id == game.systemId }
+                        } else {
+                            currentSystem
+                        }
+                    }
+                    val saveFileImageExists = remember(game, actualSystem) {
+                        if (actualSystem != null && actualSystem.retroarchSaveDir.isNotBlank()) {
+                            val saveDir = File(actualSystem.retroarchSaveDir)
+                            if (saveDir.exists() && saveDir.isDirectory) {
+                                val romFile = File(game.filePath)
+                                val stem = romFile.nameWithoutExtension
+                                val stateAutoPng = File(saveDir, "$stem.state.auto.png")
+                                stateAutoPng.exists() && stateAutoPng.isFile
+                            } else false
+                        } else false
+                    }
+                    val popUpAspectRatio = if (saveFileImageExists) {
+                        val ratioStr = actualSystem?.saveAspectRatio ?: "Auto"
+                        when (ratioStr) {
+                            "4:3" -> 4f / 3f
+                            "3:2" -> 3f / 2f
+                            "16:9" -> 16f / 9f
+                            "10:9" -> 10f / 9f
+                            "1:1" -> 1f
+                            else -> 1f
+                        }
+                    } else {
+                        1f
+                    }
+
                     val popUpAlignment = when (displaySettings.romIconPopUpAlignment) {
                         "top_left" -> Alignment.TopStart
                         "top_center" -> Alignment.TopCenter
@@ -1110,7 +1142,7 @@ fun GameGrid(
                             ),
                             modifier = Modifier
                                 .width(popUpWidth)
-                                .aspectRatio(1f)
+                                .aspectRatio(popUpAspectRatio)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -1120,13 +1152,6 @@ fun GameGrid(
                             ) {
                                 val resolvedIcon = remember(game, currentSystem, customIcons) {
                                     GameIconResolver.resolveRomIcon(game, currentSystem, customIcons, allSystems)
-                                }
-                                val actualSystem = remember(game, currentSystem, allSystems) {
-                                    if (currentSystem?.id == "favorites" || currentSystem?.id == "recently_played") {
-                                        allSystems.firstOrNull { it.id == game.systemId }
-                                    } else {
-                                        currentSystem
-                                    }
                                 }
                                 val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
                                         actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
@@ -1165,7 +1190,12 @@ fun GameGrid(
                                         iconNameOrPath = resolvedIcon,
                                         contentDescription = game.title,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.fillMaxSize()
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = if (saveFileImageExists && actualSystem?.saveAspectRatio != "Auto") {
+                                            androidx.compose.ui.layout.ContentScale.FillBounds
+                                        } else {
+                                            androidx.compose.ui.layout.ContentScale.Fit
+                                        }
                                     )
                                 }
                             }

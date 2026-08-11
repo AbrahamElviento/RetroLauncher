@@ -628,6 +628,7 @@ fun SystemEditDetailDialog(
     var manufacturer by remember { mutableStateOf(system.manufacturer) }
     var releaseYear by remember { mutableStateOf(system.releaseYear) }
     var retroarchSaveDir by remember { mutableStateOf(system.retroarchSaveDir) }
+    var saveAspectRatio by remember { mutableStateOf(system.saveAspectRatio) }
 
     var showIconPicker by remember { mutableStateOf(false) }
     var showDirectoryPicker by remember { mutableStateOf(false) }
@@ -809,6 +810,43 @@ fun SystemEditDetailDialog(
                     },
                     singleLine = true
                 )
+
+                var expandedAspectRatioDropdown by remember { mutableStateOf(false) }
+                val aspectRatios = listOf("Auto", "4:3", "3:2", "16:9", "10:9", "1:1")
+
+                ExposedDropdownMenuBox(
+                    expanded = expandedAspectRatioDropdown,
+                    onExpandedChange = { expandedAspectRatioDropdown = it }
+                ) {
+                    OutlinedTextField(
+                        value = when (saveAspectRatio) {
+                            "Auto" -> "Auto (default)"
+                            else -> saveAspectRatio
+                        },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Aspect Ratio Thumbnail") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAspectRatioDropdown) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expandedAspectRatioDropdown,
+                        onDismissRequest = { expandedAspectRatioDropdown = false }
+                    ) {
+                        aspectRatios.forEach { ratio ->
+                            DropdownMenuItem(
+                                text = { Text(if (ratio == "Auto") "Auto (default)" else ratio) },
+                                onClick = {
+                                    saveAspectRatio = ratio
+                                    expandedAspectRatioDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 OutlinedTextField(
                     value = allowedExtensions,
@@ -1037,7 +1075,8 @@ fun SystemEditDetailDialog(
                                     defaultRomIcon = defaultRomIcon,
                                     manufacturer = manufacturer,
                                     releaseYear = releaseYear,
-                                    retroarchSaveDir = retroarchSaveDir
+                                    retroarchSaveDir = retroarchSaveDir,
+                                    saveAspectRatio = saveAspectRatio
                                 )
                             )
                             onDismiss()

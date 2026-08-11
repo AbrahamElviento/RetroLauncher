@@ -5,6 +5,7 @@ import com.example.data.config.ConfigStorageManager
 import com.example.data.config.PresetData
 import com.example.data.db.AppDatabase
 import com.example.data.db.GameRomEntity
+import com.example.data.db.GameProgressHelper
 import com.example.data.db.StandaloneProfileEntity
 import com.example.data.db.SystemEntity
 import com.example.data.model.DisplaySettings
@@ -20,6 +21,7 @@ class LauncherRepository(private val context: Context) {
     private val systemDao = db.systemDao()
     private val gameRomDao = db.gameRomDao()
     private val standaloneProfileDao = db.standaloneProfileDao()
+    private val progressHelper = GameProgressHelper(context)
 
     val configStorageManager = ConfigStorageManager(context)
 
@@ -62,6 +64,12 @@ class LauncherRepository(private val context: Context) {
             systemDao.insertSystems(xmlSystems)
         }
 
+        val prefs = context.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+        val isFreshLaunch = !prefs.contains("example_roms_generated")
+        if (isFreshLaunch) {
+            prefs.edit().putBoolean("example_roms_generated", true).apply()
+        }
+
         val currentSystems = systemDao.getAllSystems().first()
         if (currentSystems.isEmpty()) {
             // Load default systems
@@ -69,7 +77,9 @@ class LauncherRepository(private val context: Context) {
             configStorageManager.saveSystemsXml(defaultSystems, overwriteIfExists = false)
 
             // Generate sample demo ROMs so the launcher is immediately playable & testable
-            generateSampleDemoRoms(defaultSystems)
+            if (isFreshLaunch) {
+                generateSampleDemoRoms(defaultSystems)
+            }
             scanAndroidApps("android_apps")
             scanAndroidApps("android_games")
             scanAndroidApps("android_emulators")
@@ -202,10 +212,15 @@ class LauncherRepository(private val context: Context) {
     }
 
     suspend fun updateRomPlayed(rom: GameRomEntity) = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        progressHelper.incrementLaunchCount(rom.systemId, rom.fileName, now)
+        val progress = progressHelper.getProgress(rom.systemId, rom.fileName)
+        val finalPlayCount = progress?.launchCount ?: (rom.playCount + 1)
+        val finalLastPlayed = progress?.lastPlayed ?: now
         gameRomDao.updateRom(
             rom.copy(
-                lastPlayedTimestamp = System.currentTimeMillis(),
-                playCount = rom.playCount + 1
+                lastPlayedTimestamp = finalLastPlayed,
+                playCount = finalPlayCount
             )
         )
         syncUserDataToConfig()

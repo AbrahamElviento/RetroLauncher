@@ -23,6 +23,7 @@ data class SystemEntity(
     val isEnabled: Boolean = true,
     val isArcade: Boolean = false,
     val defaultRomIcon: String = "",
-    val retroarchSaveDir: String = ""
+    val retroarchSaveDir: String = "",
+    val saveAspectRatio: String = "Auto"
 )
 

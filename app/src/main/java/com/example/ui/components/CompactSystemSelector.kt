@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -254,7 +255,7 @@ fun CompactSystemSelector(
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Settings,
+                        imageVector = Icons.Default.Dns,
                         contentDescription = "Manage Systems",
                         tint = if (focusedItemIndex == 4) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(20.dp)

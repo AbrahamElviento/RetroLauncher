@@ -22,7 +22,8 @@ fun UniversalIconView(
     iconNameOrPath: String,
     modifier: Modifier = Modifier,
     tint: Color = MaterialTheme.colorScheme.primary,
-    contentDescription: String? = null
+    contentDescription: String? = null,
+    contentScale: ContentScale = ContentScale.Fit
 ) {
     val isExternalFile = remember(iconNameOrPath) {
         if (iconNameOrPath.isBlank()) false
@@ -41,7 +42,7 @@ fun UniversalIconView(
             model = iconNameOrPath,
             contentDescription = contentDescription,
             modifier = modifier,
-            contentScale = ContentScale.Fit
+            contentScale = contentScale
         )
     } else {
         Icon(

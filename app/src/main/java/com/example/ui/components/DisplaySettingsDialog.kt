@@ -970,8 +970,7 @@ fun DisplaySettingsDialog(
                                 Slider(
                                     value = systemMenuTextSize,
                                     onValueChange = { systemMenuTextSize = it },
-                                    valueRange = 12f..28f,
-                                    steps = 15
+                                    valueRange = 12f..100f
                                 )
                             }
 
@@ -988,8 +987,7 @@ fun DisplaySettingsDialog(
                                 Slider(
                                     value = systemMenuDescTextSize,
                                     onValueChange = { systemMenuDescTextSize = it },
-                                    valueRange = 8f..24f,
-                                    steps = 16
+                                    valueRange = 8f..100f
                                 )
                             }
 
