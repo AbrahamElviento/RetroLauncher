@@ -520,6 +520,11 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "bottomBarColorHex").text(settings.bottomBarColorHex).endTag("", "bottomBarColorHex")
             serializer.startTag("", "removeCharsFromGameNames").text(settings.removeCharsFromGameNames).endTag("", "removeCharsFromGameNames")
             serializer.startTag("", "enableRomIconPopUp").text(settings.enableRomIconPopUp.toString()).endTag("", "enableRomIconPopUp")
+            serializer.startTag("", "romIconPopUpShowNds").text(settings.romIconPopUpShowNds.toString()).endTag("", "romIconPopUpShowNds")
+            serializer.startTag("", "romIconPopUpShowPsp").text(settings.romIconPopUpShowPsp.toString()).endTag("", "romIconPopUpShowPsp")
+            serializer.startTag("", "romIconPopUpShowAndroid").text(settings.romIconPopUpShowAndroid.toString()).endTag("", "romIconPopUpShowAndroid")
+            serializer.startTag("", "romIconPopUpShowDefault").text(settings.romIconPopUpShowDefault.toString()).endTag("", "romIconPopUpShowDefault")
+            serializer.startTag("", "romIconPopUpShowInGridStyle").text(settings.romIconPopUpShowInGridStyle.toString()).endTag("", "romIconPopUpShowInGridStyle")
             serializer.startTag("", "romIconPopUpTimeoutMs").text(settings.romIconPopUpTimeoutMs.toString()).endTag("", "romIconPopUpTimeoutMs")
             serializer.startTag("", "romIconPopUpAlignment").text(settings.romIconPopUpAlignment).endTag("", "romIconPopUpAlignment")
             serializer.startTag("", "romIconPopUpWidthPercent").text(settings.romIconPopUpWidthPercent.toString()).endTag("", "romIconPopUpWidthPercent")
@@ -529,8 +534,11 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "enableImmersiveMode").text(settings.enableImmersiveMode.toString()).endTag("", "enableImmersiveMode")
             serializer.startTag("", "showFirstLastReorderButtons").text(settings.showFirstLastReorderButtons.toString()).endTag("", "showFirstLastReorderButtons")
             serializer.startTag("", "showRomDetailsButton").text(settings.showRomDetailsButton.toString()).endTag("", "showRomDetailsButton")
+            serializer.startTag("", "showRomDetailsInGridStyle").text(settings.showRomDetailsInGridStyle.toString()).endTag("", "showRomDetailsInGridStyle")
             serializer.startTag("", "showRomFavoriteButton").text(settings.showRomFavoriteButton.toString()).endTag("", "showRomFavoriteButton")
+            serializer.startTag("", "showRomFavoriteInGridStyle").text(settings.showRomFavoriteInGridStyle.toString()).endTag("", "showRomFavoriteInGridStyle")
             serializer.startTag("", "showRomCompleteButton").text(settings.showRomCompleteButton.toString()).endTag("", "showRomCompleteButton")
+            serializer.startTag("", "showRomCompleteInGridStyle").text(settings.showRomCompleteInGridStyle.toString()).endTag("", "showRomCompleteInGridStyle")
             serializer.startTag("", "showTopBar").text(settings.showTopBar.toString()).endTag("", "showTopBar")
             serializer.startTag("", "showTopBarSettingsIcon").text(settings.showTopBarSettingsIcon.toString()).endTag("", "showTopBarSettingsIcon")
             serializer.startTag("", "showTopBarTitleIcon").text(settings.showTopBarTitleIcon.toString()).endTag("", "showTopBarTitleIcon")
@@ -609,6 +617,11 @@ class ConfigStorageManager(private val context: Context) {
             var bottomBarColorHex = ""
             var removeCharsFromGameNames = ""
             var enableRomIconPopUp = false
+            var romIconPopUpShowNds = true
+            var romIconPopUpShowPsp = true
+            var romIconPopUpShowAndroid = true
+            var romIconPopUpShowDefault = true
+            var romIconPopUpShowInGridStyle = true
             var romIconPopUpTimeoutMs = 1000
             var romIconPopUpAlignment = "middle_center"
             var romIconPopUpWidthPercent = 30
@@ -618,8 +631,11 @@ class ConfigStorageManager(private val context: Context) {
             var enableImmersiveMode = true
             var showFirstLastReorderButtons = true
             var showRomDetailsButton = true
+            var showRomDetailsInGridStyle = true
             var showRomFavoriteButton = true
+            var showRomFavoriteInGridStyle = true
             var showRomCompleteButton = true
+            var showRomCompleteInGridStyle = true
             var showTopBar = true
             var showTopBarSettingsIcon = true
             var showTopBarTitleIcon = true
@@ -687,6 +703,11 @@ class ConfigStorageManager(private val context: Context) {
                                 "bottomBarColorHex" -> bottomBarColorHex = text
                                 "removeCharsFromGameNames" -> removeCharsFromGameNames = text
                                 "enableRomIconPopUp" -> enableRomIconPopUp = text.toBooleanStrictOrNull() ?: false
+                                "romIconPopUpShowNds" -> romIconPopUpShowNds = text.toBooleanStrictOrNull() ?: true
+                                "romIconPopUpShowPsp" -> romIconPopUpShowPsp = text.toBooleanStrictOrNull() ?: true
+                                "romIconPopUpShowAndroid" -> romIconPopUpShowAndroid = text.toBooleanStrictOrNull() ?: true
+                                "romIconPopUpShowDefault" -> romIconPopUpShowDefault = text.toBooleanStrictOrNull() ?: true
+                                "romIconPopUpShowInGridStyle" -> romIconPopUpShowInGridStyle = text.toBooleanStrictOrNull() ?: true
                                 "romIconPopUpTimeoutMs" -> romIconPopUpTimeoutMs = text.toIntOrNull() ?: 1000
                                 "romIconPopUpAlignment" -> romIconPopUpAlignment = text
                                 "romIconPopUpWidthPercent" -> romIconPopUpWidthPercent = text.toIntOrNull() ?: 30
@@ -696,8 +717,11 @@ class ConfigStorageManager(private val context: Context) {
                                 "enableImmersiveMode" -> enableImmersiveMode = text.toBooleanStrictOrNull() ?: true
                                 "showFirstLastReorderButtons" -> showFirstLastReorderButtons = text.toBooleanStrictOrNull() ?: true
                                 "showRomDetailsButton" -> showRomDetailsButton = text.toBooleanStrictOrNull() ?: true
+                                "showRomDetailsInGridStyle" -> showRomDetailsInGridStyle = text.toBooleanStrictOrNull() ?: true
                                 "showRomFavoriteButton" -> showRomFavoriteButton = text.toBooleanStrictOrNull() ?: true
+                                "showRomFavoriteInGridStyle" -> showRomFavoriteInGridStyle = text.toBooleanStrictOrNull() ?: true
                                 "showRomCompleteButton" -> showRomCompleteButton = text.toBooleanStrictOrNull() ?: true
+                                "showRomCompleteInGridStyle" -> showRomCompleteInGridStyle = text.toBooleanStrictOrNull() ?: true
                                 "showTopBar" -> showTopBar = text.toBooleanStrictOrNull() ?: true
                                 "showTopBarSettingsIcon" -> showTopBarSettingsIcon = text.toBooleanStrictOrNull() ?: true
                                 "showTopBarTitleIcon" -> showTopBarTitleIcon = text.toBooleanStrictOrNull() ?: true
@@ -761,6 +785,11 @@ class ConfigStorageManager(private val context: Context) {
                 bottomBarColorHex = bottomBarColorHex,
                 removeCharsFromGameNames = removeCharsFromGameNames,
                 enableRomIconPopUp = enableRomIconPopUp,
+                romIconPopUpShowNds = romIconPopUpShowNds,
+                romIconPopUpShowPsp = romIconPopUpShowPsp,
+                romIconPopUpShowAndroid = romIconPopUpShowAndroid,
+                romIconPopUpShowDefault = romIconPopUpShowDefault,
+                romIconPopUpShowInGridStyle = romIconPopUpShowInGridStyle,
                 romIconPopUpTimeoutMs = romIconPopUpTimeoutMs,
                 romIconPopUpAlignment = romIconPopUpAlignment,
                 romIconPopUpWidthPercent = romIconPopUpWidthPercent,
@@ -770,8 +799,11 @@ class ConfigStorageManager(private val context: Context) {
                 enableImmersiveMode = enableImmersiveMode,
                 showFirstLastReorderButtons = showFirstLastReorderButtons,
                 showRomDetailsButton = showRomDetailsButton,
+                showRomDetailsInGridStyle = showRomDetailsInGridStyle,
                 showRomFavoriteButton = showRomFavoriteButton,
+                showRomFavoriteInGridStyle = showRomFavoriteInGridStyle,
                 showRomCompleteButton = showRomCompleteButton,
+                showRomCompleteInGridStyle = showRomCompleteInGridStyle,
                 showTopBar = showTopBar,
                 showTopBarSettingsIcon = showTopBarSettingsIcon,
                 showTopBarTitleIcon = showTopBarTitleIcon,

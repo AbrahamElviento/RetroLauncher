@@ -255,7 +255,7 @@ fun SearchDialog(
                                                 }
                                             } else {
                                                 val resolvedIcon = remember(rom, system, customIcons) {
-                                                    GameIconResolver.resolveRomIcon(rom, system, customIcons, systems)
+                                                    GameIconResolver.resolveRomIcon(rom, system, customIcons, systems, context)
                                                 }
                                                 UniversalIconView(
                                                     iconNameOrPath = resolvedIcon,

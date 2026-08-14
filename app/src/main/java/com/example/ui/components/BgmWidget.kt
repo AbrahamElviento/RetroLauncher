@@ -115,12 +115,12 @@ fun BgmWidget(
                 IconButton(
                     onClick = { SoundManager.playPrev(context) },
                     modifier = Modifier.size(32.dp),
-                    enabled = hasBgmFiles
+                    enabled = hasBgmFiles && isPlaying
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipPrevious,
                         contentDescription = "Previous Track",
-                        tint = if (hasBgmFiles) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                        tint = if (hasBgmFiles && isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -141,12 +141,12 @@ fun BgmWidget(
                 IconButton(
                     onClick = { SoundManager.playNext(context) },
                     modifier = Modifier.size(32.dp),
-                    enabled = hasBgmFiles
+                    enabled = hasBgmFiles && isPlaying
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next Track",
-                        tint = if (hasBgmFiles) MaterialTheme.colorScheme.primary else SoundManager.hasBgmFiles.value.let { MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f) },
+                        tint = if (hasBgmFiles && isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -278,15 +278,15 @@ fun BgmControlDialog(
                             .onFocusChanged { isPrevFocused = it.isFocused }
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (isPrevFocused) MaterialTheme.colorScheme.primary
+                                if (isPrevFocused && isPlaying) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surfaceVariant
                             )
                             .border(
-                                width = if (isPrevFocused) 2.dp else 0.dp,
+                                width = if (isPrevFocused && isPlaying) 2.dp else 0.dp,
                                 color = MaterialTheme.colorScheme.primary,
                                 shape = RoundedCornerShape(12.dp)
                             )
-                            .clickable(enabled = hasBgmFiles) {
+                            .clickable(enabled = hasBgmFiles && isPlaying) {
                                 SoundManager.playPrev(context)
                             },
                         contentAlignment = Alignment.Center
@@ -294,9 +294,9 @@ fun BgmControlDialog(
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
                             contentDescription = "Previous Track",
-                            tint = if (isPrevFocused) {
+                            tint = if (isPrevFocused && isPlaying) {
                                 MaterialTheme.colorScheme.onPrimary
-                            } else if (hasBgmFiles) {
+                            } else if (hasBgmFiles && isPlaying) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
@@ -350,15 +350,15 @@ fun BgmControlDialog(
                             .onFocusChanged { isNextFocused = it.isFocused }
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (isNextFocused) MaterialTheme.colorScheme.primary
+                                if (isNextFocused && isPlaying) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surfaceVariant
                             )
                             .border(
-                                width = if (isNextFocused) 2.dp else 0.dp,
+                                width = if (isNextFocused && isPlaying) 2.dp else 0.dp,
                                 color = MaterialTheme.colorScheme.primary,
                                 shape = RoundedCornerShape(12.dp)
                             )
-                            .clickable(enabled = hasBgmFiles) {
+                            .clickable(enabled = hasBgmFiles && isPlaying) {
                                 SoundManager.playNext(context)
                             },
                         contentAlignment = Alignment.Center
@@ -366,9 +366,9 @@ fun BgmControlDialog(
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next Track",
-                            tint = if (isNextFocused) {
+                            tint = if (isNextFocused && isPlaying) {
                                 MaterialTheme.colorScheme.onPrimary
-                            } else if (hasBgmFiles) {
+                            } else if (hasBgmFiles && isPlaying) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)

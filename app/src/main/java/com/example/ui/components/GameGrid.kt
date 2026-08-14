@@ -241,7 +241,13 @@ fun GameGrid(
         isListFocused,
         isHeaderFocused,
         displaySettings.enableRomIconPopUp,
-        displaySettings.romIconPopUpTimeoutMs
+        displaySettings.romIconPopUpTimeoutMs,
+        displaySettings.romIconPopUpShowNds,
+        displaySettings.romIconPopUpShowPsp,
+        displaySettings.romIconPopUpShowAndroid,
+        displaySettings.romIconPopUpShowDefault,
+        displaySettings.romIconPopUpShowInGridStyle,
+        listSettings.listStyle
     ) {
         showRomIconPopUp = false
         val currentSelectedItem = displayItems.getOrNull(selectedIndex)
@@ -847,6 +853,9 @@ fun GameGrid(
                                         isFocused = isFocused,
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
+                                        gridScalePercent = listSettings.gridScalePercent,
+                                        showDetails = listSettings.showDetails,
+                                        subtitle = "Go Back",
                                         onClick = {
                                             isHeaderFocused = false
                                             navigateUpToParent()
@@ -865,6 +874,9 @@ fun GameGrid(
                                         isFocused = isFocused,
                                         marqueeSpeed = marqueeSpeed,
                                         marqueeDelayMillis = marqueeDelayMillis,
+                                        gridScalePercent = listSettings.gridScalePercent,
+                                        showDetails = listSettings.showDetails,
+                                        subtitle = "Subfolder",
                                         onClick = {
                                             isHeaderFocused = false
                                             openSubfolder(item.name)
@@ -1084,6 +1096,9 @@ fun GameGrid(
                             currentSystem
                         }
                     }
+                    val customIcon = customIcons[game.filePath]
+                    val hasCustomIcon = !customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))
+
                     val saveFileImageExists = remember(game, actualSystem) {
                         if (actualSystem != null && actualSystem.retroarchSaveDir.isNotBlank()) {
                             val saveDir = File(actualSystem.retroarchSaveDir)
@@ -1095,108 +1110,133 @@ fun GameGrid(
                             } else false
                         } else false
                     }
-                    val popUpAspectRatio = if (saveFileImageExists) {
-                        val ratioStr = actualSystem?.saveAspectRatio ?: "Auto"
-                        when (ratioStr) {
-                            "4:3" -> 4f / 3f
-                            "3:2" -> 3f / 2f
-                            "16:9" -> 16f / 9f
-                            "10:9" -> 10f / 9f
-                            "1:1" -> 1f
-                            else -> 1f
+
+                    val shouldShowPopUp = remember(game, actualSystem, displaySettings, hasCustomIcon, saveFileImageExists, listSettings.listStyle) {
+                        if (listSettings.listStyle == RomListStyle.GRID && !displaySettings.romIconPopUpShowInGridStyle) {
+                            false
+                        } else if (hasCustomIcon || saveFileImageExists) {
+                            true
+                        } else {
+                            val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                                    actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
+                                    game.systemId.startsWith("android_")
+
+                            if (isAndroidApp) {
+                                displaySettings.romIconPopUpShowAndroid
+                            } else if (game.filePath.lowercase().endsWith(".nds")) {
+                                displaySettings.romIconPopUpShowNds
+                            } else if (actualSystem?.shortName?.lowercase() == "psp") {
+                                displaySettings.romIconPopUpShowPsp
+                            } else {
+                                displaySettings.romIconPopUpShowDefault
+                            }
                         }
-                    } else {
-                        1f
                     }
 
-                    val popUpAlignment = when (displaySettings.romIconPopUpAlignment) {
-                        "top_left" -> Alignment.TopStart
-                        "top_center" -> Alignment.TopCenter
-                        "top_right" -> Alignment.TopEnd
-                        "middle_left" -> Alignment.CenterStart
-                        "middle_center" -> Alignment.Center
-                        "middle_right" -> Alignment.CenterEnd
-                        "bottom_left" -> Alignment.BottomStart
-                        "bottom_center" -> Alignment.BottomCenter
-                        "bottom_right" -> Alignment.BottomEnd
-                        else -> Alignment.Center
-                    }
+                    if (shouldShowPopUp) {
+                        val popUpAspectRatio = if (saveFileImageExists) {
+                            val ratioStr = actualSystem?.saveAspectRatio ?: "Auto"
+                            when (ratioStr) {
+                                "4:3" -> 4f / 3f
+                                "3:2" -> 3f / 2f
+                                "16:9" -> 16f / 9f
+                                "10:9" -> 10f / 9f
+                                "1:1" -> 1f
+                                else -> 1f
+                            }
+                        } else {
+                            1f
+                        }
 
-                    val popUpWidthPercent = (displaySettings.romIconPopUpWidthPercent / 100f).coerceIn(0.05f, 1.0f)
-                    val popUpWidth = selectionAreaWidth * popUpWidthPercent
+                        val popUpAlignment = when (displaySettings.romIconPopUpAlignment) {
+                            "top_left" -> Alignment.TopStart
+                            "top_center" -> Alignment.TopCenter
+                            "top_right" -> Alignment.TopEnd
+                            "middle_left" -> Alignment.CenterStart
+                            "middle_center" -> Alignment.Center
+                            "middle_right" -> Alignment.CenterEnd
+                            "bottom_left" -> Alignment.BottomStart
+                            "bottom_center" -> Alignment.BottomCenter
+                            "bottom_right" -> Alignment.BottomEnd
+                            else -> Alignment.Center
+                        }
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = popUpAlignment
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-                            tonalElevation = 8.dp,
-                            shadowElevation = 12.dp,
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                            ),
+                        val popUpWidthPercent = (displaySettings.romIconPopUpWidthPercent / 100f).coerceIn(0.05f, 1.0f)
+                        val popUpWidth = selectionAreaWidth * popUpWidthPercent
+
+                        Box(
                             modifier = Modifier
-                                .width(popUpWidth)
-                                .aspectRatio(popUpAspectRatio)
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = popUpAlignment
                         ) {
-                            Box(
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                                tonalElevation = 8.dp,
+                                shadowElevation = 12.dp,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                ),
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
+                                    .width(popUpWidth)
+                                    .aspectRatio(popUpAspectRatio)
                             ) {
-                                val resolvedIcon = remember(game, currentSystem, customIcons) {
-                                    GameIconResolver.resolveRomIcon(game, currentSystem, customIcons, allSystems)
-                                }
-                                val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
-                                        actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
-                                        game.systemId.startsWith("android_")
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val resolvedIcon = remember(game, currentSystem, customIcons) {
+                                        GameIconResolver.resolveRomIcon(game, currentSystem, customIcons, allSystems, context)
+                                    }
+                                    val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                                            actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
+                                            game.systemId.startsWith("android_")
 
-                                if (isAndroidApp) {
-                                    val customIcon = customIcons[game.filePath]
-                                    if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
-                                        UniversalIconView(
-                                            iconNameOrPath = customIcon,
-                                            contentDescription = game.title,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else {
-                                        val appIcon = remember(game.filePath) {
-                                            AndroidAppIconHelper.getAppIconBitmap(context, game.filePath)
-                                        }
-                                        if (appIcon != null) {
-                                            Image(
-                                                bitmap = appIcon,
-                                                contentDescription = game.title,
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Fit
-                                            )
-                                        } else {
+                                    if (isAndroidApp) {
+                                        val customIcon = customIcons[game.filePath]
+                                        if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
                                             UniversalIconView(
-                                                iconNameOrPath = "android",
+                                                iconNameOrPath = customIcon,
                                                 contentDescription = game.title,
-                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.fillMaxSize()
                                             )
-                                        }
-                                    }
-                                } else {
-                                    UniversalIconView(
-                                        iconNameOrPath = resolvedIcon,
-                                        contentDescription = game.title,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = if (saveFileImageExists && actualSystem?.saveAspectRatio != "Auto") {
-                                            androidx.compose.ui.layout.ContentScale.FillBounds
                                         } else {
-                                            androidx.compose.ui.layout.ContentScale.Fit
+                                            val appIcon = remember(game.filePath) {
+                                                AndroidAppIconHelper.getAppIconBitmap(context, game.filePath)
+                                            }
+                                            if (appIcon != null) {
+                                                Image(
+                                                    bitmap = appIcon,
+                                                    contentDescription = game.title,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Fit
+                                                )
+                                            } else {
+                                                UniversalIconView(
+                                                    iconNameOrPath = "android",
+                                                    contentDescription = game.title,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
                                         }
-                                    )
+                                    } else {
+                                        UniversalIconView(
+                                            iconNameOrPath = resolvedIcon,
+                                            contentDescription = game.title,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = if (saveFileImageExists && actualSystem?.saveAspectRatio != "Auto") {
+                                                androidx.compose.ui.layout.ContentScale.FillBounds
+                                            } else {
+                                                androidx.compose.ui.layout.ContentScale.Fit
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1243,6 +1283,9 @@ fun FolderGridCardItem(
     isFocused: Boolean = false,
     marqueeSpeed: Int = 30,
     marqueeDelayMillis: Int = 1200,
+    gridScalePercent: Int = 100,
+    showDetails: Boolean = true,
+    subtitle: String = "Subfolder",
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
@@ -1272,6 +1315,8 @@ fun FolderGridCardItem(
         null
     }
 
+    val cardHeightScale = (gridScalePercent / 100f).coerceIn(0.5f, 2.0f)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1285,45 +1330,50 @@ fun FolderGridCardItem(
                 color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(12.dp)
             ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .height(120.dp * cardHeightScale)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
         ) {
             if (folderArtPath != null) {
                 AsyncImage(
                     model = folderArtPath,
                     contentDescription = folderName,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Default.Folder,
+                    imageVector = if (folderName.contains("Up to Parent")) Icons.Default.ArrowBack else Icons.Default.Folder,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                     modifier = Modifier.size(48.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        Column(modifier = Modifier.padding(10.dp)) {
             MarqueeText(
                 text = folderName,
                 isFocused = isFocused,
                 marqueeSpeed = marqueeSpeed,
                 marqueeDelayMillis = marqueeDelayMillis,
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
             )
-            Text(
-                text = "Subfolder",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(modifier = Modifier.height(2.dp))
+            if (showDetails) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -1530,7 +1580,7 @@ fun GameGridCardItem(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             val resolvedIcon = remember(game, system, customIcons) {
-                GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
+                GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems, context)
             }
             val actualSystem = remember(game, system, allSystems) {
                 if (system?.id == "favorites" || system?.id == "recently_played") {
@@ -1587,7 +1637,7 @@ fun GameGridCardItem(
             }
 
             // Info Button (Top Left corner)
-            if (displaySettings.showRomDetailsButton) {
+            if (displaySettings.showRomDetailsButton && displaySettings.showRomDetailsInGridStyle) {
                 IconButton(
                     onClick = { onInfoClick?.invoke() },
                     modifier = Modifier
@@ -1628,7 +1678,7 @@ fun GameGridCardItem(
                     }
                 }
 
-                if (displaySettings.showRomFavoriteButton) {
+                if (displaySettings.showRomFavoriteButton && displaySettings.showRomFavoriteInGridStyle) {
                     IconButton(
                         onClick = onFavoriteClick,
                         modifier = Modifier
@@ -1644,7 +1694,7 @@ fun GameGridCardItem(
                     }
                 }
 
-                if (displaySettings.showRomCompleteButton) {
+                if (displaySettings.showRomCompleteButton && displaySettings.showRomCompleteInGridStyle) {
                     IconButton(
                         onClick = onCompletedClick,
                         modifier = Modifier
@@ -1740,7 +1790,7 @@ fun GameListRowItem(
                 contentAlignment = Alignment.Center
             ) {
                 val resolvedIcon = remember(game, system, customIcons) {
-                    GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
+                    GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems, context)
                 }
                 val actualSystem = remember(game, system, allSystems) {
                     if (system?.id == "favorites" || system?.id == "recently_played") {
@@ -1905,7 +1955,7 @@ fun GameTextOnlyItem(
         ) {
             if (settings.showArtworkInTextOnly) {
                 val resolvedIcon = remember(game, system, customIcons) {
-                    GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems)
+                    GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems, context)
                 }
                 val actualSystem = remember(game, system, allSystems) {
                     if (system?.id == "favorites" || system?.id == "recently_played") {

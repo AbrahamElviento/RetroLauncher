@@ -294,6 +294,7 @@ object SoundManager {
     }
 
     fun playNext(context: Context) {
+        if (!_isPlayingState.value) return
         if (bgmPlaylist.isNotEmpty()) {
             currentTrackIndex = (currentTrackIndex + 1) % bgmPlaylist.size
             playTrack(context, bgmPlaylist[currentTrackIndex])
@@ -303,6 +304,7 @@ object SoundManager {
     }
 
     fun playPrev(context: Context) {
+        if (!_isPlayingState.value) return
         if (bgmPlaylist.isNotEmpty()) {
             currentTrackIndex = if (currentTrackIndex - 1 < 0) bgmPlaylist.size - 1 else currentTrackIndex - 1
             playTrack(context, bgmPlaylist[currentTrackIndex])

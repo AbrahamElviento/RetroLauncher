@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -100,8 +101,11 @@ fun DisplaySettingsDialog(
     var showSubSystemTitle by remember { mutableStateOf(currentSettings.showSubSystemTitle) }
     var showFirstLastReorderButtons by remember { mutableStateOf(currentSettings.showFirstLastReorderButtons) }
     var showRomDetailsButton by remember { mutableStateOf(currentSettings.showRomDetailsButton) }
+    var showRomDetailsInGridStyle by remember { mutableStateOf(currentSettings.showRomDetailsInGridStyle) }
     var showRomFavoriteButton by remember { mutableStateOf(currentSettings.showRomFavoriteButton) }
+    var showRomFavoriteInGridStyle by remember { mutableStateOf(currentSettings.showRomFavoriteInGridStyle) }
     var showRomCompleteButton by remember { mutableStateOf(currentSettings.showRomCompleteButton) }
+    var showRomCompleteInGridStyle by remember { mutableStateOf(currentSettings.showRomCompleteInGridStyle) }
     var expandedMainMenuStyleDropdown by remember { mutableStateOf(false) }
     var expandedGridStyleDropdown by remember { mutableStateOf(false) }
     var systemMenuTextSize by remember { mutableFloatStateOf(currentSettings.systemMenuTextSizeSp.toFloat()) }
@@ -137,6 +141,11 @@ fun DisplaySettingsDialog(
 
     // Auto Pop-up Icon States
     var enableRomIconPopUp by remember { mutableStateOf(currentSettings.enableRomIconPopUp) }
+    var romIconPopUpShowNds by remember { mutableStateOf(currentSettings.romIconPopUpShowNds) }
+    var romIconPopUpShowPsp by remember { mutableStateOf(currentSettings.romIconPopUpShowPsp) }
+    var romIconPopUpShowAndroid by remember { mutableStateOf(currentSettings.romIconPopUpShowAndroid) }
+    var romIconPopUpShowDefault by remember { mutableStateOf(currentSettings.romIconPopUpShowDefault) }
+    var romIconPopUpShowInGridStyle by remember { mutableStateOf(currentSettings.romIconPopUpShowInGridStyle) }
     var romIconPopUpTimeoutMsText by remember { mutableStateOf(currentSettings.romIconPopUpTimeoutMs.toString()) }
     var romIconPopUpAlignment by remember { mutableStateOf(currentSettings.romIconPopUpAlignment) }
     var romIconPopUpWidthPercentText by remember { mutableStateOf(currentSettings.romIconPopUpWidthPercent.toString()) }
@@ -1038,28 +1047,67 @@ fun DisplaySettingsDialog(
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Show Details Button",
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                        )
-                                        Text(
-                                            text = "Show details button in ROM / game list",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Show Details Button",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = "Show details button in ROM / game list",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = showRomDetailsButton,
+                                            onCheckedChange = { showRomDetailsButton = it }
                                         )
                                     }
-                                    Switch(
-                                        checked = showRomDetailsButton,
-                                        onCheckedChange = { showRomDetailsButton = it }
-                                    )
+
+                                    AnimatedVisibility(
+                                        visible = showRomDetailsButton,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
+                                        Column {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(horizontal = 14.dp),
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                            )
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 28.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "Show in Grid Style",
+                                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                    )
+                                                    Text(
+                                                        text = "Show details button in grid layout",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                Switch(
+                                                    checked = showRomDetailsInGridStyle,
+                                                    onCheckedChange = { showRomDetailsInGridStyle = it },
+                                                    modifier = Modifier.scale(0.85f)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -1070,28 +1118,67 @@ fun DisplaySettingsDialog(
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Show Favorite Button",
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                        )
-                                        Text(
-                                            text = "Show favorite toggle button in ROM / game list",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Show Favorite Button",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = "Show favorite toggle button in ROM / game list",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = showRomFavoriteButton,
+                                            onCheckedChange = { showRomFavoriteButton = it }
                                         )
                                     }
-                                    Switch(
-                                        checked = showRomFavoriteButton,
-                                        onCheckedChange = { showRomFavoriteButton = it }
-                                    )
+
+                                    AnimatedVisibility(
+                                        visible = showRomFavoriteButton,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
+                                        Column {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(horizontal = 14.dp),
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                            )
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 28.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "Show in Grid Style",
+                                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                    )
+                                                    Text(
+                                                        text = "Show favorite button in grid layout",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                Switch(
+                                                    checked = showRomFavoriteInGridStyle,
+                                                    onCheckedChange = { showRomFavoriteInGridStyle = it },
+                                                    modifier = Modifier.scale(0.85f)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -1102,28 +1189,67 @@ fun DisplaySettingsDialog(
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Show Complete Button",
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                        )
-                                        Text(
-                                            text = "Show complete toggle button in ROM / game list",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Show Complete Button",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = "Show complete toggle button in ROM / game list",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = showRomCompleteButton,
+                                            onCheckedChange = { showRomCompleteButton = it }
                                         )
                                     }
-                                    Switch(
-                                        checked = showRomCompleteButton,
-                                        onCheckedChange = { showRomCompleteButton = it }
-                                    )
+
+                                    AnimatedVisibility(
+                                        visible = showRomCompleteButton,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
+                                        Column {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(horizontal = 14.dp),
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                            )
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 28.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "Show in Grid Style",
+                                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                    )
+                                                    Text(
+                                                        text = "Show complete button in grid layout",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                Switch(
+                                                    checked = showRomCompleteInGridStyle,
+                                                    onCheckedChange = { showRomCompleteInGridStyle = it },
+                                                    modifier = Modifier.scale(0.85f)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -1697,8 +1823,184 @@ fun DisplaySettingsDialog(
                                 }
                             }
 
-                            if (enableRomIconPopUp) {
-                                Row(
+                             if (enableRomIconPopUp) {
+                                 // Sub-toggles for Pop-up Target Sources
+                                 Column(
+                                     modifier = Modifier
+                                         .fillMaxWidth()
+                                         .padding(vertical = 4.dp)
+                                 ) {
+                                     Text(
+                                         text = "POP-UP TARGET SOURCES",
+                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                         color = MaterialTheme.colorScheme.primary,
+                                         modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+                                     )
+
+                                     Surface(
+                                         shape = RoundedCornerShape(12.dp),
+                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                         modifier = Modifier.fillMaxWidth()
+                                     ) {
+                                         Column(
+                                             modifier = Modifier.padding(vertical = 4.dp)
+                                         ) {
+                                             // 1. Show NDS
+                                             Row(
+                                                 modifier = Modifier
+                                                     .fillMaxWidth()
+                                                     .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                                 verticalAlignment = Alignment.CenterVertically
+                                             ) {
+                                                 Column(modifier = Modifier.weight(1f)) {
+                                                     Text(
+                                                         text = "Show NDS",
+                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                     )
+                                                     Text(
+                                                         text = "Enable popup icon extracted from NDS roms",
+                                                         style = MaterialTheme.typography.bodySmall,
+                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                     )
+                                                 }
+                                                 Switch(
+                                                     checked = romIconPopUpShowNds,
+                                                     onCheckedChange = { romIconPopUpShowNds = it },
+                                                     modifier = Modifier.scale(0.85f)
+                                                 )
+                                             }
+
+                                             HorizontalDivider(
+                                                 modifier = Modifier.padding(horizontal = 14.dp),
+                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                                             )
+
+                                             // 2. Show PSP
+                                             Row(
+                                                 modifier = Modifier
+                                                     .fillMaxWidth()
+                                                     .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                                 verticalAlignment = Alignment.CenterVertically
+                                             ) {
+                                                 Column(modifier = Modifier.weight(1f)) {
+                                                     Text(
+                                                         text = "Show PSP",
+                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                     )
+                                                     Text(
+                                                         text = "Enable popup icon extracted from PSP roms",
+                                                         style = MaterialTheme.typography.bodySmall,
+                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                     )
+                                                 }
+                                                 Switch(
+                                                     checked = romIconPopUpShowPsp,
+                                                     onCheckedChange = { romIconPopUpShowPsp = it },
+                                                     modifier = Modifier.scale(0.85f)
+                                                 )
+                                             }
+
+                                             HorizontalDivider(
+                                                 modifier = Modifier.padding(horizontal = 14.dp),
+                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                                             )
+
+                                             // 3. Show Android
+                                             Row(
+                                                 modifier = Modifier
+                                                     .fillMaxWidth()
+                                                     .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                                 verticalAlignment = Alignment.CenterVertically
+                                             ) {
+                                                 Column(modifier = Modifier.weight(1f)) {
+                                                     Text(
+                                                         text = "Show Android",
+                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                     )
+                                                     Text(
+                                                         text = "Enable popup icon obtained from APK/Android apps",
+                                                         style = MaterialTheme.typography.bodySmall,
+                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                     )
+                                                 }
+                                                 Switch(
+                                                     checked = romIconPopUpShowAndroid,
+                                                     onCheckedChange = { romIconPopUpShowAndroid = it },
+                                                     modifier = Modifier.scale(0.85f)
+                                                 )
+                                             }
+
+                                             HorizontalDivider(
+                                                 modifier = Modifier.padding(horizontal = 14.dp),
+                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                                             )
+
+                                             // 4. Show Default Icon
+                                             Row(
+                                                 modifier = Modifier
+                                                     .fillMaxWidth()
+                                                     .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                                 verticalAlignment = Alignment.CenterVertically
+                                             ) {
+                                                 Column(modifier = Modifier.weight(1f)) {
+                                                     Text(
+                                                         text = "Show Default Icon",
+                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                     )
+                                                     Text(
+                                                         text = "Enable popup for default system icons or fallbacks",
+                                                         style = MaterialTheme.typography.bodySmall,
+                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                     )
+                                                 }
+                                                 Switch(
+                                                     checked = romIconPopUpShowDefault,
+                                                     onCheckedChange = { romIconPopUpShowDefault = it },
+                                                     modifier = Modifier.scale(0.85f)
+                                                 )
+                                             }
+
+                                             HorizontalDivider(
+                                                 modifier = Modifier.padding(horizontal = 14.dp),
+                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                                             )
+
+                                             // 5. Show in Grid Style
+                                             Row(
+                                                 modifier = Modifier
+                                                     .fillMaxWidth()
+                                                     .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                                 verticalAlignment = Alignment.CenterVertically
+                                             ) {
+                                                 Column(modifier = Modifier.weight(1f)) {
+                                                     Text(
+                                                         text = "Show in Grid Style",
+                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                     )
+                                                     Text(
+                                                         text = "Enable pop-up when viewing game lists in Grid layout",
+                                                         style = MaterialTheme.typography.bodySmall,
+                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                     )
+                                                 }
+                                                 Switch(
+                                                     checked = romIconPopUpShowInGridStyle,
+                                                     onCheckedChange = { romIconPopUpShowInGridStyle = it },
+                                                     modifier = Modifier.scale(0.85f)
+                                                 )
+                                             }
+                                         }
+                                     }
+                                 }
+
+                                 Spacer(modifier = Modifier.height(10.dp))
+
+                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
@@ -1967,6 +2269,11 @@ fun DisplaySettingsDialog(
                                 bottomBarColorHex = bottomBarColorHex,
                                 removeCharsFromGameNames = removeCharsFromGameNamesText,
                                 enableRomIconPopUp = enableRomIconPopUp,
+                                romIconPopUpShowNds = romIconPopUpShowNds,
+                                romIconPopUpShowPsp = romIconPopUpShowPsp,
+                                romIconPopUpShowAndroid = romIconPopUpShowAndroid,
+                                romIconPopUpShowDefault = romIconPopUpShowDefault,
+                                romIconPopUpShowInGridStyle = romIconPopUpShowInGridStyle,
                                 romIconPopUpTimeoutMs = romIconPopUpTimeoutMsText.toIntOrNull() ?: 1000,
                                 romIconPopUpAlignment = romIconPopUpAlignment,
                                 romIconPopUpWidthPercent = romIconPopUpWidthPercentText.toIntOrNull() ?: 30,
@@ -1976,8 +2283,11 @@ fun DisplaySettingsDialog(
                                 enableImmersiveMode = enableImmersiveMode,
                                 showFirstLastReorderButtons = showFirstLastReorderButtons,
                                 showRomDetailsButton = showRomDetailsButton,
+                                showRomDetailsInGridStyle = showRomDetailsInGridStyle,
                                 showRomFavoriteButton = showRomFavoriteButton,
+                                showRomFavoriteInGridStyle = showRomFavoriteInGridStyle,
                                 showRomCompleteButton = showRomCompleteButton,
+                                showRomCompleteInGridStyle = showRomCompleteInGridStyle,
                                 enableSwipeSystemNavigation = enableSwipeSystemNavigation,
                                 ignoreSystemAnimationScale = ignoreSystemAnimationScale,
                                 centeredLastGridItem = centeredLastGridItem,
