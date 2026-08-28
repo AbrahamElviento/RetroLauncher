@@ -1,6 +1,6 @@
 # Retro Launcher
 
-A customizable, lightweight retro gaming frontend and launcher built for Android handhelds, TVs, phones, and full Android smartwatches.
+A customizable, lightweight retro gaming frontend and launcher built for Android handhelds, TVs, and phones.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
@@ -8,7 +8,7 @@ A customizable, lightweight retro gaming frontend and launcher built for Android
 
 ## 🎮 Overview
 
-**Retro Launcher** provides an intuitive, controller-friendly interface for browsing and launching your retro game collection. Built with Kotlin and Jetpack Compose, it features rich layout options, comprehensive emulator profile management (supporting both RetroArch cores and standalone Android emulators), flexible gamepad mapping, and hardware rotary crown support.
+**Retro Launcher** provides an intuitive, controller-friendly interface for browsing and launching your retro game collection. Built with Kotlin and Jetpack Compose, it features rich layout options, comprehensive emulator profile management (supporting both RetroArch cores and standalone Android emulators), flexible gamepad mapping, icon customization, and RetroArch save thumbnail integration.
 
 ---
 
@@ -19,13 +19,14 @@ A customizable, lightweight retro gaming frontend and launcher built for Android
   - Pre-configured RetroArch core mappings (32-bit & 64-bit packages).
   - Standalone emulator launch profiles (PPSSPP, DuckStation, NetherSX2, Citra, Dolphin, Drastic, Yuzu, etc.).
   - Custom intent launch arguments and XML emulator profile import/export.
+  - **RetroArch Save Thumbnail Support**: Automatically display in-game save state screenshots/thumbnails alongside your game art.
 - **Hardware & Controller Support**:
   - Full Gamepad & D-Pad navigation with configurable button remapping.
-  - Dedicated hardware rotary dial / crown navigation for Android watches (supporting `ACTION_SCROLL` across multiple motion axes).
   - Configurable hotkeys (e.g., Favorites toggle, ROM search, App drawer, System Settings).
-- **Customizable UI & Scaling**:
+- **Customizable UI & Theming**:
+  - **Icon Customization**: Change custom system icons and individual ROM icons with ease.
   - Custom screen margins, canvas resolution scaling, and corner radius settings.
-  - Custom system icons, wallpapers, background music (BGM), and sound effects (SFX).
+  - Custom system wallpapers, background music (BGM), and navigation sound effects (SFX).
   - Automatic box art, wheel logo, and screenshot integration.
 - **Game Management**:
   - Fast recursive directory scanning with multi-extension filters (`.zip`, `.7z`, `.chd`, `.iso`, `.bin`, `.gba`, etc.).
@@ -47,13 +48,14 @@ Upon first launch, grant storage permissions (`MANAGE_EXTERNAL_STORAGE` or Media
 
 ### 3. Launching Games
 - Navigate the system menu to choose a console/system.
-- Scroll through the game list using touch, gamepad D-pad, or the hardware crown dial.
+- Scroll through the game list using touch or gamepad D-pad.
 - Tap or press the primary action button (`A` / `Enter`) to launch the selected title in your emulator.
 
-### 4. Customizing Your Layout
-- Long-press any game to view game options, toggle favorites, edit metadata, or assign custom cover art.
+### 4. Customizing Your Layout & Games
+- Press detail (or assigned gamepad button) of a game or rom to view game information, toggle favorites, edit metadata, or assign custom cover art.
+- Customize system and ROM icons directly from the system settings and ROM detail dialogs.
+- View real-time RetroArch save thumbnails when browsing your saved progress.
 - Access **Display Settings** from the top bar to adjust UI style (Grid / Carousel / List), grid column count, font sizes, screen padding, and visual effects.
-- Access **Controller Settings** to customize gamepad buttons and navigation shortcuts.
 
 ---
 
