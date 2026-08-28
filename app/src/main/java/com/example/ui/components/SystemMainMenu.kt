@@ -12,7 +12,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -60,7 +63,8 @@ import androidx.compose.ui.platform.LocalContext
 enum class SystemDisplayStyle {
     ICON_GRID,
     GRID_ALT,
-    TEXT_LIST
+    TEXT_LIST,
+    CAROUSEL
 }
 
 data class SystemGridItem(
@@ -84,6 +88,8 @@ fun SystemMainMenu(
     enableNavigationSound: Boolean = true,
     selectedSfxFileName: String = "",
     mainMenuIconGridScalePercent: Int = 100,
+    mainMenuCarouselIconSizePercent: Int = 100,
+    mainMenuCarouselAnimation: Boolean = true,
     showMainMenuTitle: Boolean = true,
     showEditIcon: Boolean = false,
     defaultDisplayStyle: String = "ICON_GRID",
@@ -102,6 +108,8 @@ fun SystemMainMenu(
     dpadDownTrigger: Long = 0L,
     dpadLeftTrigger: Long = 0L,
     dpadRightTrigger: Long = 0L,
+    crownUpTrigger: Long = 0L,
+    crownDownTrigger: Long = 0L,
     pageUpTrigger: Long = 0L,
     pageDownTrigger: Long = 0L,
     goToTopTrigger: Long = 0L,
@@ -121,6 +129,7 @@ fun SystemMainMenu(
     totalFavoritesCount: Int = 0,
     totalCompletedCount: Int = 0,
     onDoubleTapClock: (() -> Unit)? = null,
+    onToggleHeader: (() -> Unit)? = null,
     bottomSystemMainMenuTitle: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -129,6 +138,7 @@ fun SystemMainMenu(
             when (defaultDisplayStyle) {
                 "GRID_ALT" -> SystemDisplayStyle.GRID_ALT
                 "TEXT_LIST" -> SystemDisplayStyle.TEXT_LIST
+                "CAROUSEL" -> SystemDisplayStyle.CAROUSEL
                 else -> SystemDisplayStyle.ICON_GRID
             }
         )
@@ -175,8 +185,172 @@ fun SystemMainMenu(
     val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    val handleWidgetDoubleTap: (SystemEntity) -> Unit = { system ->
+        val action = system.retroarchSaveDir.ifBlank { "NONE" }
+        when (action) {
+            "NONE" -> {
+                // Do nothing
+            }
+            "HIDE_SHOW_TOP_BAR" -> {
+                onDoubleTapClock?.invoke()
+            }
+            "HIDE_SHOW_HEADER" -> {
+                onToggleHeader?.invoke()
+            }
+            "OPEN_MAIN_SETTING" -> {
+                onOpenMainSettings()
+            }
+            "OPEN_SYSTEM_MANAGER" -> {
+                onOpenSystemManager()
+            }
+            "CYCLE_DISPLAY_STYLE" -> {
+                val styles = listOf("ICON_GRID", "GRID_ALT", "TEXT_LIST", "CAROUSEL")
+                val currentKey = when (displayStyle) {
+                    SystemDisplayStyle.GRID_ALT -> "GRID_ALT"
+                    SystemDisplayStyle.TEXT_LIST -> "TEXT_LIST"
+                    SystemDisplayStyle.CAROUSEL -> "CAROUSEL"
+                    else -> "ICON_GRID"
+                }
+                val idx = styles.indexOf(currentKey)
+                val nextStyle = styles[(idx + 1) % styles.size]
+                displayStyle = when (nextStyle) {
+                    "GRID_ALT" -> SystemDisplayStyle.GRID_ALT
+                    "TEXT_LIST" -> SystemDisplayStyle.TEXT_LIST
+                    "CAROUSEL" -> SystemDisplayStyle.CAROUSEL
+                    else -> SystemDisplayStyle.ICON_GRID
+                }
+                onToggleDisplayStyle?.invoke(nextStyle)
+            }
+            "EXPAND_NOTIFICATIONS" -> {
+                if (!com.example.service.LauncherAccessibilityService.performNotifications()) {
+                    try {
+                        val statusBarService = context.getSystemService("statusbar")
+                        val statusBarManager = Class.forName("android.app.StatusBarManager")
+                        val showNotificationMethod = statusBarManager.getMethod("expandNotificationsPanel")
+                        showNotificationMethod.isAccessible = true
+                        showNotificationMethod.invoke(statusBarService)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+            "TOGGLE_WIFI" -> {
+                try {
+                    val wifiManager = context.applicationContext.getSystemService(android.content.Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        val panelIntent = android.content.Intent(android.provider.Settings.Panel.ACTION_WIFI).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        context.startActivity(panelIntent)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        if (wifiManager != null) {
+                            wifiManager.isWifiEnabled = !wifiManager.isWifiEnabled
+                        } else {
+                            context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS).apply {
+                                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                            })
+                        }
+                    }
+                } catch (e: Exception) {
+                    try {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIFI_SETTINGS).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        })
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
+                }
+            }
+            "TOGGLE_BLUETOOTH" -> {
+                try {
+                    val bluetoothManager = context.getSystemService(android.content.Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
+                    val btAdapter = bluetoothManager?.adapter ?: android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                    if (btAdapter != null) {
+                        if (btAdapter.isEnabled) {
+                            @Suppress("DEPRECATION")
+                            val success = btAdapter.disable()
+                            if (!success) {
+                                context.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+                                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                })
+                            }
+                        } else {
+                            @Suppress("DEPRECATION")
+                            val success = btAdapter.enable()
+                            if (!success) {
+                                context.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+                                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                })
+                            }
+                        }
+                    } else {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        })
+                    }
+                } catch (e: Exception) {
+                    try {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        })
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
+                }
+            }
+            "SHOW_VOLUME_PANEL" -> {
+                try {
+                    val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                    audioManager?.adjustSuggestedStreamVolume(
+                        android.media.AudioManager.ADJUST_SAME,
+                        android.media.AudioManager.USE_DEFAULT_STREAM_TYPE,
+                        android.media.AudioManager.FLAG_SHOW_UI
+                    ) ?: audioManager?.adjustVolume(
+                        android.media.AudioManager.ADJUST_SAME,
+                        android.media.AudioManager.FLAG_SHOW_UI
+                    )
+                } catch (e: Exception) {
+                    try {
+                        val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                        audioManager?.adjustVolume(
+                            android.media.AudioManager.ADJUST_SAME,
+                            android.media.AudioManager.FLAG_SHOW_UI
+                        )
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
+                }
+            }
+            "SHOW_RECENT_APPS" -> {
+                com.example.service.LauncherAccessibilityService.openRecentApps(context)
+            }
+            "SCREEN_LOCK" -> {
+                com.example.service.LauncherAccessibilityService.lockScreen(context)
+            }
+            else -> {
+                if (action == "LAUNCH_APP" || action.startsWith("LAUNCH_APP:")) {
+                    val pkg = if (action.startsWith("LAUNCH_APP:")) action.removePrefix("LAUNCH_APP:") else ""
+                    if (pkg.isNotBlank()) {
+                        com.example.data.launcher.IntentLauncher(context).launchAndroidApp(pkg)
+                    } else if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH" && system.folderPath.isNotBlank()) {
+                        com.example.data.launcher.IntentLauncher(context).launchAndroidApp(system.folderPath)
+                    }
+                }
+            }
+        }
+    }
+
     // Ensure focusedIndex is valid
     val currentFocusedSystem = systems.getOrNull(focusedIndex)
+
+    val triggerWidgetActionIfSingleTap: (SystemEntity) -> Unit = { system ->
+        val isWidget = system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")
+        val isSingleTapEnabled = isWidget && (system.saveAspectRatio == "SINGLE_TAP" || system.saveAspectRatio == "true")
+        if (isSingleTapEnabled) {
+            handleWidgetDoubleTap(system)
+        }
+    }
 
     var lastHandledSelectTrigger by remember { mutableLongStateOf(selectActionTrigger) }
 
@@ -191,17 +365,20 @@ fun SystemMainMenu(
                         displayStyle = when (displayStyle) {
                             SystemDisplayStyle.ICON_GRID -> SystemDisplayStyle.GRID_ALT
                             SystemDisplayStyle.GRID_ALT -> SystemDisplayStyle.TEXT_LIST
-                            SystemDisplayStyle.TEXT_LIST -> SystemDisplayStyle.ICON_GRID
+                            SystemDisplayStyle.TEXT_LIST -> SystemDisplayStyle.CAROUSEL
+                            SystemDisplayStyle.CAROUSEL -> SystemDisplayStyle.ICON_GRID
                         }
                         val styleStr = when (displayStyle) {
                             SystemDisplayStyle.ICON_GRID -> "ICON_GRID"
                             SystemDisplayStyle.GRID_ALT -> "GRID_ALT"
                             SystemDisplayStyle.TEXT_LIST -> "TEXT_LIST"
+                            SystemDisplayStyle.CAROUSEL -> "CAROUSEL"
                         }
                         onToggleDisplayStyle?.invoke(styleStr)
                     }
                 }
             } else if (currentFocusedSystem != null) {
+                triggerWidgetActionIfSingleTap(currentFocusedSystem)
                 onSelectAndEnterSystem(currentFocusedSystem)
             }
         }
@@ -290,12 +467,14 @@ fun SystemMainMenu(
                         displayStyle = when (displayStyle) {
                             SystemDisplayStyle.ICON_GRID -> SystemDisplayStyle.GRID_ALT
                             SystemDisplayStyle.GRID_ALT -> SystemDisplayStyle.TEXT_LIST
-                            SystemDisplayStyle.TEXT_LIST -> SystemDisplayStyle.ICON_GRID
+                            SystemDisplayStyle.TEXT_LIST -> SystemDisplayStyle.CAROUSEL
+                            SystemDisplayStyle.CAROUSEL -> SystemDisplayStyle.ICON_GRID
                         }
                         val styleStr = when (displayStyle) {
                             SystemDisplayStyle.ICON_GRID -> "ICON_GRID"
                             SystemDisplayStyle.GRID_ALT -> "GRID_ALT"
                             SystemDisplayStyle.TEXT_LIST -> "TEXT_LIST"
+                            SystemDisplayStyle.CAROUSEL -> "CAROUSEL"
                         }
                         onToggleDisplayStyle?.invoke(styleStr)
                         com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
@@ -318,8 +497,9 @@ fun SystemMainMenu(
                             SystemDisplayStyle.ICON_GRID -> Icons.Default.GridView
                             SystemDisplayStyle.GRID_ALT -> Icons.Default.Apps
                             SystemDisplayStyle.TEXT_LIST -> Icons.Default.ViewList
+                            SystemDisplayStyle.CAROUSEL -> Icons.Default.ViewCarousel
                         },
-                        contentDescription = "Toggle Grid / List Mode",
+                        contentDescription = "Toggle Grid / List / Carousel Mode",
                         tint = if (isMenuFocused && isHeaderFocused && headerFocusedIndex == 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
@@ -347,6 +527,8 @@ fun SystemMainMenu(
             var lastHandledRight by remember { mutableLongStateOf(dpadRightTrigger) }
             var lastHandledUp by remember { mutableLongStateOf(dpadUpTrigger) }
             var lastHandledDown by remember { mutableLongStateOf(dpadDownTrigger) }
+            var lastHandledCrownUp by remember { mutableLongStateOf(crownUpTrigger) }
+            var lastHandledCrownDown by remember { mutableLongStateOf(crownDownTrigger) }
             var lastHandledPageUp by remember { mutableLongStateOf(pageUpTrigger) }
             var lastHandledPageDown by remember { mutableLongStateOf(pageDownTrigger) }
             var lastHandledGoToTop by remember { mutableLongStateOf(goToTopTrigger) }
@@ -578,6 +760,56 @@ fun SystemMainMenu(
                         }
                     }
 
+                    LaunchedEffect(crownUpTrigger) {
+                        if (crownUpTrigger > 0L && crownUpTrigger != lastHandledCrownUp && systems.isNotEmpty()) {
+                            lastHandledCrownUp = crownUpTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            isHeaderFocused = false
+                            if (isBottomStart) {
+                                if (focusedIndex + numCols < systems.size) {
+                                    focusedIndex += numCols
+                                    scrollToCenter(focusedIndex)
+                                } else if (focusedIndex < systems.size - 1) {
+                                    focusedIndex = systems.size - 1
+                                    scrollToCenter(focusedIndex)
+                                }
+                            } else {
+                                if (focusedIndex >= numCols) {
+                                    focusedIndex -= numCols
+                                    scrollToCenter(focusedIndex)
+                                } else if (focusedIndex > 0) {
+                                    focusedIndex = 0
+                                    scrollToCenter(focusedIndex)
+                                }
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(crownDownTrigger) {
+                        if (crownDownTrigger > 0L && crownDownTrigger != lastHandledCrownDown && systems.isNotEmpty()) {
+                            lastHandledCrownDown = crownDownTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            isHeaderFocused = false
+                            if (isBottomStart) {
+                                if (focusedIndex >= numCols) {
+                                    focusedIndex -= numCols
+                                    scrollToCenter(focusedIndex)
+                                } else if (focusedIndex > 0) {
+                                    focusedIndex = 0
+                                    scrollToCenter(focusedIndex)
+                                }
+                            } else {
+                                if (focusedIndex + numCols < systems.size) {
+                                    focusedIndex += numCols
+                                    scrollToCenter(focusedIndex)
+                                } else if (focusedIndex < systems.size - 1) {
+                                    focusedIndex = systems.size - 1
+                                    scrollToCenter(focusedIndex)
+                                }
+                            }
+                        }
+                    }
+
                     val layoutDirection = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
                     val totalColumns = numCols * 2
 
@@ -623,7 +855,7 @@ fun SystemMainMenu(
                                                 totalGamesCount = totalGamesCount,
                                                 totalFavoritesCount = totalFavoritesCount,
                                                 totalCompletedCount = totalCompletedCount,
-                                                onDoubleTapClock = onDoubleTapClock,
+                                                onWidgetDoubleTap = { handleWidgetDoubleTap(system) },
                                                 modifier = Modifier
                                                     .padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp)
                                                     .fillMaxWidth()
@@ -631,6 +863,7 @@ fun SystemMainMenu(
                                                 onClick = {
                                                     isHeaderFocused = false
                                                     focusedIndex = index
+                                                    triggerWidgetActionIfSingleTap(system)
                                                     onSelectAndEnterSystem(system)
                                                 },
                                                 onLongClick = {
@@ -652,7 +885,7 @@ fun SystemMainMenu(
                                                 totalGamesCount = totalGamesCount,
                                                 totalFavoritesCount = totalFavoritesCount,
                                                 totalCompletedCount = totalCompletedCount,
-                                                onDoubleTapClock = onDoubleTapClock,
+                                                onWidgetDoubleTap = { handleWidgetDoubleTap(system) },
                                                 modifier = Modifier
                                                     .padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp)
                                                     .fillMaxWidth()
@@ -660,6 +893,7 @@ fun SystemMainMenu(
                                                 onClick = {
                                                     isHeaderFocused = false
                                                     focusedIndex = index
+                                                    triggerWidgetActionIfSingleTap(system)
                                                     onSelectAndEnterSystem(system)
                                                 },
                                                 onLongClick = {
@@ -805,6 +1039,30 @@ fun SystemMainMenu(
                         }
                     }
 
+                    LaunchedEffect(crownUpTrigger) {
+                        if (crownUpTrigger > 0L && crownUpTrigger != lastHandledCrownUp && systems.isNotEmpty()) {
+                            lastHandledCrownUp = crownUpTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            isHeaderFocused = false
+                            if (focusedIndex > 0) {
+                                focusedIndex -= 1
+                                scrollListToCenter(focusedIndex)
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(crownDownTrigger) {
+                        if (crownDownTrigger > 0L && crownDownTrigger != lastHandledCrownDown && systems.isNotEmpty()) {
+                            lastHandledCrownDown = crownDownTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            isHeaderFocused = false
+                            if (focusedIndex + 1 < systems.size) {
+                                focusedIndex += 1
+                                scrollListToCenter(focusedIndex)
+                            }
+                        }
+                    }
+
                     LazyColumn(
                         state = listState,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -823,15 +1081,16 @@ fun SystemMainMenu(
                                 descTextSizeSp = descTextSizeSp,
                                 textAlignment = textAlignment,
                                 marqueeSpeed = marqueeSpeed,
-                                                                marqueeDelayMillis = marqueeDelayMillis,
-                                                                totalGamesCount = totalGamesCount,
-                                                                totalFavoritesCount = totalFavoritesCount,
-                                                                totalCompletedCount = totalCompletedCount,
-                                                                modifier = Modifier.padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp),
-                                onDoubleTapClock = onDoubleTapClock,
+                                marqueeDelayMillis = marqueeDelayMillis,
+                                totalGamesCount = totalGamesCount,
+                                totalFavoritesCount = totalFavoritesCount,
+                                totalCompletedCount = totalCompletedCount,
+                                modifier = Modifier.padding(start = tileMarginLeftDp.dp, end = tileMarginRightDp.dp),
+                                onWidgetDoubleTap = { handleWidgetDoubleTap(system) },
                                 onClick = {
                                     isHeaderFocused = false
                                     focusedIndex = index
+                                    triggerWidgetActionIfSingleTap(system)
                                     onSelectAndEnterSystem(system)
                                 },
                                 onLongClick = {
@@ -840,6 +1099,242 @@ fun SystemMainMenu(
                                 },
                                 onEdit = { onEditSystem(system) }
                             )
+                        }
+                    }
+                }
+                SystemDisplayStyle.CAROUSEL -> {
+                    val carouselState = remember(systems.size, selectedSystemId) {
+                        val initialIdx = systems.indexOfFirst { it.id == selectedSystemId }
+                        val safeIdx = if (initialIdx >= 0) initialIdx else 0
+                        LazyListState(firstVisibleItemIndex = safeIdx, firstVisibleItemScrollOffset = 0)
+                    }
+
+                    var scrollJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
+                    fun scrollCarouselToCenter(index: Int) {
+                        if (index in systems.indices) {
+                            scrollJob?.cancel()
+                            scrollJob = coroutineScope.launch {
+                                carouselState.animateScrollToItem(index, scrollOffset = 0)
+                            }
+                        }
+                    }
+
+                    // Auto-select center item when scrolling (touch / fling)
+                    val isScrollInProgress = carouselState.isScrollInProgress
+                    LaunchedEffect(isScrollInProgress) {
+                        if (!isScrollInProgress && systems.isNotEmpty() && !isHeaderFocused) {
+                            val viewportCenter = (carouselState.layoutInfo.viewportStartOffset + carouselState.layoutInfo.viewportEndOffset) / 2
+                            val centerItem = carouselState.layoutInfo.visibleItemsInfo.minByOrNull { item ->
+                                val itemCenter = item.offset + item.size / 2
+                                kotlin.math.abs(itemCenter - viewportCenter)
+                            }
+                            if (centerItem != null && centerItem.index in systems.indices && focusedIndex != centerItem.index) {
+                                focusedIndex = centerItem.index
+                            }
+                        }
+                    }
+
+                    // When focusedIndex changes via D-Pad or logic, ensure it's centered
+                    LaunchedEffect(focusedIndex) {
+                        if (!isScrollInProgress && systems.isNotEmpty()) {
+                            scrollCarouselToCenter(focusedIndex)
+                        }
+                    }
+
+                    LaunchedEffect(goToTopTrigger) {
+                        if (goToTopTrigger > 0L && goToTopTrigger != lastHandledGoToTop && systems.isNotEmpty()) {
+                            lastHandledGoToTop = goToTopTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            focusedIndex = 0
+                            scrollCarouselToCenter(focusedIndex)
+                        }
+                    }
+
+                    LaunchedEffect(goToBottomTrigger) {
+                        if (goToBottomTrigger > 0L && goToBottomTrigger != lastHandledGoToBottom && systems.isNotEmpty()) {
+                            lastHandledGoToBottom = goToBottomTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            focusedIndex = maxOf(0, systems.size - 1)
+                            scrollCarouselToCenter(focusedIndex)
+                        }
+                    }
+
+                    LaunchedEffect(pageUpTrigger) {
+                        if (pageUpTrigger > 0L && pageUpTrigger != lastHandledPageUp && systems.isNotEmpty()) {
+                            lastHandledPageUp = pageUpTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            focusedIndex = maxOf(0, focusedIndex - 5)
+                            scrollCarouselToCenter(focusedIndex)
+                        }
+                    }
+
+                    LaunchedEffect(pageDownTrigger) {
+                        if (pageDownTrigger > 0L && pageDownTrigger != lastHandledPageDown && systems.isNotEmpty()) {
+                            lastHandledPageDown = pageDownTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            focusedIndex = minOf(systems.size - 1, focusedIndex + 5)
+                            scrollCarouselToCenter(focusedIndex)
+                        }
+                    }
+
+                    LaunchedEffect(dpadLeftTrigger) {
+                        if (dpadLeftTrigger > 0L && dpadLeftTrigger != lastHandledLeft && systems.isNotEmpty()) {
+                            lastHandledLeft = dpadLeftTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            if (isHeaderFocused) {
+                                headerFocusedIndex = maxOf(0, headerFocusedIndex - 1)
+                            } else {
+                                if (focusedIndex > 0) {
+                                    focusedIndex -= 1
+                                } else {
+                                    focusedIndex = systems.size - 1
+                                }
+                                scrollCarouselToCenter(focusedIndex)
+                            }
+                        }
+                    }
+                    LaunchedEffect(dpadRightTrigger) {
+                        if (dpadRightTrigger > 0L && dpadRightTrigger != lastHandledRight && systems.isNotEmpty()) {
+                            lastHandledRight = dpadRightTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            if (isHeaderFocused) {
+                                headerFocusedIndex = minOf(1, headerFocusedIndex + 1)
+                            } else {
+                                if (focusedIndex + 1 < systems.size) {
+                                    focusedIndex += 1
+                                } else {
+                                    focusedIndex = 0
+                                }
+                                scrollCarouselToCenter(focusedIndex)
+                            }
+                        }
+                    }
+                    LaunchedEffect(dpadUpTrigger) {
+                        if (dpadUpTrigger > 0L && dpadUpTrigger != lastHandledUp && systems.isNotEmpty()) {
+                            lastHandledUp = dpadUpTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            if (isHeaderFocused) {
+                                onMoveFocusUp()
+                            } else if (showMainMenuTitle) {
+                                isHeaderFocused = true
+                                headerFocusedIndex = 0
+                            } else {
+                                onMoveFocusUp()
+                            }
+                        }
+                    }
+                    LaunchedEffect(dpadDownTrigger) {
+                        if (dpadDownTrigger > 0L && dpadDownTrigger != lastHandledDown && systems.isNotEmpty()) {
+                            lastHandledDown = dpadDownTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            if (isHeaderFocused) {
+                                isHeaderFocused = false
+                            } else {
+                                onMoveFocusDown()
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(crownUpTrigger) {
+                        if (crownUpTrigger > 0L && crownUpTrigger != lastHandledCrownUp && systems.isNotEmpty()) {
+                            lastHandledCrownUp = crownUpTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            isHeaderFocused = false
+                            if (focusedIndex > 0) {
+                                focusedIndex -= 1
+                            } else {
+                                focusedIndex = systems.size - 1
+                            }
+                            scrollCarouselToCenter(focusedIndex)
+                        }
+                    }
+
+                    LaunchedEffect(crownDownTrigger) {
+                        if (crownDownTrigger > 0L && crownDownTrigger != lastHandledCrownDown && systems.isNotEmpty()) {
+                            lastHandledCrownDown = crownDownTrigger
+                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            isHeaderFocused = false
+                            if (focusedIndex + 1 < systems.size) {
+                                focusedIndex += 1
+                            } else {
+                                focusedIndex = 0
+                            }
+                            scrollCarouselToCenter(focusedIndex)
+                        }
+                    }
+
+                    BoxWithConstraints(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val screenWidth = maxWidth
+                        val itemWidth = 220.dp
+                        val centerHorizontalPadding = if (screenWidth > itemWidth) (screenWidth - itemWidth) / 2 else 24.dp
+
+                        LazyRow(
+                            state = carouselState,
+                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            contentPadding = PaddingValues(horizontal = centerHorizontalPadding, vertical = 24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            itemsIndexed(systems, key = { _, s -> s.id }) { index, system ->
+                                val isFocused = isMenuFocused && !isHeaderFocused && index == focusedIndex
+                                val cardScale by animateFloatAsState(
+                                    targetValue = if (isFocused && mainMenuCarouselAnimation) 1.20f else if (mainMenuCarouselAnimation) 0.88f else 1.0f,
+                                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
+                                    label = "carouselScale"
+                                )
+                                val cardAlpha by animateFloatAsState(
+                                    targetValue = if (isFocused || !mainMenuCarouselAnimation) 1.0f else 0.70f,
+                                    label = "carouselAlpha"
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            scaleX = cardScale
+                                            scaleY = cardScale
+                                            alpha = cardAlpha
+                                        }
+                                        .width(220.dp)
+                                        .height(180.dp)
+                                ) {
+                                    SystemCarouselCard(
+                                        system = system,
+                                        isFocused = isFocused,
+                                        showEditIcon = showEditIcon,
+                                        textSizeSp = textSizeSp,
+                                        descTextSizeSp = descTextSizeSp,
+                                        iconScalePercent = mainMenuCarouselIconSizePercent,
+                                        marqueeSpeed = marqueeSpeed,
+                                        marqueeDelayMillis = marqueeDelayMillis,
+                                        totalGamesCount = totalGamesCount,
+                                        totalFavoritesCount = totalFavoritesCount,
+                                        totalCompletedCount = totalCompletedCount,
+                                        onWidgetDoubleTap = { handleWidgetDoubleTap(system) },
+                                        modifier = Modifier.fillMaxSize(),
+                                        onClick = {
+                                            isHeaderFocused = false
+                                            if (focusedIndex == index) {
+                                                triggerWidgetActionIfSingleTap(system)
+                                                onSelectAndEnterSystem(system)
+                                            } else {
+                                                focusedIndex = index
+                                                scrollCarouselToCenter(index)
+                                            }
+                                        },
+                                        onLongClick = {
+                                            isHeaderFocused = false
+                                            focusedIndex = index
+                                            scrollCarouselToCenter(index)
+                                        },
+                                        onEdit = { onEditSystem(system) }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -855,10 +1350,101 @@ fun SystemMainMenu(
 }
 
 @Composable
-fun ClockWidgetContent(system: SystemEntity, isFocused: Boolean, style: String, onDoubleTapClock: (() -> Unit)? = null, descTextSizeSp: Int = 12) {
+fun ClockWidgetContent(
+    system: SystemEntity,
+    isFocused: Boolean,
+    style: String,
+    onWidgetDoubleTap: (() -> Unit)? = null,
+    descTextSizeSp: Int = 12,
+    textSizeSp: Int = 16,
+    iconScalePercent: Int = 100,
+    textAlignment: String = "LEFT",
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200
+) {
     val parseColor = runCatching {
         Color(android.graphics.Color.parseColor(system.colorHex))
     }.getOrDefault(MaterialTheme.colorScheme.primary)
+
+    val isClassicClock = system.folderPath.startsWith("CLASSIC")
+    val is24Hour = system.folderPath.contains("24H") || system.allowedExtensions == "24h" || system.allowedExtensions == "HH:mm:ss" || system.allowedExtensions == "HH:mm"
+    val showSeconds = !system.folderPath.contains("NOSEC") && !system.folderPath.contains("NO_SEC")
+    val isSingleTapEnabled = system.saveAspectRatio == "SINGLE_TAP" || system.saveAspectRatio == "true"
+
+    if (isClassicClock) {
+        val clockModifier = Modifier
+            .fillMaxSize()
+            .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                detectTapGestures(
+                    onTap = {
+                        if (isSingleTapEnabled) {
+                            onWidgetDoubleTap?.invoke()
+                        }
+                    },
+                    onDoubleTap = {
+                        onWidgetDoubleTap?.invoke()
+                    }
+                )
+            }
+
+        when (style) {
+            "GRID" -> {
+                Box(
+                    modifier = clockModifier.padding(10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SevenSegmentClock(
+                        is24Hour = is24Hour,
+                        color = parseColor,
+                        digitHeight = (textSizeSp * 1.8f).coerceIn(24f, 48f).dp,
+                        showSeconds = showSeconds
+                    )
+                }
+            }
+            "GRID_ALT" -> {
+                Box(
+                    modifier = clockModifier.padding(10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SevenSegmentClock(
+                        is24Hour = is24Hour,
+                        color = parseColor,
+                        digitHeight = (textSizeSp * 1.8f).coerceIn(24f, 48f).dp,
+                        showSeconds = showSeconds
+                    )
+                }
+            }
+            "CAROUSEL" -> {
+                val baseDigitHeight = if (isFocused) 46.dp else 34.dp
+                val scaledHeight = baseDigitHeight * (iconScalePercent / 100f)
+                Box(
+                    modifier = clockModifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SevenSegmentClock(
+                        is24Hour = is24Hour,
+                        color = parseColor,
+                        digitHeight = scaledHeight,
+                        showSeconds = showSeconds
+                    )
+                }
+            }
+            else -> {
+                Box(
+                    modifier = clockModifier.padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SevenSegmentClock(
+                        is24Hour = is24Hour,
+                        color = parseColor,
+                        digitHeight = (textSizeSp * 1.6f).coerceIn(20f, 40f).dp,
+                        showSeconds = showSeconds
+                    )
+                }
+            }
+        }
+        return
+    }
 
     var currentTime by remember { mutableStateOf("") }
     var currentDate by remember { mutableStateOf("") }
@@ -888,52 +1474,237 @@ fun ClockWidgetContent(system: SystemEntity, isFocused: Boolean, style: String, 
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        onDoubleTapClock?.invoke()
-                    }
+    val alignHoriz = when (textAlignment) {
+        "CENTER" -> Alignment.CenterHorizontally
+        "RIGHT" -> Alignment.End
+        else -> Alignment.Start
+    }
+
+    when (style) {
+        "GRID" -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                UniversalIconView(
+                    iconNameOrPath = system.iconName.ifBlank { "clock" },
+                    tint = parseColor,
+                    modifier = Modifier.size(40.dp)
                 )
-            },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        UniversalIconView(
-            iconNameOrPath = system.iconName.ifBlank { "clock" },
-            tint = parseColor,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = currentTime,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, color = parseColor),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = currentDate,
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium, fontSize = descTextSizeSp.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        if (system.name != "Clock Widget" && system.name.isNotBlank()) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = system.name,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, color = parseColor),
-                maxLines = 1
-            )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = alignHoriz,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = currentTime,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = textSizeSp.sp,
+                            color = parseColor
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = currentDate,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Medium,
+                            fontSize = descTextSizeSp.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+        "GRID_ALT" -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                UniversalIconView(
+                    iconNameOrPath = system.iconName.ifBlank { "clock" },
+                    tint = parseColor,
+                    modifier = Modifier.size(44.dp)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = currentTime,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = textSizeSp.sp,
+                        color = parseColor,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = currentDate,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = descTextSizeSp.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        "CAROUSEL" -> {
+            val baseIconSize = if (isFocused) 64.dp else 48.dp
+            val scaledIconSize = baseIconSize * (iconScalePercent / 100f)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    UniversalIconView(
+                        iconNameOrPath = system.iconName.ifBlank { "clock" },
+                        tint = parseColor,
+                        modifier = Modifier.size(scaledIconSize)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = currentTime,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = if (isFocused) FontWeight.ExtraBold else FontWeight.Bold,
+                        fontSize = (if (isFocused) textSizeSp * 1.05f else textSizeSp.toFloat()).sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = parseColor
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = currentDate,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = descTextSizeSp.sp,
+                        color = if (isFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = alignHoriz,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = currentTime,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = textSizeSp.sp, color = parseColor),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = currentDate,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium, fontSize = descTextSizeSp.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
 
 @Composable
-fun BatteryWidgetContent(system: SystemEntity, isFocused: Boolean, style: String, descTextSizeSp: Int = 12) {
+fun BatteryWidgetContent(
+    system: SystemEntity,
+    isFocused: Boolean,
+    style: String,
+    onWidgetDoubleTap: (() -> Unit)? = null,
+    descTextSizeSp: Int = 12,
+    textSizeSp: Int = 16,
+    iconScalePercent: Int = 100,
+    textAlignment: String = "LEFT",
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200
+) {
     val context = LocalContext.current
     val parseColor = runCatching {
         Color(android.graphics.Color.parseColor(system.colorHex))
@@ -979,79 +1750,246 @@ fun BatteryWidgetContent(system: SystemEntity, isFocused: Boolean, style: String
         }
     }
 
-    // Function to expand android status bar notifications panel on double tap
-    fun expandNotifications() {
-        try {
-            val statusBarService = context.getSystemService("statusbar")
-            val statusBarManager = Class.forName("android.app.StatusBarManager")
-            val showNotificationMethod = statusBarManager.getMethod("expandNotificationsPanel")
-            showNotificationMethod.isAccessible = true
-            showNotificationMethod.invoke(statusBarService)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    val alignHoriz = when (textAlignment) {
+        "CENTER" -> Alignment.CenterHorizontally
+        "RIGHT" -> Alignment.End
+        else -> Alignment.Start
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        expandNotifications()
-                    }
+    val isSingleTapEnabled = system.saveAspectRatio == "SINGLE_TAP" || system.saveAspectRatio == "true"
+
+    val batteryIcon = if (isCharging) {
+        Icons.Default.BatteryChargingFull
+    } else if (batteryPercent <= 15) {
+        Icons.Default.BatteryAlert
+    } else {
+        Icons.Default.BatteryFull
+    }
+
+    when (style) {
+        "GRID" -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = batteryIcon,
+                    contentDescription = "Battery Status",
+                    tint = parseColor,
+                    modifier = Modifier.size(40.dp)
                 )
-            },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Battery dynamic icon
-        val batteryIcon = if (isCharging) {
-            Icons.Default.BatteryChargingFull
-        } else if (batteryPercent <= 15) {
-            Icons.Default.BatteryAlert
-        } else {
-            Icons.Default.BatteryFull
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = alignHoriz,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "$batteryPercent%",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = textSizeSp.sp,
+                            color = parseColor
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (isCharging) "Charging" else "Discharging",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = descTextSizeSp.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
+        "GRID_ALT" -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = batteryIcon,
+                    contentDescription = "Battery Status",
+                    tint = parseColor,
+                    modifier = Modifier.size(44.dp)
+                )
 
-        Icon(
-            imageVector = batteryIcon,
-            contentDescription = "Battery Status",
-            tint = parseColor,
-            modifier = Modifier.size(24.dp)
-        )
+                Spacer(modifier = Modifier.height(6.dp))
 
-        Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "$batteryPercent%",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = textSizeSp.sp,
+                        color = parseColor,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-        Text(
-            text = "$batteryPercent%",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, color = parseColor),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+                Text(
+                    text = if (isCharging) "Charging" else "Discharging",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = descTextSizeSp.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        "CAROUSEL" -> {
+            val baseIconSize = if (isFocused) 64.dp else 48.dp
+            val scaledIconSize = baseIconSize * (iconScalePercent / 100f)
 
-        Text(
-            text = if (isCharging) "Charging" else "Discharging",
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium, fontSize = descTextSizeSp.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = batteryIcon,
+                        contentDescription = "Battery Status",
+                        tint = parseColor,
+                        modifier = Modifier.size(scaledIconSize)
+                    )
+                }
 
-        if (system.name != "Battery Widget" && system.name.isNotBlank()) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = system.name,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, color = parseColor),
-                maxLines = 1
-            )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "$batteryPercent%",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = if (isFocused) FontWeight.ExtraBold else FontWeight.Bold,
+                        fontSize = (if (isFocused) textSizeSp * 1.05f else textSizeSp.toFloat()).sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = parseColor
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = if (isCharging) "Charging" else "Discharging",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = descTextSizeSp.sp,
+                        color = if (isFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = alignHoriz,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "$batteryPercent%",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = textSizeSp.sp, color = parseColor),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = if (isCharging) "Charging" else "Discharging",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium, fontSize = descTextSizeSp.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
 
 @Composable
-fun AppLaunchWidgetContent(system: SystemEntity, isFocused: Boolean, style: String, descTextSizeSp: Int = 12) {
+fun AppLaunchWidgetContent(
+    system: SystemEntity,
+    isFocused: Boolean,
+    style: String,
+    descTextSizeSp: Int = 12,
+    textSizeSp: Int = 16,
+    iconScalePercent: Int = 100,
+    textAlignment: String = "LEFT",
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200
+) {
     val context = LocalContext.current
     val parseColor = runCatching {
         Color(android.graphics.Color.parseColor(system.colorHex))
@@ -1066,57 +2004,212 @@ fun AppLaunchWidgetContent(system: SystemEntity, isFocused: Boolean, style: Stri
         null
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (bitmap != null) {
-            androidx.compose.foundation.Image(
-                bitmap = bitmap,
-                contentDescription = "App Icon",
-                modifier = Modifier.size(if (style == "GRID_ALT") 32.dp else 44.dp)
-            )
-        } else {
-            UniversalIconView(
-                iconNameOrPath = system.iconName.ifBlank { "android" },
-                tint = parseColor,
-                modifier = Modifier.size(if (style == "GRID_ALT") 32.dp else 44.dp)
-            )
+    val alignHoriz = when (textAlignment) {
+        "CENTER" -> Alignment.CenterHorizontally
+        "RIGHT" -> Alignment.End
+        else -> Alignment.Start
+    }
+
+    val showLaunchText = system.retroArchCore != "false"
+    val subtitleText = if (showLaunchText) "Launch App" else ""
+
+    when (style) {
+        "GRID" -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (bitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = bitmap,
+                        contentDescription = "App Icon",
+                        modifier = Modifier.size(40.dp)
+                    )
+                } else {
+                    UniversalIconView(
+                        iconNameOrPath = system.iconName.ifBlank { "android" },
+                        tint = parseColor,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = alignHoriz,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    MarqueeText(
+                        text = system.name,
+                        isFocused = isFocused,
+                        marqueeSpeed = marqueeSpeed,
+                        marqueeDelayMillis = marqueeDelayMillis,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = textSizeSp.sp,
+                            color = parseColor
+                        )
+                    )
+                    if (subtitleText.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = subtitleText,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = descTextSizeSp.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
         }
+        "GRID_ALT" -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (bitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = bitmap,
+                        contentDescription = "App Icon",
+                        modifier = Modifier.size(44.dp)
+                    )
+                } else {
+                    UniversalIconView(
+                        iconNameOrPath = system.iconName.ifBlank { "android" },
+                        tint = parseColor,
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
 
-        Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-        Text(
-            text = system.name,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = parseColor),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+                MarqueeText(
+                    text = system.name,
+                    isFocused = isFocused,
+                    marqueeSpeed = marqueeSpeed,
+                    marqueeDelayMillis = marqueeDelayMillis,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = textSizeSp.sp,
+                        color = parseColor,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                )
 
-        val appName = if (system.folderPath.isNotEmpty()) {
-            system.folderPath.split("|").first().split(".").lastOrNull() ?: ""
-        } else {
-            ""
+                if (subtitleText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitleText,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = descTextSizeSp.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
-        val showLaunchText = system.retroArchCore != "false"
-        if (appName.isNotEmpty() && showLaunchText) {
-            Text(
-                text = "Launch",
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium, fontSize = descTextSizeSp.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+        "CAROUSEL" -> {
+            val baseIconSize = if (isFocused) 64.dp else 48.dp
+            val scaledIconSize = baseIconSize * (iconScalePercent / 100f)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (bitmap != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = bitmap,
+                            contentDescription = "App Icon",
+                            modifier = Modifier.size(scaledIconSize)
+                        )
+                    } else {
+                        UniversalIconView(
+                            iconNameOrPath = system.iconName.ifBlank { "android" },
+                            tint = parseColor,
+                            modifier = Modifier.size(scaledIconSize)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                MarqueeText(
+                    text = system.name,
+                    isFocused = isFocused,
+                    marqueeSpeed = marqueeSpeed,
+                    marqueeDelayMillis = marqueeDelayMillis,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = if (isFocused) FontWeight.ExtraBold else FontWeight.Bold,
+                        fontSize = (if (isFocused) textSizeSp * 1.05f else textSizeSp.toFloat()).sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = if (isFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = alignHoriz,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = system.name,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = textSizeSp.sp, color = parseColor),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (subtitleText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitleText,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium, fontSize = descTextSizeSp.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-fun BgmWidgetContent(system: SystemEntity, isFocused: Boolean, style: String, descTextSizeSp: Int = 12) {
+fun BgmWidgetContent(
+    system: SystemEntity,
+    isFocused: Boolean,
+    style: String,
+    descTextSizeSp: Int = 12,
+    textSizeSp: Int = 16,
+    iconScalePercent: Int = 100,
+    textAlignment: String = "LEFT",
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200
+) {
     val parseColor = runCatching {
         Color(android.graphics.Color.parseColor(system.colorHex))
     }.getOrDefault(MaterialTheme.colorScheme.primary)
@@ -1126,50 +2219,192 @@ fun BgmWidgetContent(system: SystemEntity, isFocused: Boolean, style: String, de
     val hasBgmFiles by com.example.util.SoundManager.hasBgmFiles.collectAsState()
     val displaySettings = LocalDisplaySettings.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        UniversalIconView(
-            iconNameOrPath = system.iconName.ifBlank { "music_note" },
-            tint = parseColor,
-            modifier = Modifier.size(28.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        val trackTitle = if (!displaySettings.enableBgm) {
-            "BGM stopped"
-        } else if (hasBgmFiles) {
-            currentTrack ?: "BGM Active"
-        } else {
-            "No BGM files"
-        }
+    val alignHoriz = when (textAlignment) {
+        "CENTER" -> Alignment.CenterHorizontally
+        "RIGHT" -> Alignment.End
+        else -> Alignment.Start
+    }
 
-        Text(
-            text = trackTitle,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Bold,
-                color = parseColor
-            ),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.basicMarquee()
-        )
-        
-        Spacer(modifier = Modifier.height(2.dp))
-        
-        val actionText = system.allowedExtensions.ifBlank { "Tap to view" }
-        val isActuallyPlaying = isPlaying && displaySettings.enableBgm
-        Text(
-            text = if (isActuallyPlaying) "Playing • $actionText" else "Stopped • $actionText",
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = descTextSizeSp.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+    val trackTitle = if (!displaySettings.enableBgm) {
+        "BGM stopped"
+    } else if (hasBgmFiles) {
+        currentTrack ?: "BGM Active"
+    } else {
+        "No BGM files"
+    }
+
+    val actionText = system.allowedExtensions.ifBlank { "Tap to view" }
+    val isActuallyPlaying = isPlaying && displaySettings.enableBgm
+    val playStateText = if (isActuallyPlaying) "Playing • $actionText" else "Stopped • $actionText"
+
+    when (style) {
+        "GRID" -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                UniversalIconView(
+                    iconNameOrPath = system.iconName.ifBlank { "music_note" },
+                    tint = parseColor,
+                    modifier = Modifier.size(40.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = alignHoriz,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    MarqueeText(
+                        text = trackTitle,
+                        isFocused = isFocused,
+                        marqueeSpeed = marqueeSpeed,
+                        marqueeDelayMillis = marqueeDelayMillis,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = textSizeSp.sp,
+                            color = parseColor
+                        )
+                    )
+                    Text(
+                        text = playStateText,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = descTextSizeSp.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+        "GRID_ALT" -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                UniversalIconView(
+                    iconNameOrPath = system.iconName.ifBlank { "music_note" },
+                    tint = parseColor,
+                    modifier = Modifier.size(44.dp)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                MarqueeText(
+                    text = trackTitle,
+                    isFocused = isFocused,
+                    marqueeSpeed = marqueeSpeed,
+                    marqueeDelayMillis = marqueeDelayMillis,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = textSizeSp.sp,
+                        color = parseColor,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                )
+
+                Text(
+                    text = playStateText,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = descTextSizeSp.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        "CAROUSEL" -> {
+            val baseIconSize = if (isFocused) 64.dp else 48.dp
+            val scaledIconSize = baseIconSize * (iconScalePercent / 100f)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    UniversalIconView(
+                        iconNameOrPath = system.iconName.ifBlank { "music_note" },
+                        tint = parseColor,
+                        modifier = Modifier.size(scaledIconSize)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                MarqueeText(
+                    text = trackTitle,
+                    isFocused = isFocused,
+                    marqueeSpeed = marqueeSpeed,
+                    marqueeDelayMillis = marqueeDelayMillis,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = if (isFocused) FontWeight.ExtraBold else FontWeight.Bold,
+                        fontSize = (if (isFocused) textSizeSp * 1.05f else textSizeSp.toFloat()).sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = if (isFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = playStateText,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = descTextSizeSp.sp,
+                        color = if (isFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                horizontalAlignment = alignHoriz,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = trackTitle,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = textSizeSp.sp,
+                        color = parseColor
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = playStateText,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = descTextSizeSp.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 
@@ -1288,42 +2523,256 @@ fun TotalGamesWidgetContent(
 }
 
 @Composable
-fun CustomTextWidgetContent(system: SystemEntity, isFocused: Boolean, style: String) {
+fun CustomTextWidgetContent(
+    system: SystemEntity,
+    isFocused: Boolean,
+    style: String,
+    descTextSizeSp: Int = 12,
+    textSizeSp: Int = 16,
+    iconScalePercent: Int = 100,
+    textAlignment: String = "LEFT",
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200,
+    onWidgetDoubleTap: (() -> Unit)? = null
+) {
     val parseColor = runCatching {
         Color(android.graphics.Color.parseColor(system.colorHex))
     }.getOrDefault(MaterialTheme.colorScheme.primary)
 
-    val customText = system.retroArchCore.ifBlank { "No text configured." }
+    val customText = system.retroArchCore.ifBlank { "Custom text" }
+    val titleText = system.name.ifBlank { "Custom Text" }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        UniversalIconView(
-            iconNameOrPath = system.iconName.ifBlank { "pencil" },
-            tint = parseColor.copy(alpha = 0.7f),
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = customText,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis
-        )
-        if (system.name.isNotBlank() && system.name != "Custom Text") {
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = system.name,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = parseColor),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+    val alignHoriz = when (textAlignment) {
+        "CENTER" -> Alignment.CenterHorizontally
+        "RIGHT" -> Alignment.End
+        else -> Alignment.Start
+    }
+
+    val isSingleTapEnabled = system.saveAspectRatio == "SINGLE_TAP" || system.saveAspectRatio == "true"
+
+    when (style) {
+        "GRID" -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                UniversalIconView(
+                    iconNameOrPath = system.iconName.ifBlank { "pencil" },
+                    tint = parseColor,
+                    modifier = Modifier.size(40.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = alignHoriz,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    MarqueeText(
+                        text = titleText,
+                        isFocused = isFocused,
+                        marqueeSpeed = marqueeSpeed,
+                        marqueeDelayMillis = marqueeDelayMillis,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = textSizeSp.sp,
+                            color = parseColor
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = customText,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = descTextSizeSp.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+        "GRID_ALT" -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                UniversalIconView(
+                    iconNameOrPath = system.iconName.ifBlank { "pencil" },
+                    tint = parseColor,
+                    modifier = Modifier.size(44.dp)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                MarqueeText(
+                    text = titleText,
+                    isFocused = isFocused,
+                    marqueeSpeed = marqueeSpeed,
+                    marqueeDelayMillis = marqueeDelayMillis,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = textSizeSp.sp,
+                        color = parseColor,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = customText,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = descTextSizeSp.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        "CAROUSEL" -> {
+            val baseIconSize = if (isFocused) 64.dp else 48.dp
+            val scaledIconSize = baseIconSize * (iconScalePercent / 100f)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    UniversalIconView(
+                        iconNameOrPath = system.iconName.ifBlank { "pencil" },
+                        tint = parseColor,
+                        modifier = Modifier.size(scaledIconSize)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                MarqueeText(
+                    text = titleText,
+                    isFocused = isFocused,
+                    marqueeSpeed = marqueeSpeed,
+                    marqueeDelayMillis = marqueeDelayMillis,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = if (isFocused) FontWeight.ExtraBold else FontWeight.Bold,
+                        fontSize = (if (isFocused) textSizeSp * 1.05f else textSizeSp.toFloat()).sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = if (isFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = customText,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = descTextSizeSp.sp,
+                        color = if (isFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+                    .pointerInput(isSingleTapEnabled, onWidgetDoubleTap) {
+                        detectTapGestures(
+                            onTap = {
+                                if (isSingleTapEnabled) {
+                                    onWidgetDoubleTap?.invoke()
+                                }
+                            },
+                            onDoubleTap = {
+                                onWidgetDoubleTap?.invoke()
+                            }
+                        )
+                    },
+                horizontalAlignment = alignHoriz,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = titleText,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = textSizeSp.sp,
+                        color = parseColor
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = customText,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = descTextSizeSp.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -1437,7 +2886,7 @@ fun SystemGridCard(
     totalGamesCount: Int = 0,
     totalFavoritesCount: Int = 0,
     totalCompletedCount: Int = 0,
-    onDoubleTapClock: (() -> Unit)? = null,
+    onWidgetDoubleTap: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
@@ -1470,6 +2919,7 @@ fun SystemGridCard(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
                 onClick = onClick,
+                onDoubleClick = if (isWidget && onWidgetDoubleTap != null) onWidgetDoubleTap else null,
                 onLongClick = onLongClick
             )
             .border(
@@ -1498,13 +2948,13 @@ fun SystemGridCard(
             if (isWidget) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (system.defaultLaunchMode) {
-                        "WIDGET_CLOCK" -> ClockWidgetContent(system = system, isFocused = isFocused, style = "GRID", onDoubleTapClock = onDoubleTapClock, descTextSizeSp = descTextSizeSp)
+                        "WIDGET_CLOCK" -> ClockWidgetContent(system = system, isFocused = isFocused, style = "GRID", onWidgetDoubleTap = onWidgetDoubleTap, descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, textAlignment = textAlignment, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
                         "WIDGET_TOTAL_GAMES" -> TotalGamesWidgetContent(system = system, totalGamesCount = totalGamesCount, totalFavoritesCount = totalFavoritesCount, totalCompletedCount = totalCompletedCount, isFocused = isFocused, style = "GRID")
-                        "WIDGET_CUSTOM_TEXT" -> CustomTextWidgetContent(system = system, isFocused = isFocused, style = "GRID")
+                        "WIDGET_CUSTOM_TEXT" -> CustomTextWidgetContent(system = system, isFocused = isFocused, style = "GRID", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, textAlignment = textAlignment, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis, onWidgetDoubleTap = onWidgetDoubleTap)
                         "WIDGET_SLIDESHOW" -> SlideshowWidgetContent(system = system, isFocused = isFocused, style = "GRID")
-                        "WIDGET_BGM" -> BgmWidgetContent(system = system, isFocused = isFocused, style = "GRID", descTextSizeSp = descTextSizeSp)
-                        "WIDGET_BATTERY" -> BatteryWidgetContent(system = system, isFocused = isFocused, style = "GRID", descTextSizeSp = descTextSizeSp)
-                        "WIDGET_APP_LAUNCH" -> AppLaunchWidgetContent(system = system, isFocused = isFocused, style = "GRID", descTextSizeSp = descTextSizeSp)
+                        "WIDGET_BGM" -> BgmWidgetContent(system = system, isFocused = isFocused, style = "GRID", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, textAlignment = textAlignment, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
+                        "WIDGET_BATTERY" -> BatteryWidgetContent(system = system, isFocused = isFocused, style = "GRID", onWidgetDoubleTap = onWidgetDoubleTap, descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, textAlignment = textAlignment, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
+                        "WIDGET_APP_LAUNCH" -> AppLaunchWidgetContent(system = system, isFocused = isFocused, style = "GRID", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, textAlignment = textAlignment, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
                         else -> {}
                     }
 
@@ -1569,7 +3019,7 @@ fun SystemGridCard(
                         ) {
                             Text(
                                 text = system.shortName,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = parseColor, fontSize = (textSizeSp * 0.7f).sp),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = parseColor, fontSize = descTextSizeSp.sp),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -1611,7 +3061,7 @@ fun SystemTextRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     onEdit: () -> Unit = {},
-    onDoubleTapClock: (() -> Unit)? = null,
+    onWidgetDoubleTap: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val parseColor = runCatching {
@@ -1639,21 +3089,80 @@ fun SystemTextRow(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
                 onClick = onClick,
+                onDoubleClick = if (isWidget && onWidgetDoubleTap != null) onWidgetDoubleTap else null,
                 onLongClick = onLongClick
             )
     ) {
         if (isWidget) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                UniversalIconView(
-                    iconNameOrPath = system.iconName,
-                    tint = parseColor,
-                    modifier = Modifier.size(32.dp)
-                )
+            val isClassicClock = (system.defaultLaunchMode == "WIDGET_CLOCK" || system.id.startsWith("widget_clock")) && system.folderPath.startsWith("CLASSIC")
+            val is24Hour = system.folderPath.contains("24H") || system.allowedExtensions == "24h" || system.allowedExtensions == "HH:mm:ss" || system.allowedExtensions == "HH:mm"
+            val showSeconds = !system.folderPath.contains("NOSEC") && !system.folderPath.contains("NO_SEC")
+
+            if (isClassicClock) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        SevenSegmentClock(
+                            is24Hour = is24Hour,
+                            color = parseColor,
+                            digitHeight = (textSizeSp * 1.5f).coerceIn(20f, 36f).dp,
+                            showSeconds = showSeconds
+                        )
+                    }
+
+                    if (showEditIcon) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        IconButton(
+                            onClick = onEdit,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Widget",
+                                tint = parseColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                val context = LocalContext.current
+                val isAppLaunch = system.defaultLaunchMode == "WIDGET_APP_LAUNCH"
+                val useAppIcon = isAppLaunch && system.allowedExtensions == "true"
+                val bitmap = remember(system.folderPath, useAppIcon) {
+                    if (useAppIcon && system.folderPath.isNotEmpty()) {
+                        AndroidAppIconHelper.getAppIconBitmap(context, system.folderPath)
+                    } else {
+                        null
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                if (bitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = bitmap,
+                        contentDescription = "App Icon",
+                        modifier = Modifier.size(32.dp)
+                    )
+                } else {
+                    UniversalIconView(
+                        iconNameOrPath = system.iconName,
+                        tint = parseColor,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(14.dp))
 
@@ -1669,7 +3178,7 @@ fun SystemTextRow(
                         text = when (system.defaultLaunchMode) {
                             "WIDGET_CLOCK" -> "Clock Widget"
                             "WIDGET_TOTAL_GAMES" -> "Games Count Widget"
-                            "WIDGET_CUSTOM_TEXT" -> "Custom Text Widget"
+                            "WIDGET_CUSTOM_TEXT" -> system.retroArchCore.ifBlank { "Custom text" }
                             "WIDGET_SLIDESHOW" -> "Image Slideshow Widget"
                             "WIDGET_BGM" -> "BGM Music Widget"
                             "WIDGET_BATTERY" -> "Battery Status Widget"
@@ -1677,7 +3186,9 @@ fun SystemTextRow(
                             else -> "Widget"
                         },
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = descTextSizeSp.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -1707,14 +3218,7 @@ fun SystemTextRow(
                         }
                         Text(
                             text = currentTime,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = parseColor),
-                            modifier = Modifier.pointerInput(Unit) {
-                                detectTapGestures(
-                                    onDoubleTap = {
-                                        onDoubleTapClock?.invoke()
-                                    }
-                                )
-                            }
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = parseColor)
                         )
                     }
                     "WIDGET_TOTAL_GAMES" -> {
@@ -1823,14 +3327,7 @@ fun SystemTextRow(
                         }
 
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.pointerInput(Unit) {
-                                detectTapGestures(
-                                    onDoubleTap = {
-                                        expandNotifications()
-                                    }
-                                )
-                            }
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = batteryIcon,
@@ -1846,38 +3343,12 @@ fun SystemTextRow(
                         }
                     }
                     "WIDGET_APP_LAUNCH" -> {
-                        val context = LocalContext.current
-                        val useAppIcon = system.allowedExtensions == "true"
-                        val bitmap = if (useAppIcon && system.folderPath.isNotEmpty()) {
-                            remember(system.folderPath) {
-                                AndroidAppIconHelper.getAppIconBitmap(context, system.folderPath)
-                            }
-                        } else {
-                            null
-                        }
-
                         val showLaunchText = system.retroArchCore != "false"
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (bitmap != null) {
-                                androidx.compose.foundation.Image(
-                                    bitmap = bitmap,
-                                    contentDescription = "App Icon",
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            } else {
-                                UniversalIconView(
-                                    iconNameOrPath = system.iconName.ifEmpty { "android" },
-                                    tint = parseColor,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            if (showLaunchText) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Launch App",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, color = parseColor, fontSize = descTextSizeSp.sp)
-                                )
-                            }
+                        if (showLaunchText) {
+                            Text(
+                                text = "Launch App",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, color = parseColor, fontSize = descTextSizeSp.sp)
+                            )
                         }
                     }
                 }
@@ -1896,6 +3367,7 @@ fun SystemTextRow(
                         )
                     }
                 }
+            }
             }
         } else {
             Row(
@@ -1938,7 +3410,7 @@ fun SystemTextRow(
                 ) {
                     Text(
                         text = system.shortName,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = parseColor, fontSize = (textSizeSp * 0.7f).sp),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = parseColor, fontSize = descTextSizeSp.sp),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
@@ -1975,7 +3447,7 @@ fun SystemGridCardAlt(
     totalGamesCount: Int = 0,
     totalFavoritesCount: Int = 0,
     totalCompletedCount: Int = 0,
-    onDoubleTapClock: (() -> Unit)? = null,
+    onWidgetDoubleTap: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
@@ -2002,6 +3474,7 @@ fun SystemGridCardAlt(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
                 onClick = onClick,
+                onDoubleClick = if (isWidget && onWidgetDoubleTap != null) onWidgetDoubleTap else null,
                 onLongClick = onLongClick
             )
             .border(
@@ -2030,13 +3503,13 @@ fun SystemGridCardAlt(
             if (isWidget) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (system.defaultLaunchMode) {
-                        "WIDGET_CLOCK" -> ClockWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", onDoubleTapClock = onDoubleTapClock, descTextSizeSp = descTextSizeSp)
+                        "WIDGET_CLOCK" -> ClockWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", onWidgetDoubleTap = onWidgetDoubleTap, descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
                         "WIDGET_TOTAL_GAMES" -> TotalGamesWidgetContent(system = system, totalGamesCount = totalGamesCount, totalFavoritesCount = totalFavoritesCount, totalCompletedCount = totalCompletedCount, isFocused = isFocused, style = "GRID_ALT")
-                        "WIDGET_CUSTOM_TEXT" -> CustomTextWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT")
+                        "WIDGET_CUSTOM_TEXT" -> CustomTextWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis, onWidgetDoubleTap = onWidgetDoubleTap)
                         "WIDGET_SLIDESHOW" -> SlideshowWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT")
-                        "WIDGET_BGM" -> BgmWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", descTextSizeSp = descTextSizeSp)
-                        "WIDGET_BATTERY" -> BatteryWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", descTextSizeSp = descTextSizeSp)
-                        "WIDGET_APP_LAUNCH" -> AppLaunchWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", descTextSizeSp = descTextSizeSp)
+                        "WIDGET_BGM" -> BgmWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
+                        "WIDGET_BATTERY" -> BatteryWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", onWidgetDoubleTap = onWidgetDoubleTap, descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
+                        "WIDGET_APP_LAUNCH" -> AppLaunchWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
                         else -> {}
                     }
 
@@ -2110,7 +3583,7 @@ fun SystemGridCardAlt(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = parseColor,
-                                fontSize = (textSizeSp * 0.7f).sp
+                                fontSize = descTextSizeSp.sp
                             ),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -2124,6 +3597,170 @@ fun SystemGridCardAlt(
                             .align(Alignment.TopEnd)
                             .padding(2.dp)
                             .size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit System",
+                            tint = parseColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun SystemCarouselCard(
+    system: SystemEntity,
+    isFocused: Boolean,
+    showEditIcon: Boolean = false,
+    textSizeSp: Int = 16,
+    descTextSizeSp: Int = 12,
+    iconScalePercent: Int = 100,
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200,
+    totalGamesCount: Int = 0,
+    totalFavoritesCount: Int = 0,
+    totalCompletedCount: Int = 0,
+    onWidgetDoubleTap: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    onEdit: () -> Unit
+) {
+    val parseColor = runCatching {
+        Color(android.graphics.Color.parseColor(system.colorHex))
+    }.getOrDefault(MaterialTheme.colorScheme.primary)
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) parseColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+        label = "carouselBorder"
+    )
+
+    val isWidget = system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")
+
+    Card(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .combinedClickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onClick,
+                onDoubleClick = if (isWidget && onWidgetDoubleTap != null) onWidgetDoubleTap else null,
+                onLongClick = onLongClick
+            )
+            .border(
+                width = if (isFocused) 3.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(20.dp)
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isFocused) 8.dp else 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                parseColor.copy(alpha = if (isFocused) 0.3f else 0.08f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            if (isWidget) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (system.defaultLaunchMode) {
+                        "WIDGET_CLOCK" -> ClockWidgetContent(system = system, isFocused = isFocused, style = "CAROUSEL", onWidgetDoubleTap = onWidgetDoubleTap, descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, iconScalePercent = iconScalePercent, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
+                        "WIDGET_TOTAL_GAMES" -> TotalGamesWidgetContent(system = system, totalGamesCount = totalGamesCount, totalFavoritesCount = totalFavoritesCount, totalCompletedCount = totalCompletedCount, isFocused = isFocused, style = "GRID_ALT")
+                        "WIDGET_CUSTOM_TEXT" -> CustomTextWidgetContent(system = system, isFocused = isFocused, style = "CAROUSEL", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, iconScalePercent = iconScalePercent, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis, onWidgetDoubleTap = onWidgetDoubleTap)
+                        "WIDGET_SLIDESHOW" -> SlideshowWidgetContent(system = system, isFocused = isFocused, style = "GRID_ALT")
+                        "WIDGET_BGM" -> BgmWidgetContent(system = system, isFocused = isFocused, style = "CAROUSEL", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, iconScalePercent = iconScalePercent, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
+                        "WIDGET_BATTERY" -> BatteryWidgetContent(system = system, isFocused = isFocused, style = "CAROUSEL", onWidgetDoubleTap = onWidgetDoubleTap, descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, iconScalePercent = iconScalePercent, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
+                        "WIDGET_APP_LAUNCH" -> AppLaunchWidgetContent(system = system, isFocused = isFocused, style = "CAROUSEL", descTextSizeSp = descTextSizeSp, textSizeSp = textSizeSp, iconScalePercent = iconScalePercent, marqueeSpeed = marqueeSpeed, marqueeDelayMillis = marqueeDelayMillis)
+                        else -> {}
+                    }
+
+                    if (showEditIcon) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                        ) {
+                            IconButton(
+                                onClick = onEdit,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Widget",
+                                    tint = parseColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Main Carousel Item: Large Icon centered on top, then Title below it with marquee
+                val baseIconSize = if (isFocused) 64.dp else 48.dp
+                val scaledIconSize = baseIconSize * (iconScalePercent / 100f)
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        UniversalIconView(
+                            iconNameOrPath = system.iconName,
+                            tint = parseColor,
+                            modifier = Modifier.size(scaledIconSize)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    MarqueeText(
+                        text = system.name,
+                        isFocused = isFocused,
+                        marqueeSpeed = marqueeSpeed,
+                        marqueeDelayMillis = marqueeDelayMillis,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = if (isFocused) FontWeight.ExtraBold else FontWeight.Bold,
+                            fontSize = (if (isFocused) textSizeSp * 1.05f else textSizeSp.toFloat()).sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            color = if (isFocused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (showEditIcon) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(32.dp)
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,

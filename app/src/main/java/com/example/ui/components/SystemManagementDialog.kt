@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -136,6 +137,22 @@ fun SystemManagementDialog(
 
                     var showAddWidgetMenu by remember { mutableStateOf(false) }
 
+                    val hasClockWidget = remember(systemList) {
+                        systemList.any { it.defaultLaunchMode == "WIDGET_CLOCK" || it.id.startsWith("widget_clock") }
+                    }
+                    val hasTotalGamesWidget = remember(systemList) {
+                        systemList.any { it.defaultLaunchMode == "WIDGET_TOTAL_GAMES" || it.id.startsWith("widget_total_games") }
+                    }
+                    val hasSlideshowWidget = remember(systemList) {
+                        systemList.any { it.defaultLaunchMode == "WIDGET_SLIDESHOW" || it.id.startsWith("widget_slideshow") }
+                    }
+                    val hasBatteryWidget = remember(systemList) {
+                        systemList.any { it.defaultLaunchMode == "WIDGET_BATTERY" || it.id.startsWith("widget_battery") }
+                    }
+                    val hasBgmWidget = remember(systemList) {
+                        systemList.any { it.defaultLaunchMode == "WIDGET_BGM" || it.id.startsWith("widget_bgm") }
+                    }
+
                     Box(modifier = Modifier.weight(1f)) {
                         Button(
                             onClick = { showAddWidgetMenu = true },
@@ -152,7 +169,8 @@ fun SystemManagementDialog(
                             onDismissRequest = { showAddWidgetMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Clock Widget") },
+                                text = { Text(if (hasClockWidget) "Clock Widget (Already Added)" else "Clock Widget") },
+                                enabled = !hasClockWidget,
                                 onClick = {
                                     showAddWidgetMenu = false
                                     isAddingNew = true
@@ -162,15 +180,17 @@ fun SystemManagementDialog(
                                         shortName = "CLOCK",
                                         folderPath = "",
                                         allowedExtensions = "12h",
-                                        iconName = "date_range",
+                                         iconName = "date_range",
                                         defaultLaunchMode = "WIDGET_CLOCK",
                                         displayOrder = systemList.size,
-                                        isEnabled = true
+                                        isEnabled = true,
+                                        retroarchSaveDir = "NONE"
                                     )
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Total Games Count") },
+                                text = { Text(if (hasTotalGamesWidget) "Total Games Count (Already Added)" else "Total Games Count") },
+                                enabled = !hasTotalGamesWidget,
                                 onClick = {
                                     showAddWidgetMenu = false
                                     isAddingNew = true
@@ -183,7 +203,8 @@ fun SystemManagementDialog(
                                         iconName = "info",
                                         defaultLaunchMode = "WIDGET_TOTAL_GAMES",
                                         displayOrder = systemList.size,
-                                        isEnabled = true
+                                        isEnabled = true,
+                                        retroarchSaveDir = "NONE"
                                     )
                                 }
                             )
@@ -202,12 +223,14 @@ fun SystemManagementDialog(
                                         defaultLaunchMode = "WIDGET_CUSTOM_TEXT",
                                         displayOrder = systemList.size,
                                         isEnabled = true,
-                                        retroArchCore = "Your custom text goes here!"
+                                        retroArchCore = "Your custom text goes here!",
+                                        retroarchSaveDir = "NONE"
                                     )
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Image Slideshow") },
+                                text = { Text(if (hasSlideshowWidget) "Image Slideshow (Already Added)" else "Image Slideshow") },
+                                enabled = !hasSlideshowWidget,
                                 onClick = {
                                     showAddWidgetMenu = false
                                     isAddingNew = true
@@ -220,12 +243,14 @@ fun SystemManagementDialog(
                                         iconName = "play_arrow",
                                         defaultLaunchMode = "WIDGET_SLIDESHOW",
                                         displayOrder = systemList.size,
-                                        isEnabled = true
+                                        isEnabled = true,
+                                        retroarchSaveDir = "NONE"
                                     )
                                 }
                             )
                              DropdownMenuItem(
-                                text = { Text("BGM Widget") },
+                                text = { Text(if (hasBgmWidget) "BGM Widget (Already Added)" else "BGM Widget") },
+                                enabled = !hasBgmWidget,
                                 onClick = {
                                     showAddWidgetMenu = false
                                     isAddingNew = true
@@ -238,12 +263,14 @@ fun SystemManagementDialog(
                                         iconName = "music_note",
                                         defaultLaunchMode = "WIDGET_BGM",
                                         displayOrder = systemList.size,
-                                        isEnabled = true
+                                        isEnabled = true,
+                                        retroarchSaveDir = "NONE"
                                     )
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Battery Widget") },
+                                text = { Text(if (hasBatteryWidget) "Battery Widget (Already Added)" else "Battery Widget") },
+                                enabled = !hasBatteryWidget,
                                 onClick = {
                                     showAddWidgetMenu = false
                                     isAddingNew = true
@@ -256,7 +283,8 @@ fun SystemManagementDialog(
                                         iconName = "battery_full",
                                         defaultLaunchMode = "WIDGET_BATTERY",
                                         displayOrder = systemList.size,
-                                        isEnabled = true
+                                        isEnabled = true,
+                                        retroarchSaveDir = "NONE"
                                     )
                                 }
                             )
@@ -274,7 +302,8 @@ fun SystemManagementDialog(
                                         iconName = "android",
                                         defaultLaunchMode = "WIDGET_APP_LAUNCH",
                                         displayOrder = systemList.size,
-                                        isEnabled = true
+                                        isEnabled = true,
+                                        retroarchSaveDir = "NONE"
                                     )
                                 }
                             )
@@ -1155,9 +1184,51 @@ fun WidgetEditDetailDialog(
         )
     }
 
+    var isClassicClock by remember {
+        mutableStateOf(
+            if (system.defaultLaunchMode == "WIDGET_CLOCK") {
+                system.folderPath.startsWith("CLASSIC")
+            } else {
+                false
+            }
+        )
+    }
+
+    var classicClock24Hour by remember {
+        mutableStateOf(
+            if (system.defaultLaunchMode == "WIDGET_CLOCK") {
+                system.folderPath.contains("24H") || system.allowedExtensions == "24h" || system.allowedExtensions == "HH:mm:ss" || system.allowedExtensions == "HH:mm"
+            } else {
+                false
+            }
+        )
+    }
+
+    var classicClockShowSeconds by remember {
+        mutableStateOf(
+            if (system.defaultLaunchMode == "WIDGET_CLOCK") {
+                !system.folderPath.contains("NOSEC") && !system.folderPath.contains("NO_SEC")
+            } else {
+                true
+            }
+        )
+    }
+
     var subItemsList by remember {
         mutableStateOf(
             TotalGamesWidgetConfig.parse(system.folderPath, system.colorHex, system.iconName)
+        )
+    }
+
+    var doubleTapAction by remember {
+        mutableStateOf(
+            system.retroarchSaveDir.ifBlank { "NONE" }
+        )
+    }
+
+    var singleTapTrigger by remember {
+        mutableStateOf(
+            system.saveAspectRatio == "SINGLE_TAP" || system.saveAspectRatio == "true"
         )
     }
 
@@ -1274,79 +1345,446 @@ fun WidgetEditDetailDialog(
                     )
                 }
 
+                if (system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Double Tap Action",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+
+                    var expandedDoubleTapDropdown by remember { mutableStateOf(false) }
+                    var doubleTapAppSearchQuery by remember { mutableStateOf("") }
+                    var doubleTapAppExpanded by remember { mutableStateOf(false) }
+
+                    val doubleTapActionOptions = listOf(
+                        "NONE" to "None",
+                        "HIDE_SHOW_TOP_BAR" to "Hide / Show Top Bar",
+                        "HIDE_SHOW_HEADER" to "Hide / Show Main Menu Header Bar",
+                        "OPEN_MAIN_SETTING" to "Open Main Setting Dialog",
+                        "OPEN_SYSTEM_MANAGER" to "Open Emulator System Manager",
+                        "CYCLE_DISPLAY_STYLE" to "Cycle Main Menu Display Style",
+                        "EXPAND_NOTIFICATIONS" to "Expand Notifications",
+                        "TOGGLE_WIFI" to "Toggle Wi-Fi",
+                        "TOGGLE_BLUETOOTH" to "Toggle Bluetooth",
+                        "SHOW_VOLUME_PANEL" to "Show Volume Panel",
+                        "SHOW_RECENT_APPS" to "Show Recent Apps",
+                        "SCREEN_LOCK" to "Screen Lock",
+                        "LAUNCH_APP" to "Launch App"
+                    )
+
+                    val currentActionKey = when {
+                        doubleTapAction == "LAUNCH_APP" || doubleTapAction.startsWith("LAUNCH_APP:") -> "LAUNCH_APP"
+                        else -> doubleTapAction
+                    }
+                    val currentDoubleTapLabel = doubleTapActionOptions.firstOrNull { it.first == currentActionKey }?.second ?: "None"
+
+                    ExposedDropdownMenuBox(
+                        expanded = expandedDoubleTapDropdown,
+                        onExpandedChange = { expandedDoubleTapDropdown = it }
+                    ) {
+                        OutlinedTextField(
+                            value = currentDoubleTapLabel,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Double Tap Action") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDoubleTapDropdown) },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expandedDoubleTapDropdown,
+                            onDismissRequest = { expandedDoubleTapDropdown = false }
+                        ) {
+                            doubleTapActionOptions.forEach { (actionKey, actionLabel) ->
+                                DropdownMenuItem(
+                                    text = { Text(actionLabel, fontWeight = FontWeight.SemiBold) },
+                                    onClick = {
+                                        if (actionKey == "LAUNCH_APP") {
+                                            if (!doubleTapAction.startsWith("LAUNCH_APP:")) {
+                                                doubleTapAction = "LAUNCH_APP"
+                                            }
+                                        } else {
+                                            doubleTapAction = actionKey
+                                        }
+                                        expandedDoubleTapDropdown = false
+                                    },
+                                    leadingIcon = {
+                                        if (currentActionKey == actionKey) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if (currentActionKey == "LAUNCH_APP") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val selectedPackage = if (doubleTapAction.startsWith("LAUNCH_APP:")) {
+                            doubleTapAction.removePrefix("LAUNCH_APP:")
+                        } else ""
+                        val selectedAppInfo = appList.find { it.packageName == selectedPackage }
+                        val appSelectorLabel = selectedAppInfo?.label ?: if (selectedPackage.isNotBlank()) selectedPackage else "Select an app to launch..."
+
+                        val filteredDoubleTapAppList = remember(doubleTapAppSearchQuery, appList) {
+                            if (doubleTapAppSearchQuery.isBlank()) {
+                                appList
+                            } else {
+                                appList.filter {
+                                    it.label.contains(doubleTapAppSearchQuery, ignoreCase = true) ||
+                                    it.packageName.contains(doubleTapAppSearchQuery, ignoreCase = true)
+                                }
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Select App to Launch on Double Tap",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedButton(
+                                    onClick = { doubleTapAppExpanded = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        ) {
+                                            if (selectedPackage.isNotBlank()) {
+                                                val imageBitmap = remember(selectedPackage) {
+                                                    AndroidAppIconHelper.getAppIconBitmap(context, selectedPackage)
+                                                }
+                                                if (imageBitmap != null) {
+                                                    Image(
+                                                        bitmap = imageBitmap,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                }
+                                            }
+                                            Text(
+                                                text = appSelectorLabel,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                    }
+                                }
+
+                                DropdownMenu(
+                                    expanded = doubleTapAppExpanded,
+                                    onDismissRequest = {
+                                        doubleTapAppExpanded = false
+                                        doubleTapAppSearchQuery = ""
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.85f)
+                                        .heightIn(max = 350.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = doubleTapAppSearchQuery,
+                                        onValueChange = { doubleTapAppSearchQuery = it },
+                                        label = { Text("Search App...") },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(8.dp),
+                                        singleLine = true,
+                                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+                                    )
+                                    filteredDoubleTapAppList.forEach { app ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    val imageBitmap = remember(app.packageName) {
+                                                        AndroidAppIconHelper.getAppIconBitmap(context, app.packageName)
+                                                    }
+                                                    if (imageBitmap != null) {
+                                                        Image(
+                                                            bitmap = imageBitmap,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                    }
+                                                    Column {
+                                                        Text(app.label, fontWeight = FontWeight.SemiBold)
+                                                        Text(
+                                                            app.packageName,
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onClick = {
+                                                doubleTapAction = "LAUNCH_APP:${app.packageName}"
+                                                doubleTapAppExpanded = false
+                                                doubleTapAppSearchQuery = ""
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Trigger on Single Tap",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Text(
+                                    text = "Execute the action above on single tap as well",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = singleTapTrigger,
+                                onCheckedChange = { singleTapTrigger = it }
+                            )
+                        }
+                    }
+                }
+
                 when (system.defaultLaunchMode) {
                     "WIDGET_CLOCK" -> {
-                        Text(
-                            text = "Time Format Pattern",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        val timePresets = listOf(
-                            "hh:mm:ss a" to "12h with Sec",
-                            "hh:mm a" to "12h",
-                            "HH:mm:ss" to "24h with Sec",
-                            "HH:mm" to "24h"
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            timePresets.forEach { (pattern, label) ->
-                                FilterChip(
-                                    selected = allowedExtensions == pattern,
-                                    onClick = { allowedExtensions = pattern },
-                                    label = { Text(label, fontSize = 10.sp) }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Classic Style",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = "Mimic classic digital watch with seven-segment display",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = isClassicClock,
+                                    onCheckedChange = { isClassicClock = it }
                                 )
                             }
                         }
-                        OutlinedTextField(
-                            value = allowedExtensions,
-                            onValueChange = { allowedExtensions = it },
-                            label = { Text("Time Pattern (e.g. hh:mm:ss a, HH:mm)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                        if (isClassicClock) {
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                        Text(
-                            text = "Date Format Pattern",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        val datePresets = listOf(
-                            "yyyy-MM-dd" to "Y-m-d",
-                            "EEE dd-MM-yyyy" to "e d-m-Y",
-                            "dd/MM/yyyy" to "d/m/Y",
-                            "EEE, MMM dd, yyyy" to "Default"
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            datePresets.forEach { (pattern, label) ->
-                                FilterChip(
-                                    selected = retroArchCore == pattern,
-                                    onClick = { retroArchCore = pattern },
-                                    label = { Text(label, fontSize = 10.sp) }
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = if (classicClock24Hour) "24-Hour Format" else "12-Hour Format",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = if (classicClock24Hour) "24-hour military digital watch format" else "12-hour digital watch format with AM/PM",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = classicClock24Hour,
+                                            onCheckedChange = { classicClock24Hour = it }
+                                        )
+                                    }
+
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(vertical = 2.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    )
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Show Seconds",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                            )
+                                            Text(
+                                                text = if (classicClockShowSeconds) "Display digital seconds counter" else "Hide seconds counter on clock",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = classicClockShowSeconds,
+                                            onCheckedChange = { classicClockShowSeconds = it }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "Classic Digital Display Preview",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            val parseColor = runCatching {
+                                Color(android.graphics.Color.parseColor(colorHex))
+                            }.getOrDefault(MaterialTheme.colorScheme.primary)
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF101412))
+                                    .border(1.dp, parseColor.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .padding(vertical = 16.dp, horizontal = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                SevenSegmentClock(
+                                    is24Hour = classicClock24Hour,
+                                    color = parseColor,
+                                    digitHeight = 36.dp,
+                                    showSeconds = classicClockShowSeconds,
+                                    showContainerBackground = false
                                 )
                             }
+                        } else {
+                            Text(
+                                text = "Time Format Pattern",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            val timePresets = listOf(
+                                "hh:mm:ss a" to "12h with Sec",
+                                "hh:mm a" to "12h",
+                                "HH:mm:ss" to "24h with Sec",
+                                "HH:mm" to "24h"
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                timePresets.forEach { (pattern, label) ->
+                                    FilterChip(
+                                        selected = allowedExtensions == pattern,
+                                        onClick = { allowedExtensions = pattern },
+                                        label = { Text(label, fontSize = 10.sp) }
+                                    )
+                                }
+                            }
+                            OutlinedTextField(
+                                value = allowedExtensions,
+                                onValueChange = { allowedExtensions = it },
+                                label = { Text("Time Pattern (e.g. hh:mm:ss a, HH:mm)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = "Date Format Pattern",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            val datePresets = listOf(
+                                "yyyy-MM-dd" to "Y-m-d",
+                                "EEE dd-MM-yyyy" to "e d-m-Y",
+                                "dd/MM/yyyy" to "d/m/Y",
+                                "EEE, MMM dd, yyyy" to "Default"
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                datePresets.forEach { (pattern, label) ->
+                                    FilterChip(
+                                        selected = retroArchCore == pattern,
+                                        onClick = { retroArchCore = pattern },
+                                        label = { Text(label, fontSize = 10.sp) }
+                                    )
+                                }
+                            }
+                            OutlinedTextField(
+                                value = retroArchCore,
+                                onValueChange = { retroArchCore = it },
+                                label = { Text("Date Pattern (e.g. yyyy-MM-dd, EEE dd-MM-yyyy)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
                         }
-                        OutlinedTextField(
-                            value = retroArchCore,
-                            onValueChange = { retroArchCore = it },
-                            label = { Text("Date Pattern (e.g. yyyy-MM-dd, EEE dd-MM-yyyy)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
                     }
                     "WIDGET_CUSTOM_TEXT" -> {
                         OutlinedTextField(
                             value = retroArchCore,
                             onValueChange = { retroArchCore = it },
                             label = { Text("Custom Text Content") },
-                            modifier = Modifier.fillMaxWidth().height(120.dp),
-                            maxLines = 5
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
                         )
                     }
                     "WIDGET_SLIDESHOW" -> {
@@ -1646,6 +2084,12 @@ fun WidgetEditDetailDialog(
                                 if (allowedExtensions.isBlank()) "5" else allowedExtensions
                             } else if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
                                 useAppIcon.toString()
+                            } else if (system.defaultLaunchMode == "WIDGET_CLOCK") {
+                                if (isClassicClock) {
+                                    if (classicClock24Hour) "24h" else "12h"
+                                } else {
+                                    if (allowedExtensions.isBlank()) "12h" else allowedExtensions
+                                }
                             } else {
                                 allowedExtensions
                             }
@@ -1656,8 +2100,30 @@ fun WidgetEditDetailDialog(
                             }
                             val finalFolderPath = if (system.defaultLaunchMode == "WIDGET_TOTAL_GAMES") {
                                 TotalGamesWidgetConfig.serialize(subItemsList)
+                            } else if (system.defaultLaunchMode == "WIDGET_CLOCK") {
+                                if (isClassicClock) {
+                                    val hStr = if (classicClock24Hour) "24H" else "12H"
+                                    val sStr = if (classicClockShowSeconds) "SEC" else "NOSEC"
+                                    "CLASSIC_${hStr}_${sStr}"
+                                } else {
+                                    ""
+                                }
                             } else {
                                 folderPath
+                            }
+                            val finalRetroarchSaveDir = if (system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")) {
+                                doubleTapAction
+                            } else {
+                                system.retroarchSaveDir
+                            }
+                            val finalSaveAspectRatio = if (system.id.startsWith("widget_") || system.defaultLaunchMode.startsWith("WIDGET_")) {
+                                if (singleTapTrigger) {
+                                    "SINGLE_TAP"
+                                } else {
+                                    "Auto"
+                                }
+                            } else {
+                                system.saveAspectRatio
                             }
                             onSave(
                                 system.copy(
@@ -1666,7 +2132,9 @@ fun WidgetEditDetailDialog(
                                     folderPath = finalFolderPath,
                                     allowedExtensions = savedExt,
                                     retroArchCore = finalRetroArchCore,
-                                    iconName = iconName
+                                    iconName = iconName,
+                                    retroarchSaveDir = finalRetroarchSaveDir,
+                                    saveAspectRatio = finalSaveAspectRatio
                                 )
                             )
                             onDismiss()

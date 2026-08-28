@@ -26,12 +26,31 @@ object PresetData {
             """.trimIndent()
         ),
         StandaloneProfileEntity(
+            id = "nethersx2",
+            name = "NetherSX2 (PS2)",
+            packageName = "net.nethersx2.android",
+            activityName = "net.nethersx2.android.EmulationActivity",
+            intentAction = "android.intent.action.MAIN",
+            romPathExtraKey = "bootPath",
+            extraArgsJson = "{\"IME\":\"true\"}",
+            isCustomXml = false,
+            rawXmlContent = """
+                <emulator id="nethersx2" name="NetherSX2 (PS2)">
+                  <package>net.nethersx2.android</package>
+                  <activity>net.nethersx2.android.EmulationActivity</activity>
+                  <action>android.intent.action.MAIN</action>
+                  <romPathExtraKey>bootPath</romPathExtraKey>
+                  <extraArgsJson>{"IME":"true"}</extraArgsJson>
+                </emulator>
+            """.trimIndent()
+        ),
+        StandaloneProfileEntity(
             id = "ppsspp",
             name = "PPSSPP (PSP)",
             packageName = "org.ppsspp.ppsspp",
             activityName = "org.ppsspp.ppsspp.PpssppActivity",
             intentAction = "android.intent.action.VIEW",
-            romPathExtraKey = "PATH",
+            romPathExtraKey = "org.ppsspp.ppsspp.Shortcuts",
             extraArgsJson = "{}",
             isCustomXml = false,
             rawXmlContent = """
@@ -39,7 +58,7 @@ object PresetData {
                   <package>org.ppsspp.ppsspp</package>
                   <activity>org.ppsspp.ppsspp.PpssppActivity</activity>
                   <action>android.intent.action.VIEW</action>
-                  <romPathExtraKey>PATH</romPathExtraKey>
+                  <romPathExtraKey>org.ppsspp.ppsspp.Shortcuts</romPathExtraKey>
                 </emulator>
             """.trimIndent()
         ),
@@ -49,7 +68,7 @@ object PresetData {
             packageName = "org.ppsspp.ppssppgold",
             activityName = "org.ppsspp.ppssppgold.PpssppActivity",
             intentAction = "android.intent.action.VIEW",
-            romPathExtraKey = "PATH",
+            romPathExtraKey = "org.ppsspp.ppssppgold.Shortcuts",
             extraArgsJson = "{}",
             isCustomXml = false,
             rawXmlContent = """
@@ -57,7 +76,7 @@ object PresetData {
                   <package>org.ppsspp.ppssppgold</package>
                   <activity>org.ppsspp.ppssppgold.PpssppActivity</activity>
                   <action>android.intent.action.VIEW</action>
-                  <romPathExtraKey>PATH</romPathExtraKey>
+                  <romPathExtraKey>org.ppsspp.ppssppgold.Shortcuts</romPathExtraKey>
                 </emulator>
             """.trimIndent()
         ),

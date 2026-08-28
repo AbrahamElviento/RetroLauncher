@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalContext
@@ -122,11 +123,54 @@ fun MainHomeScreen(
     var favoriteActionTrigger by remember { mutableLongStateOf(0L) }
     var infoActionTrigger by remember { mutableLongStateOf(0L) }
     var highlightFavoritesTrigger by remember { mutableLongStateOf(0L) }
+    var crownUpTrigger by remember { mutableLongStateOf(0L) }
+    var crownDownTrigger by remember { mutableLongStateOf(0L) }
+    var lastCrownActionTime by remember { mutableLongStateOf(0L) }
 
     var isMainMenuActive by remember { mutableStateOf(true) }
     var activeFocusZone by remember { mutableStateOf(ActiveFocusZone.ROM_LIST) }
     var topBarFocusedIndex by remember { mutableIntStateOf(0) }
     var systemSelectorFocusedIndex by remember { mutableIntStateOf(2) }
+
+    val handleCrownUp: () -> Unit = {
+        val now = System.currentTimeMillis()
+        if (now - lastCrownActionTime > 30L) {
+            lastCrownActionTime = now
+            if (activeFocusZone != ActiveFocusZone.ROM_LIST) {
+                activeFocusZone = ActiveFocusZone.ROM_LIST
+            }
+            if (isMainMenuActive) {
+                crownUpTrigger = now
+            } else {
+                dpadUpTrigger = now
+            }
+        }
+    }
+
+    val handleCrownDown: () -> Unit = {
+        val now = System.currentTimeMillis()
+        if (now - lastCrownActionTime > 30L) {
+            lastCrownActionTime = now
+            if (activeFocusZone != ActiveFocusZone.ROM_LIST) {
+                activeFocusZone = ActiveFocusZone.ROM_LIST
+            }
+            if (isMainMenuActive) {
+                crownDownTrigger = now
+            } else {
+                dpadDownTrigger = now
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.crownScrollEvent.collect { vScroll ->
+            if (vScroll > 0f) {
+                handleCrownUp()
+            } else if (vScroll < 0f) {
+                handleCrownDown()
+            }
+        }
+    }
 
     var isTopBarComboKey1Down by remember { mutableStateOf(false) }
     var isTopBarComboKey2Down by remember { mutableStateOf(false) }
@@ -258,6 +302,17 @@ fun MainHomeScreen(
                     }
                 }
             }
+            .onRotaryScrollEvent { event ->
+                if (event.verticalScrollPixels < 0f) {
+                    handleCrownUp()
+                    true
+                } else if (event.verticalScrollPixels > 0f) {
+                    handleCrownDown()
+                    true
+                } else {
+                    false
+                }
+            }
             .onPreviewKeyEvent { keyEvent ->
             val keyCode = keyEvent.nativeKeyEvent.keyCode
             val isActionDown = keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN
@@ -365,6 +420,14 @@ fun MainHomeScreen(
                     }
                     keyCode == gamepadSettings.keyInfoAction -> {
                         infoActionTrigger = System.currentTimeMillis()
+                        true
+                    }
+                    keyCode == 260 /* KEYCODE_NAVIGATE_PREVIOUS */ -> {
+                        handleCrownUp()
+                        true
+                    }
+                    keyCode == 261 /* KEYCODE_NAVIGATE_NEXT */ -> {
+                        handleCrownDown()
                         true
                     }
                     gamepadSettings.keySystemSettings > 0 && keyCode == gamepadSettings.keySystemSettings -> {
@@ -651,6 +714,8 @@ fun MainHomeScreen(
                         enableNavigationSound = displaySettings.enableNavigationSound,
                         selectedSfxFileName = displaySettings.selectedSfxFileName,
                         mainMenuIconGridScalePercent = displaySettings.mainMenuIconGridScalePercent,
+                        mainMenuCarouselIconSizePercent = displaySettings.mainMenuCarouselIconSizePercent,
+                        mainMenuCarouselAnimation = displaySettings.mainMenuCarouselAnimation,
                         showMainMenuTitle = displaySettings.showSystemMainMenuTitle,
                         bottomSystemMainMenuTitle = displaySettings.bottomSystemMainMenuTitle,
                         showEditIcon = displaySettings.showSystemMainMenuEditIcon,
@@ -670,6 +735,8 @@ fun MainHomeScreen(
                         dpadDownTrigger = dpadDownTrigger,
                         dpadLeftTrigger = dpadLeftTrigger,
                         dpadRightTrigger = dpadRightTrigger,
+                        crownUpTrigger = crownUpTrigger,
+                        crownDownTrigger = crownDownTrigger,
                         pageUpTrigger = pageUpTrigger,
                         pageDownTrigger = pageDownTrigger,
                         goToTopTrigger = goToTopTrigger,
@@ -689,6 +756,9 @@ fun MainHomeScreen(
                         tileMarginRightDp = displaySettings.systemMenuTileMarginRightDp,
                         onDoubleTapClock = {
                             viewModel.updateDisplaySettings(displaySettings.copy(showTopBar = !displaySettings.showTopBar))
+                        },
+                        onToggleHeader = {
+                            viewModel.updateDisplaySettings(displaySettings.copy(showSystemMainMenuTitle = !displaySettings.showSystemMainMenuTitle))
                         },
                         modifier = Modifier.weight(1f)
                     )

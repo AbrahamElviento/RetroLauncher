@@ -52,7 +52,7 @@ class GameProgressHelper(private val context: Context) {
                     launch_count = launch_count + 1,
                     last_played = ?
                 """.trimIndent(),
-                arrayOf(systemId, gameFileName, timestamp, timestamp)
+                arrayOf<Any>(systemId, gameFileName, timestamp, timestamp)
             )
         } catch (e: Exception) {
             e.printStackTrace()

@@ -3,7 +3,8 @@ package com.example.data.model
 enum class RomListStyle {
     GRID,
     LIST,
-    TEXT_ONLY
+    TEXT_ONLY,
+    CAROUSEL
 }
 
 enum class TextAlignmentOption {
@@ -19,5 +20,7 @@ data class RomListSettings(
     val textAlignment: TextAlignmentOption = TextAlignmentOption.START,
     val showArtworkInTextOnly: Boolean = true,
     val gridScalePercent: Int = 100,
-    val showDetails: Boolean = true
+    val showDetails: Boolean = true,
+    val carouselIconSizePercent: Int = 100,
+    val enableCarouselAnimation: Boolean = true
 )

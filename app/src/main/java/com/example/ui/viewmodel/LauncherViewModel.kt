@@ -72,6 +72,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _customIcons = MutableStateFlow<Map<String, String>>(emptyMap())
     val customIcons: StateFlow<Map<String, String>> = _customIcons.asStateFlow()
 
+    private val _crownScrollEvent = MutableSharedFlow<Float>(extraBufferCapacity = 1)
+    val crownScrollEvent: SharedFlow<Float> = _crownScrollEvent.asSharedFlow()
+
+    fun onRotaryScroll(delta: Float) {
+        _crownScrollEvent.tryEmit(delta)
+    }
+
     private val _launchEvent = MutableSharedFlow<LaunchResult>()
     val launchEvent: SharedFlow<LaunchResult> = _launchEvent.asSharedFlow()
 

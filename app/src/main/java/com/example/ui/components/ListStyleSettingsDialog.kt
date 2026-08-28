@@ -39,6 +39,8 @@ fun ListStyleSettingsDialog(
     var showArtwork by remember { mutableStateOf(settings.showArtworkInTextOnly) }
     var gridScalePercent by remember { mutableFloatStateOf(settings.gridScalePercent.toFloat()) }
     var showDetails by remember { mutableStateOf(settings.showDetails) }
+    var carouselIconSizePercent by remember { mutableFloatStateOf(settings.carouselIconSizePercent.toFloat()) }
+    var enableCarouselAnimation by remember { mutableStateOf(settings.enableCarouselAnimation) }
 
     fun getCurrentSettings() = RomListSettings(
         listStyle = style,
@@ -47,7 +49,9 @@ fun ListStyleSettingsDialog(
         textAlignment = alignment,
         showArtworkInTextOnly = showArtwork,
         gridScalePercent = gridScalePercent.toInt(),
-        showDetails = showDetails
+        showDetails = showDetails,
+        carouselIconSizePercent = carouselIconSizePercent.toInt(),
+        enableCarouselAnimation = enableCarouselAnimation
     )
 
     ScaledDialog(onDismissRequest = onDismiss) {
@@ -110,7 +114,7 @@ fun ListStyleSettingsDialog(
                         selected = style == RomListStyle.GRID,
                         onClick = {
                             style = RomListStyle.GRID
-                            onUpdateSettings(getCurrentSettings())
+                            onUpdateSettings(getCurrentSettings().copy(listStyle = RomListStyle.GRID))
                         },
                         label = { Text("Grid") },
                         modifier = Modifier.weight(1f)
@@ -119,20 +123,86 @@ fun ListStyleSettingsDialog(
                         selected = style == RomListStyle.LIST,
                         onClick = {
                             style = RomListStyle.LIST
-                            onUpdateSettings(getCurrentSettings())
+                            onUpdateSettings(getCurrentSettings().copy(listStyle = RomListStyle.LIST))
                         },
                         label = { Text("Card List") },
                         modifier = Modifier.weight(1f)
                     )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     FilterChip(
                         selected = style == RomListStyle.TEXT_ONLY,
                         onClick = {
                             style = RomListStyle.TEXT_ONLY
-                            onUpdateSettings(getCurrentSettings())
+                            onUpdateSettings(getCurrentSettings().copy(listStyle = RomListStyle.TEXT_ONLY))
                         },
                         label = { Text("Text Only") },
                         modifier = Modifier.weight(1f)
                     )
+                    FilterChip(
+                        selected = style == RomListStyle.CAROUSEL,
+                        onClick = {
+                            style = RomListStyle.CAROUSEL
+                            onUpdateSettings(getCurrentSettings().copy(listStyle = RomListStyle.CAROUSEL))
+                        },
+                        label = { Text("Carousel") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                if (style == RomListStyle.CAROUSEL) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                    // Carousel Icon Size (%) Slider
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Carousel Icon Size (%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                            Text("${carouselIconSizePercent.toInt()}%", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        }
+                        Slider(
+                            value = carouselIconSizePercent,
+                            onValueChange = {
+                                carouselIconSizePercent = it
+                                onUpdateSettings(getCurrentSettings().copy(carouselIconSizePercent = it.toInt()))
+                            },
+                            valueRange = 50f..200f,
+                            steps = 29
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Carousel Animation",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Enable smooth zoom, scaling and transition animations during carousel navigation",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = enableCarouselAnimation,
+                            onCheckedChange = {
+                                enableCarouselAnimation = it
+                                onUpdateSettings(getCurrentSettings().copy(enableCarouselAnimation = it))
+                            }
+                        )
+                    }
                 }
 
                 // Grid / Icon Size Slider (Hidden if Card List or Text Only is selected)

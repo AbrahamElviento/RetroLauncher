@@ -9,8 +9,12 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -247,6 +251,7 @@ fun GameGrid(
         displaySettings.romIconPopUpShowAndroid,
         displaySettings.romIconPopUpShowDefault,
         displaySettings.romIconPopUpShowInGridStyle,
+        displaySettings.romIconPopUpShowInCarouselStyle,
         listSettings.listStyle
     ) {
         showRomIconPopUp = false
@@ -278,19 +283,80 @@ fun GameGrid(
     val listState = remember(currentSystem?.id, currentSubfolderPath) {
         LazyListState(firstVisibleItemIndex = maxOf(0, selectedIndex - 2))
     }
+    val carouselState = remember(currentSystem?.id, currentSubfolderPath) {
+        LazyListState(firstVisibleItemIndex = selectedIndex, firstVisibleItemScrollOffset = 0)
+    }
+
+    var carouselScrollJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     fun scrollToCenter(index: Int) {
-        coroutineScope.launch {
-            if (listSettings.listStyle == RomListStyle.GRID) {
+        if (listSettings.listStyle == RomListStyle.CAROUSEL) {
+            if (index in displayItems.indices) {
+                carouselScrollJob?.cancel()
+                carouselScrollJob = coroutineScope.launch {
+                    carouselState.animateScrollToItem(index, scrollOffset = 0)
+                }
+            }
+        } else if (listSettings.listStyle == RomListStyle.GRID) {
+            coroutineScope.launch {
                 val vh = gridState.layoutInfo.viewportSize.height
                 val offset = if (vh > 0) -(vh / 3) else 0
                 gridState.animateScrollToItem(index, scrollOffset = offset)
-            } else {
+            }
+        } else {
+            coroutineScope.launch {
                 val vh = listState.layoutInfo.viewportSize.height
                 val offset = if (vh > 0) -(vh / 3) else 0
                 listState.animateScrollToItem(index, scrollOffset = offset)
             }
         }
+    }
+
+    // Continuously auto-highlight the most centered item in real time during gesture scrolling
+    LaunchedEffect(carouselState, listSettings.listStyle, displayItems.size) {
+        if (listSettings.listStyle == RomListStyle.CAROUSEL) {
+            snapshotFlow {
+                val layoutInfo = carouselState.layoutInfo
+                val visibleItems = layoutInfo.visibleItemsInfo
+                if (visibleItems.isEmpty()) return@snapshotFlow -1
+                val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+                visibleItems.minByOrNull { item ->
+                    val itemCenter = item.offset + item.size / 2
+                    kotlin.math.abs(itemCenter - viewportCenter)
+                }?.index ?: -1
+            }.collect { centerIdx ->
+                if (centerIdx in displayItems.indices && !isHeaderFocused && selectedIndex != centerIdx) {
+                    selectedIndex = centerIdx
+                }
+            }
+        }
+    }
+
+    // When gesture scroll ends or settles in Carousel style, ensure the highlighted item is cleanly centered
+    val isCarouselScrollInProgress = carouselState.isScrollInProgress
+    LaunchedEffect(isCarouselScrollInProgress, listSettings.listStyle) {
+        if (listSettings.listStyle == RomListStyle.CAROUSEL && !isCarouselScrollInProgress && displayItems.isNotEmpty() && !isHeaderFocused) {
+            if (selectedIndex in displayItems.indices) {
+                carouselScrollJob?.cancel()
+                carouselScrollJob = coroutineScope.launch {
+                    carouselState.animateScrollToItem(selectedIndex, scrollOffset = 0)
+                }
+            }
+        }
+    }
+
+    // When changing style from non-carousel into carousel, immediately center the selected item
+    var lastListStyle by remember { mutableStateOf(listSettings.listStyle) }
+    LaunchedEffect(listSettings.listStyle) {
+        if (listSettings.listStyle == RomListStyle.CAROUSEL && lastListStyle != RomListStyle.CAROUSEL) {
+            if (selectedIndex in displayItems.indices) {
+                carouselScrollJob?.cancel()
+                carouselScrollJob = coroutineScope.launch {
+                    carouselState.scrollToItem(selectedIndex, scrollOffset = 0)
+                }
+            }
+        }
+        lastListStyle = listSettings.listStyle
     }
 
     fun openSubfolder(folderName: String) {
@@ -333,6 +399,13 @@ fun GameGrid(
             if (isHeaderFocused) {
                 isHeaderFocused = false
                 onMoveFocusUp()
+            } else if (listSettings.listStyle == RomListStyle.CAROUSEL) {
+                if (displaySettings.showSubSystemTitle) {
+                    isHeaderFocused = true
+                    headerFocusedIndex = validHeaderIndices.firstOrNull() ?: 2
+                } else {
+                    onMoveFocusUp()
+                }
             } else {
                 val step = if (listSettings.listStyle == RomListStyle.GRID) gridNumCols else 1
                 if (selectedIndex >= step) {
@@ -358,6 +431,8 @@ fun GameGrid(
                 isHeaderFocused = false
                 selectedIndex = 0
                 scrollToCenter(selectedIndex)
+            } else if (listSettings.listStyle == RomListStyle.CAROUSEL) {
+                onMoveFocusDown()
             } else {
                 val step = if (listSettings.listStyle == RomListStyle.GRID) gridNumCols else 1
                 if (displayItems.isNotEmpty() && selectedIndex + step < displayItems.size) {
@@ -382,6 +457,14 @@ fun GameGrid(
                 if (currentIndexInValid > 0) {
                     headerFocusedIndex = validHeaderIndices[currentIndexInValid - 1]
                 }
+            } else if (listSettings.listStyle == RomListStyle.CAROUSEL) {
+                if (selectedIndex > 0) {
+                    selectedIndex -= 1
+                    scrollToCenter(selectedIndex)
+                } else if (displayItems.isNotEmpty()) {
+                    selectedIndex = displayItems.size - 1
+                    scrollToCenter(selectedIndex)
+                }
             } else if (listSettings.listStyle == RomListStyle.GRID) {
                 if (selectedIndex > 0) {
                     selectedIndex -= 1
@@ -403,6 +486,14 @@ fun GameGrid(
                 val currentIndexInValid = validHeaderIndices.indexOf(headerFocusedIndex)
                 if (currentIndexInValid >= 0 && currentIndexInValid < validHeaderIndices.size - 1) {
                     headerFocusedIndex = validHeaderIndices[currentIndexInValid + 1]
+                }
+            } else if (listSettings.listStyle == RomListStyle.CAROUSEL) {
+                if (selectedIndex + 1 < displayItems.size) {
+                    selectedIndex += 1
+                    scrollToCenter(selectedIndex)
+                } else if (displayItems.isNotEmpty()) {
+                    selectedIndex = 0
+                    scrollToCenter(selectedIndex)
                 }
             } else if (listSettings.listStyle == RomListStyle.GRID) {
                 if (selectedIndex + 1 < displayItems.size) {
@@ -534,27 +625,29 @@ fun GameGrid(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(currentSystem?.id) {
-                var totalOffsetX = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { totalOffsetX = 0f },
-                    onDragEnd = {
-                        val density = context.resources.displayMetrics.density
-                        val thresholdPx = 60f * density
-                        if (totalOffsetX < -thresholdPx) {
-                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-                            currentOnNextSystem()
-                        } else if (totalOffsetX > thresholdPx) {
-                            com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-                            currentOnPreviousSystem()
+            .pointerInput(currentSystem?.id, listSettings.listStyle) {
+                if (listSettings.listStyle != RomListStyle.CAROUSEL) {
+                    var totalOffsetX = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { totalOffsetX = 0f },
+                        onDragEnd = {
+                            val density = context.resources.displayMetrics.density
+                            val thresholdPx = 60f * density
+                            if (totalOffsetX < -thresholdPx) {
+                                com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                                currentOnNextSystem()
+                            } else if (totalOffsetX > thresholdPx) {
+                                com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                                currentOnPreviousSystem()
+                            }
+                            totalOffsetX = 0f
+                        },
+                        onDragCancel = { totalOffsetX = 0f },
+                        onHorizontalDrag = { _, dragAmount ->
+                            totalOffsetX += dragAmount
                         }
-                        totalOffsetX = 0f
-                    },
-                    onDragCancel = { totalOffsetX = 0f },
-                    onHorizontalDrag = { _, dragAmount ->
-                        totalOffsetX += dragAmount
-                    }
-                )
+                    )
+                }
             }
     ) {
         val subSystemHeaderBar: @Composable () -> Unit = {
@@ -687,6 +780,7 @@ fun GameGrid(
                                                 RomListStyle.GRID -> Icons.Default.GridView
                                                 RomListStyle.LIST -> Icons.Default.ViewList
                                                 RomListStyle.TEXT_ONLY -> Icons.Default.FormatListBulleted
+                                                RomListStyle.CAROUSEL -> Icons.Default.ViewCarousel
                                             },
                                             contentDescription = "ROM List Style Settings",
                                             tint = MaterialTheme.colorScheme.onSurface,
@@ -1082,6 +1176,133 @@ fun GameGrid(
                         }
                     }
                 }
+                RomListStyle.CAROUSEL -> {
+                    val cardScaleFactor = (listSettings.gridScalePercent / 100f).coerceIn(0.5f, 2.0f)
+                    val cardWidth = (200.dp * cardScaleFactor)
+                    val cardHeight = (220.dp * cardScaleFactor)
+
+                    BoxWithConstraints(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val screenWidth = maxWidth
+                        val centerHorizontalPadding = if (screenWidth > cardWidth) (screenWidth - cardWidth) / 2 else 32.dp
+
+                        LazyRow(
+                            state = carouselState,
+                            contentPadding = PaddingValues(horizontal = centerHorizontalPadding, vertical = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            itemsIndexed(displayItems, key = { index, item ->
+                                when (item) {
+                                    is ListDisplayItem.ParentFolderItem -> "parent_dir"
+                                    is ListDisplayItem.FolderItem -> "dir_${item.fullPath}"
+                                    is ListDisplayItem.GameItem -> "game_${item.game.id}"
+                                }
+                            }) { index, item ->
+                                val isFocused = isListFocused && !isHeaderFocused && (index == selectedIndex)
+                                val animScale by animateFloatAsState(
+                                    targetValue = if (isFocused && listSettings.enableCarouselAnimation) 1.18f else if (listSettings.enableCarouselAnimation) 0.88f else if (isFocused) 1.05f else 0.95f,
+                                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
+                                    label = "carouselItemScale"
+                                )
+                                val animAlpha by animateFloatAsState(
+                                    targetValue = if (isFocused || !listSettings.enableCarouselAnimation) 1.0f else 0.65f,
+                                    label = "carouselItemAlpha"
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            scaleX = animScale
+                                            scaleY = animScale
+                                            alpha = animAlpha
+                                        }
+                                        .width(cardWidth)
+                                        .height(cardHeight)
+                                ) {
+                                    when (item) {
+                                        is ListDisplayItem.ParentFolderItem -> {
+                                            FolderCarouselCardItem(
+                                                folderName = ".. (Up to Parent)",
+                                                folderFullPath = null,
+                                                system = currentSystem,
+                                                isFocused = isFocused,
+                                                marqueeSpeed = marqueeSpeed,
+                                                marqueeDelayMillis = marqueeDelayMillis,
+                                                settings = listSettings,
+                                                onClick = {
+                                                    selectedIndex = index
+                                                    isHeaderFocused = false
+                                                    scrollToCenter(index)
+                                                    navigateUpToParent()
+                                                },
+                                                onLongClick = {
+                                                    selectedIndex = index
+                                                    isHeaderFocused = false
+                                                    scrollToCenter(index)
+                                                }
+                                            )
+                                        }
+                                        is ListDisplayItem.FolderItem -> {
+                                            FolderCarouselCardItem(
+                                                folderName = item.name,
+                                                folderFullPath = item.fullPath,
+                                                system = currentSystem,
+                                                isFocused = isFocused,
+                                                marqueeSpeed = marqueeSpeed,
+                                                marqueeDelayMillis = marqueeDelayMillis,
+                                                settings = listSettings,
+                                                onClick = {
+                                                    selectedIndex = index
+                                                    isHeaderFocused = false
+                                                    scrollToCenter(index)
+                                                    openSubfolder(item.name)
+                                                },
+                                                onLongClick = {
+                                                    selectedIndex = index
+                                                    isHeaderFocused = false
+                                                    scrollToCenter(index)
+                                                }
+                                            )
+                                        }
+                                        is ListDisplayItem.GameItem -> {
+                                            GameCarouselCardItem(
+                                                game = item.game,
+                                                system = currentSystem,
+                                                isFocused = isFocused,
+                                                marqueeSpeed = marqueeSpeed,
+                                                marqueeDelayMillis = marqueeDelayMillis,
+                                                settings = listSettings,
+                                                onClick = {
+                                                    selectedIndex = index
+                                                    isHeaderFocused = false
+                                                    scrollToCenter(index)
+                                                    onGameClick(item.game)
+                                                },
+                                                onLongClick = {
+                                                    selectedIndex = index
+                                                    isHeaderFocused = false
+                                                    scrollToCenter(index)
+                                                    onGameLongClick(item.game)
+                                                },
+                                                onFavoriteClick = { onFavoriteToggle(item.game) },
+                                                onCompletedClick = { onCompletedToggle(item.game) },
+                                                onInfoClick = { onShowGameInfo?.invoke(item.game) },
+                                                onDeleteClick = if (currentSystem?.id == "recently_played") { { onDeleteFromRecent?.invoke(item.game) } } else null,
+                                                allSystems = allSystems,
+                                                customIcons = customIcons
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Floating Auto Pop-up Icon Preview Overlay
@@ -1113,6 +1334,8 @@ fun GameGrid(
 
                     val shouldShowPopUp = remember(game, actualSystem, displaySettings, hasCustomIcon, saveFileImageExists, listSettings.listStyle) {
                         if (listSettings.listStyle == RomListStyle.GRID && !displaySettings.romIconPopUpShowInGridStyle) {
+                            false
+                        } else if (listSettings.listStyle == RomListStyle.CAROUSEL && !displaySettings.romIconPopUpShowInCarouselStyle) {
                             false
                         } else if (hasCustomIcon || saveFileImageExists) {
                             true
@@ -2053,4 +2276,288 @@ fun getCleanedTitle(title: String, removeChars: String): String {
         cleaned = cleaned.replace(char.toString(), "")
     }
     return cleaned
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun FolderCarouselCardItem(
+    folderName: String,
+    folderFullPath: String? = null,
+    system: SystemEntity? = null,
+    isFocused: Boolean = false,
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200,
+    settings: RomListSettings,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
+) {
+    val folderArtPath = remember(folderName, folderFullPath, system?.boxartFolderPath) {
+        val exts = listOf(".png", ".jpg", ".jpeg", ".webp", ".PNG", ".JPG", ".JPEG", ".WEBP")
+        if (!system?.boxartFolderPath.isNullOrBlank()) {
+            val mediaDir = File(system!!.boxartFolderPath)
+            if (mediaDir.exists() && mediaDir.isDirectory) {
+                for (ext in exts) {
+                    val candidate = File(mediaDir, "$folderName$ext")
+                    if (candidate.exists() && candidate.isFile) return@remember candidate.absolutePath
+                }
+            }
+        }
+        if (!folderFullPath.isNullOrBlank()) {
+            val dir = File(folderFullPath)
+            if (dir.exists() && dir.isDirectory) {
+                val names = listOf(folderName, "folder", "cover", "icon", "artwork")
+                for (name in names) {
+                    for (ext in exts) {
+                        val candidate = File(dir, "$name$ext")
+                        if (candidate.exists() && candidate.isFile) return@remember candidate.absolutePath
+                    }
+                }
+            }
+        }
+        null
+    }
+
+    val iconScale = (settings.carouselIconSizePercent / 100f).coerceIn(0.5f, 2.5f)
+    val iconSize = (if (isFocused) 96.dp else 64.dp) * iconScale
+
+    Card(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .border(
+                width = if (isFocused) 2.5.dp else 1.dp,
+                color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(16.dp)
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isFocused) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                if (folderArtPath != null) {
+                    AsyncImage(
+                        model = folderArtPath,
+                        contentDescription = folderName,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .size(iconSize)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = "Folder",
+                        tint = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        modifier = Modifier.size(iconSize)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            MarqueeText(
+                text = folderName,
+                isFocused = isFocused,
+                marqueeSpeed = marqueeSpeed,
+                marqueeDelayMillis = marqueeDelayMillis,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = settings.textSizeSp.sp,
+                    fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun GameCarouselCardItem(
+    game: GameRomEntity,
+    system: SystemEntity?,
+    isFocused: Boolean = false,
+    marqueeSpeed: Int = 30,
+    marqueeDelayMillis: Int = 1200,
+    settings: RomListSettings,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onFavoriteClick: () -> Unit,
+    onCompletedClick: () -> Unit,
+    onInfoClick: (() -> Unit)? = null,
+    onDeleteClick: (() -> Unit)? = null,
+    allSystems: List<SystemEntity> = emptyList(),
+    customIcons: Map<String, String> = emptyMap()
+) {
+    val context = LocalContext.current
+    val displaySettings = LocalDisplaySettings.current
+    val iconScale = (settings.carouselIconSizePercent / 100f).coerceIn(0.5f, 2.5f)
+    val iconSize = (if (isFocused) 96.dp else 64.dp) * iconScale
+
+    Card(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .border(
+                width = if (isFocused) 2.5.dp else 1.dp,
+                color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(16.dp)
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isFocused) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                val actualSystem = remember(game, system, allSystems) {
+                    if (system?.id == "favorites" || system?.id == "recently_played") {
+                        allSystems.firstOrNull { it.id == game.systemId }
+                    } else {
+                        system
+                    }
+                }
+
+                val resolvedIcon = remember(game, system, customIcons) {
+                    GameIconResolver.resolveRomIcon(game, system, customIcons, allSystems, context)
+                }
+
+                val isAndroidApp = game.systemId in listOf("android_apps", "android_games", "android_emulators") ||
+                        actualSystem?.defaultLaunchMode == "ANDROID_APP" ||
+                        game.systemId.startsWith("android_")
+
+                if (isAndroidApp) {
+                    val customIcon = customIcons[game.filePath]
+                    if (!customIcon.isNullOrBlank() && (File(customIcon).exists() || customIcon.startsWith("/") || customIcon.startsWith("http"))) {
+                        UniversalIconView(
+                            iconNameOrPath = customIcon,
+                            contentDescription = game.title,
+                            modifier = Modifier
+                                .size(iconSize)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                    } else {
+                        val appIcon = remember(game.filePath) {
+                            AndroidAppIconHelper.getAppIconBitmap(context, game.filePath)
+                        }
+                        if (appIcon != null) {
+                            Image(
+                                bitmap = appIcon,
+                                contentDescription = game.title,
+                                modifier = Modifier
+                                    .size(iconSize)
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+                        } else {
+                            UniversalIconView(
+                                iconNameOrPath = "android",
+                                contentDescription = game.title,
+                                tint = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                modifier = Modifier.size(iconSize)
+                            )
+                        }
+                    }
+                } else {
+                    UniversalIconView(
+                        iconNameOrPath = resolvedIcon,
+                        contentDescription = game.title,
+                        tint = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                        modifier = Modifier.size(iconSize)
+                    )
+                }
+
+                // Favorite & Completed badges
+                if (game.isFavorite || game.isCompleted) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (game.isFavorite) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Favorite",
+                                        tint = Color(0xFFFFD700),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                        if (game.isCompleted) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Completed",
+                                        tint = Color(0xFF4CAF50),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val cleanedTitle = getCleanedTitle(game.title, displaySettings.removeCharsFromGameNames)
+
+            MarqueeText(
+                text = cleanedTitle,
+                isFocused = isFocused,
+                marqueeSpeed = marqueeSpeed,
+                marqueeDelayMillis = marqueeDelayMillis,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = settings.textSizeSp.sp,
+                    fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
 }

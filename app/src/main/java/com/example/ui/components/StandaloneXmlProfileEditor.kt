@@ -110,7 +110,7 @@ fun StandaloneXmlProfileEditor(
                             rawXml = """
 <emulator id="nethersx2" name="NetherSX2 / AetherSX2 (PS2)">
   <package>net.nethersx2.android</package>
-  <activity>xyz.aethersx2.android.MainActivity</activity>
+  <activity>net.nethersx2.android.EmulationActivity</activity>
   <action>android.intent.action.MAIN</action>
   <romPathExtraKey>bootPath</romPathExtraKey>
 </emulator>
@@ -123,9 +123,9 @@ fun StandaloneXmlProfileEditor(
                             rawXml = """
 <emulator id="ppsspp_gold" name="PPSSPP Gold (PSP)">
   <package>org.ppsspp.ppssppgold</package>
-  <activity>org.ppsspp.ppsspp.PpssppActivity</activity>
+  <activity>org.ppsspp.ppssppgold.PpssppActivity</activity>
   <action>android.intent.action.VIEW</action>
-  <romPathExtraKey>PATH</romPathExtraKey>
+  <romPathExtraKey>org.ppsspp.ppssppgold.Shortcuts</romPathExtraKey>
 </emulator>
                             """.trimIndent()
                         },

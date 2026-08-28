@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Retro Launcher</string>
+    <string name="accessibility_service_label">Retro Launcher Accessibility Service</string>
+    <string name="accessibility_service_description">Enables system shortcuts like opening Recent Apps (Overview) and Notification panel.</string>
 </resources>

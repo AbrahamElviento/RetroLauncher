@@ -141,3 +141,66 @@ fun Modifier.lazyGridScrollbar(
         }
     }
 }
+
+fun Modifier.lazyRowScrollbar(
+    state: LazyListState,
+    autoHide: Boolean = true,
+    showDurationMs: Long = 1500L,
+    color: Color = Color.White.copy(alpha = 0.6f),
+    trackColor: Color = Color.Black.copy(alpha = 0.2f),
+    height: Dp = 6.dp
+): Modifier = composed {
+    var isVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(state.isScrollInProgress, state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset, autoHide, showDurationMs) {
+        if (!autoHide) {
+            isVisible = true
+        } else {
+            isVisible = true
+            if (!state.isScrollInProgress) {
+                delay(showDurationMs.coerceAtLeast(100L))
+                isVisible = false
+            }
+        }
+    }
+
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(300),
+        label = "RowScrollbarAlpha"
+    )
+
+    drawWithContent {
+        drawContent()
+        if (alpha <= 0.01f) return@drawWithContent
+        val totalItems = state.layoutInfo.totalItemsCount
+        val visibleItems = state.layoutInfo.visibleItemsInfo
+        if (totalItems > 0 && visibleItems.isNotEmpty() && visibleItems.size < totalItems) {
+            val firstVisibleIndex = visibleItems.first().index
+            val visibleItemCount = visibleItems.size
+            val canvasWidth = size.width
+            val canvasHeight = size.height
+            val trackHeightPx = height.toPx()
+            val trackY = canvasHeight - trackHeightPx
+
+            // Draw horizontal track
+            drawRoundRect(
+                color = trackColor.copy(alpha = trackColor.alpha * alpha),
+                topLeft = Offset(0f, trackY),
+                size = Size(canvasWidth, trackHeightPx),
+                cornerRadius = CornerRadius(trackHeightPx / 2)
+            )
+
+            // Draw horizontal thumb
+            val thumbWidth = (canvasWidth * (visibleItemCount.toFloat() / totalItems)).coerceAtLeast(36.dp.toPx())
+            val thumbOffsetX = ((canvasWidth - thumbWidth) * (firstVisibleIndex.toFloat() / (totalItems - visibleItemCount).coerceAtLeast(1)))
+
+            drawRoundRect(
+                color = color.copy(alpha = color.alpha * alpha),
+                topLeft = Offset(thumbOffsetX.coerceIn(0f, canvasWidth - thumbWidth), trackY),
+                size = Size(thumbWidth, trackHeightPx),
+                cornerRadius = CornerRadius(trackHeightPx / 2)
+            )
+        }
+    }
+}

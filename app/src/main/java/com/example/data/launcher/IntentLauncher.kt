@@ -151,16 +151,146 @@ class IntentLauncher(private val context: Context) {
         return LaunchResult.Error("RetroArch error: ${lastError?.localizedMessage ?: "Unable to launch RetroArch activity"}")
     }
 
+    private fun isAetherSX2OrNetherSX2(profile: StandaloneProfileEntity, targetPackage: String): Boolean {
+        val id = profile.id.lowercase()
+        val pkg = targetPackage.lowercase()
+        val act = profile.activityName.lowercase()
+        return id == "aethersx2" || id == "nethersx2" ||
+                pkg == "xyz.aethersx2.android" || pkg == "net.nethersx2.android" || pkg == "net.pcsx2.aethersx2" ||
+                pkg.contains("aethersx2") || pkg.contains("nethersx2") ||
+                act.contains("aethersx2") || act.contains("nethersx2")
+    }
+
+    private fun getPpssppRomPath(filePath: String): Pair<String, String> {
+        val absolutePath = filePath.trim()
+        if (absolutePath.startsWith("/storage/")) {
+            val sub = absolutePath.removePrefix("/storage/")
+            val parts = sub.split("/", limit = 2)
+            if (parts.size == 2 && parts[0] != "emulated" && parts[0] != "self") {
+                val sdCardName = parts[0]
+                val relativePath = parts[1].trimStart('/')
+                val formattedSdPath = "$sdCardName/$relativePath"
+                return Pair(formattedSdPath, absolutePath)
+            }
+        } else if (absolutePath.startsWith("/mnt/media_rw/")) {
+            val sub = absolutePath.removePrefix("/mnt/media_rw/")
+            val parts = sub.split("/", limit = 2)
+            if (parts.size == 2) {
+                val sdCardName = parts[0]
+                val relativePath = parts[1].trimStart('/')
+                val formattedSdPath = "$sdCardName/$relativePath"
+                val fullStoragePath = "/storage/$sdCardName/$relativePath"
+                return Pair(formattedSdPath, fullStoragePath)
+            }
+        }
+        return Pair(absolutePath, absolutePath)
+    }
+
+    fun getSafDocumentUri(file: File): Uri {
+        val absolutePath = file.absolutePath
+        if (absolutePath.startsWith("content://")) {
+            return Uri.parse(absolutePath)
+        }
+        val authority = "com.android.externalstorage.documents"
+
+        val (volume, relativePath) = when {
+            absolutePath.startsWith("/storage/emulated/0/") -> {
+                "primary" to absolutePath.removePrefix("/storage/emulated/0/")
+            }
+            absolutePath.startsWith("/sdcard/") -> {
+                "primary" to absolutePath.removePrefix("/sdcard/")
+            }
+            absolutePath.startsWith("/mnt/sdcard/") -> {
+                "primary" to absolutePath.removePrefix("/mnt/sdcard/")
+            }
+            absolutePath.startsWith("/storage/") -> {
+                val sub = absolutePath.removePrefix("/storage/")
+                val parts = sub.split("/", limit = 2)
+                if (parts.size == 2) {
+                    if (parts[0] == "emulated") {
+                        val subParts = parts[1].split("/", limit = 2)
+                        if (subParts.size == 2) "primary" to subParts[1] else "primary" to parts[1]
+                    } else {
+                        parts[0] to parts[1]
+                    }
+                } else {
+                    "primary" to sub
+                }
+            }
+            else -> "primary" to absolutePath.trimStart('/')
+        }
+
+        val cleanRelativePath = relativePath.trimStart('/')
+        val docId = "$volume:$cleanRelativePath"
+
+        return try {
+            android.provider.DocumentsContract.buildDocumentUri(authority, docId)
+        } catch (e: Exception) {
+            val encodedDocId = Uri.encode(docId, ":/")
+            Uri.parse("content://$authority/document/$encodedDocId")
+        }
+    }
+
+    fun getSafTreeDocumentUri(file: File): Uri {
+        val absolutePath = file.absolutePath
+        if (absolutePath.startsWith("content://")) {
+            return Uri.parse(absolutePath)
+        }
+        val authority = "com.android.externalstorage.documents"
+
+        val (volume, relativePath) = when {
+            absolutePath.startsWith("/storage/emulated/0/") -> {
+                "primary" to absolutePath.removePrefix("/storage/emulated/0/")
+            }
+            absolutePath.startsWith("/sdcard/") -> {
+                "primary" to absolutePath.removePrefix("/sdcard/")
+            }
+            absolutePath.startsWith("/mnt/sdcard/") -> {
+                "primary" to absolutePath.removePrefix("/mnt/sdcard/")
+            }
+            absolutePath.startsWith("/storage/") -> {
+                val sub = absolutePath.removePrefix("/storage/")
+                val parts = sub.split("/", limit = 2)
+                if (parts.size == 2) {
+                    if (parts[0] == "emulated") {
+                        val subParts = parts[1].split("/", limit = 2)
+                        if (subParts.size == 2) "primary" to subParts[1] else "primary" to parts[1]
+                    } else {
+                        parts[0] to parts[1]
+                    }
+                } else {
+                    "primary" to sub
+                }
+            }
+            else -> "primary" to absolutePath.trimStart('/')
+        }
+
+        val cleanRelativePath = relativePath.trimStart('/')
+        val docId = "$volume:$cleanRelativePath"
+        val parentPath = if (cleanRelativePath.contains("/")) cleanRelativePath.substringBeforeLast('/') else ""
+        val treeId = if (parentPath.isNotEmpty()) "$volume:$parentPath" else "$volume:"
+
+        return try {
+            val treeUri = android.provider.DocumentsContract.buildTreeDocumentUri(authority, treeId)
+            android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+        } catch (e: Exception) {
+            val encodedTreeId = Uri.encode(treeId, ":/")
+            val encodedDocId = Uri.encode(docId, ":/")
+            Uri.parse("content://$authority/tree/$encodedTreeId/document/$encodedDocId")
+        }
+    }
+
     fun launchStandaloneApp(profile: StandaloneProfileEntity, game: GameRomEntity): LaunchResult {
         var targetPackage = profile.packageName.trim()
 
         if (!isPackageInstalled(targetPackage)) {
-            val alternates = when (profile.id) {
-                "aethersx2" -> listOf("xyz.aethersx2.android", "net.pcsx2.aethersx2", "net.nethersx2.android")
-                "ppsspp" -> listOf("org.ppsspp.ppsspp", "org.ppsspp.ppssppgold")
-                "ppsspp_gold" -> listOf("org.ppsspp.ppssppgold", "org.ppsspp.ppsspp")
-                "drastic" -> listOf("com.dsemu.drastic")
-                "dolphin" -> listOf("org.dolphinemu.dolphinemu", "org.dolphinemu.mmjr")
+            val idLower = profile.id.lowercase()
+            val alternates = when {
+                idLower == "aethersx2" || idLower == "nethersx2" -> listOf("xyz.aethersx2.android", "net.nethersx2.android", "net.pcsx2.aethersx2")
+                idLower == "ppsspp" -> listOf("org.ppsspp.ppsspp", "org.ppsspp.ppssppgold")
+                idLower == "ppsspp_gold" -> listOf("org.ppsspp.ppssppgold", "org.ppsspp.ppsspp")
+                idLower == "drastic" -> listOf("com.dsemu.drastic")
+                idLower == "dolphin" -> listOf("org.dolphinemu.dolphinemu", "org.dolphinemu.mmjr")
                 else -> emptyList()
             }
             val installedAlt = alternates.firstOrNull { isPackageInstalled(it) }
@@ -171,22 +301,29 @@ class IntentLauncher(private val context: Context) {
             }
         }
 
+        val isAetherOrNether = isAetherSX2OrNetherSX2(profile, targetPackage)
+
         // Format activity class name
         val rawActivity = profile.activityName.trim()
         val activityClass = when {
+            isAetherOrNether -> "$targetPackage.EmulationActivity"
             rawActivity.startsWith(".") -> "$targetPackage$rawActivity"
             rawActivity.startsWith("/") -> "$targetPackage${rawActivity.removePrefix("/")}"
-            profile.id == "aethersx2" || rawActivity.endsWith(".EmulationActivity") -> "$targetPackage.EmulationActivity"
+            rawActivity.endsWith(".EmulationActivity") -> "$targetPackage.EmulationActivity"
             profile.id == "ppsspp" || profile.id == "ppsspp_gold" || rawActivity.endsWith(".PpssppActivity") -> "$targetPackage.PpssppActivity"
             profile.id == "drastic" || rawActivity.endsWith(".DraSticActivity") -> "$targetPackage.DraSticActivity"
             profile.id == "dolphin" || rawActivity.endsWith("ui.main.MainActivity") -> "$targetPackage.ui.main.MainActivity"
             else -> rawActivity
         }
 
-        val actionToUse = if (profile.id == "aethersx2") {
-            Intent.ACTION_MAIN
-        } else {
-            profile.intentAction.ifEmpty { Intent.ACTION_VIEW }
+        val isPpsspp = profile.id == "ppsspp" || profile.id == "ppsspp_gold" ||
+                targetPackage == "org.ppsspp.ppsspp" || targetPackage == "org.ppsspp.ppssppgold" ||
+                targetPackage.contains("ppsspp")
+
+        val actionToUse = when {
+            isAetherOrNether -> Intent.ACTION_MAIN
+            isPpsspp -> Intent.ACTION_VIEW
+            else -> profile.intentAction.ifEmpty { Intent.ACTION_VIEW }
         }
 
         return try {
@@ -200,37 +337,82 @@ class IntentLauncher(private val context: Context) {
             val file = File(game.filePath)
             val uri = getUriForFile(file)
             val fileUri = Uri.fromFile(file)
-
-            try {
-                context.grantUriPermission(targetPackage, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            } catch (e: Exception) {
-                // Ignore
-            }
+            val safUri = getSafDocumentUri(file)
+            val safTreeUri = getSafTreeDocumentUri(file)
+            val safUriString = safUri.toString()
 
             val intent = Intent(actionToUse).apply {
                 setClassName(targetPackage, activityClass)
+
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
 
-                val extraKey = profile.romPathExtraKey.ifEmpty { "bootPath" }
+                val extraKey = profile.romPathExtraKey.ifEmpty {
+                    when {
+                        isAetherOrNether -> "bootPath"
+                        isPpsspp -> "org.ppsspp.ppsspp.Shortcuts"
+                        else -> "bootPath"
+                    }
+                }
 
-                // Populate primary extra key and all known emulator keys (DraStic, AetherSX2, PPSSPP, etc.)
-                putExtra(extraKey, game.filePath)
-                putExtra("bootPath", game.filePath)
-                putExtra("path", game.filePath)
-                putExtra("ROM", game.filePath)
-                putExtra("gamePath", game.filePath)
-                putExtra("romPath", game.filePath)
-
-                if (extraKey == "android.intent.extra.STREAM" || extraKey == "CONTENT_URI") {
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    setDataAndType(uri, "*/*")
-                } else if (profile.id == "drastic" || targetPackage == "com.dsemu.drastic") {
-                    // DraStic specifically expects file Uri or direct bootPath extra
-                    setDataAndType(fileUri, "*/*")
+                if (isPpsspp) {
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                    data = safUri
+                } else if (isAetherOrNether) {
+                    putExtra("bootPath", safUriString)
+                    if (extraKey.isNotEmpty() && extraKey != "bootPath") {
+                        putExtra(extraKey, safUriString)
+                    }
                 } else {
-                    setDataAndType(uri, "*/*")
+                    putExtra(extraKey, game.filePath)
+                    putExtra("bootPath", game.filePath)
+                    putExtra("path", game.filePath)
+                    putExtra("ROM", game.filePath)
+                    putExtra("gamePath", game.filePath)
+                    putExtra("romPath", game.filePath)
+
+                    if (extraKey == "android.intent.extra.STREAM" || extraKey == "CONTENT_URI") {
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        setDataAndType(uri, "*/*")
+                    } else if (profile.id == "drastic" || targetPackage == "com.dsemu.drastic") {
+                        setDataAndType(fileUri, "*/*")
+                    } else {
+                        setDataAndType(uri, "*/*")
+                    }
+                }
+
+                if (profile.extraArgsJson.isNotBlank() && profile.extraArgsJson != "{}") {
+                    try {
+                        val json = org.json.JSONObject(profile.extraArgsJson)
+                        val keys = json.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            val value = json.optString(key)
+                            if (key.isNotEmpty()) {
+                                putExtra(key, value)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("IntentLauncher", "Failed to parse extraArgsJson: ${e.message}")
+                    }
+                }
+            }
+
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            val urisToGrant = if (isAetherOrNether || isPpsspp) {
+                listOfNotNull(safUri, safTreeUri, uri, fileUri)
+            } else {
+                listOfNotNull(uri, fileUri)
+            }
+            for (u in urisToGrant) {
+                try {
+                    context.grantUriPermission(targetPackage, u, flags)
+                } catch (e: Exception) {
+                    Log.w("IntentLauncher", "Failed granting permission for $u to $targetPackage: ${e.message}")
                 }
             }
 

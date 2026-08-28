@@ -93,7 +93,8 @@ fun DisplaySettingsDialog(
     var systemMenuTileMarginLeftText by remember { mutableStateOf(currentSettings.systemMenuTileMarginLeftDp.toString()) }
     var systemMenuTileMarginRightText by remember { mutableStateOf(currentSettings.systemMenuTileMarginRightDp.toString()) }
     var showSystemMainMenuEditIcon by remember { mutableStateOf(currentSettings.showSystemMainMenuEditIcon) }
-    var systemMainMenuStyle by remember { mutableStateOf(if (currentSettings.systemMainMenuStyle == "CAROUSEL") "ICON_GRID" else currentSettings.systemMainMenuStyle) }
+    var systemMainMenuStyle by remember { mutableStateOf(currentSettings.systemMainMenuStyle) }
+    var mainMenuCarouselAnimation by remember { mutableStateOf(currentSettings.mainMenuCarouselAnimation) }
     var systemMainMenuGridStyle by remember { mutableStateOf(currentSettings.systemMainMenuGridStyle) }
     var centeredLastGridItem by remember { mutableStateOf(currentSettings.centeredLastGridItem) }
     var showSystemTitle by remember { mutableStateOf(currentSettings.showSystemTitle) }
@@ -117,6 +118,7 @@ fun DisplaySettingsDialog(
     var enableNavigationSound by remember { mutableStateOf(currentSettings.enableNavigationSound) }
     var enableBgm by remember { mutableStateOf(currentSettings.enableBgm) }
     var mainMenuIconGridScalePercent by remember { mutableFloatStateOf(currentSettings.mainMenuIconGridScalePercent.toFloat()) }
+    var mainMenuCarouselIconSizePercent by remember { mutableFloatStateOf(currentSettings.mainMenuCarouselIconSizePercent.toFloat()) }
     var selectedSfxFileName by remember { mutableStateOf(currentSettings.selectedSfxFileName) }
 
     // Theme States
@@ -146,6 +148,7 @@ fun DisplaySettingsDialog(
     var romIconPopUpShowAndroid by remember { mutableStateOf(currentSettings.romIconPopUpShowAndroid) }
     var romIconPopUpShowDefault by remember { mutableStateOf(currentSettings.romIconPopUpShowDefault) }
     var romIconPopUpShowInGridStyle by remember { mutableStateOf(currentSettings.romIconPopUpShowInGridStyle) }
+    var romIconPopUpShowInCarouselStyle by remember { mutableStateOf(currentSettings.romIconPopUpShowInCarouselStyle) }
     var romIconPopUpTimeoutMsText by remember { mutableStateOf(currentSettings.romIconPopUpTimeoutMs.toString()) }
     var romIconPopUpAlignment by remember { mutableStateOf(currentSettings.romIconPopUpAlignment) }
     var romIconPopUpWidthPercentText by remember { mutableStateOf(currentSettings.romIconPopUpWidthPercent.toString()) }
@@ -686,152 +689,6 @@ fun DisplaySettingsDialog(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            Text(
-                                text = "DISPLAY MODE",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            val menuStyles = remember {
-                                listOf(
-                                    "ICON_GRID" to "Standard Grid Mode",
-                                    "GRID_ALT" to "Grid Alternative Mode",
-                                    "TEXT_LIST" to "Text List Mode"
-                                )
-                            }
-                            val selectedMenuStyleLabel = menuStyles.firstOrNull { it.first == systemMainMenuStyle }?.second ?: "Standard Grid Mode"
-
-                            ExposedDropdownMenuBox(
-                                expanded = expandedMainMenuStyleDropdown,
-                                onExpandedChange = { expandedMainMenuStyleDropdown = !expandedMainMenuStyleDropdown }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedMenuStyleLabel,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text("Main Menu Active Layout Style") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMainMenuStyleDropdown) },
-                                    modifier = Modifier
-                                        .menuAnchor()
-                                        .fillMaxWidth(),
-                                    singleLine = true
-                                )
-
-                                 ExposedDropdownMenu(
-                                    expanded = expandedMainMenuStyleDropdown,
-                                    onDismissRequest = { expandedMainMenuStyleDropdown = false }
-                                ) {
-                                    menuStyles.forEach { (styleKey, styleLabel) ->
-                                        DropdownMenuItem(
-                                            text = { Text(styleLabel, fontWeight = FontWeight.SemiBold) },
-                                            onClick = {
-                                                systemMainMenuStyle = styleKey
-                                                expandedMainMenuStyleDropdown = false
-                                            },
-                                            leadingIcon = {
-                                                if (systemMainMenuStyle == styleKey) {
-                                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            if (systemMainMenuStyle == "ICON_GRID" || systemMainMenuStyle == "GRID_ALT") {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Text(
-                                    text = "GRID STYLE ARRANGEMENT",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                val gridArrangements = remember {
-                                    listOf(
-                                        "TOP_LEFT" to "Top Left (Default)",
-                                        "TOP_RIGHT" to "Top Right",
-                                        "BOTTOM_LEFT" to "Bottom Left",
-                                        "BOTTOM_RIGHT" to "Bottom Right"
-                                    )
-                                }
-                                val currentArrangementKey = when (systemMainMenuGridStyle) {
-                                    "TOP_RIGHT" -> "TOP_RIGHT"
-                                    "BOTTOM_LEFT" -> "BOTTOM_LEFT"
-                                    "BOTTOM_RIGHT" -> "BOTTOM_RIGHT"
-                                    else -> "TOP_LEFT"
-                                }
-                                val selectedArrangementLabel = gridArrangements.firstOrNull { it.first == currentArrangementKey }?.second ?: "Top Left (Default)"
-
-                                ExposedDropdownMenuBox(
-                                    expanded = expandedGridStyleDropdown,
-                                    onExpandedChange = { expandedGridStyleDropdown = !expandedGridStyleDropdown }
-                                ) {
-                                    OutlinedTextField(
-                                        value = selectedArrangementLabel,
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        label = { Text("Grid Arrangement Corner") },
-                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGridStyleDropdown) },
-                                        modifier = Modifier
-                                            .menuAnchor()
-                                            .fillMaxWidth(),
-                                        singleLine = true
-                                    )
-
-                                    ExposedDropdownMenu(
-                                        expanded = expandedGridStyleDropdown,
-                                        onDismissRequest = { expandedGridStyleDropdown = false }
-                                    ) {
-                                        gridArrangements.forEach { (arrKey, arrLabel) ->
-                                            DropdownMenuItem(
-                                                text = { Text(arrLabel, fontWeight = FontWeight.SemiBold) },
-                                                onClick = {
-                                                    systemMainMenuGridStyle = arrKey
-                                                    expandedGridStyleDropdown = false
-                                                },
-                                                leadingIcon = {
-                                                    if (currentArrangementKey == arrKey) {
-                                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                    }
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (systemMainMenuStyle == "ICON_GRID" || systemMainMenuStyle == "GRID_ALT") {
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Centered Last Grid Item",
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                        )
-                                        Switch(
-                                            checked = centeredLastGridItem,
-                                            onCheckedChange = { centeredLastGridItem = it }
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -895,31 +752,6 @@ fun DisplaySettingsDialog(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "Show Edit Icon on System Cards",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                    )
-                                    Switch(
-                                        checked = showSystemMainMenuEditIcon,
-                                        onCheckedChange = { showSystemMainMenuEditIcon = it }
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "Show Move to First/Last Buttons",
@@ -938,30 +770,256 @@ fun DisplaySettingsDialog(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                            // ICON GRID SIZE PERCENTAGE
-                            Column {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Icon Grid Size (%)", style = MaterialTheme.typography.bodyMedium)
-                                    Text("${mainMenuIconGridScalePercent.toInt()}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = "Show Edit Icon on System Cards",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                    Switch(
+                                        checked = showSystemMainMenuEditIcon,
+                                        onCheckedChange = { showSystemMainMenuEditIcon = it }
+                                    )
                                 }
-                                Slider(
-                                    value = mainMenuIconGridScalePercent,
-                                    onValueChange = { mainMenuIconGridScalePercent = it },
-                                    valueRange = 50f..150f,
-                                    steps = 19
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "DISPLAY MODE",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            val menuStyles = remember {
+                                listOf(
+                                    "ICON_GRID" to "Standard Grid Mode",
+                                    "GRID_ALT" to "Grid Alternative Mode",
+                                    "TEXT_LIST" to "Text List Mode",
+                                    "CAROUSEL" to "Carousel Mode"
                                 )
+                            }
+                            val selectedMenuStyleLabel = menuStyles.firstOrNull { it.first == systemMainMenuStyle }?.second ?: "Standard Grid Mode"
+
+                            ExposedDropdownMenuBox(
+                                expanded = expandedMainMenuStyleDropdown,
+                                onExpandedChange = { expandedMainMenuStyleDropdown = !expandedMainMenuStyleDropdown }
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedMenuStyleLabel,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Main Menu Active Layout Style") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMainMenuStyleDropdown) },
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                ExposedDropdownMenu(
+                                    expanded = expandedMainMenuStyleDropdown,
+                                    onDismissRequest = { expandedMainMenuStyleDropdown = false }
+                                ) {
+                                    menuStyles.forEach { (styleKey, styleLabel) ->
+                                        DropdownMenuItem(
+                                            text = { Text(styleLabel, fontWeight = FontWeight.SemiBold) },
+                                            onClick = {
+                                                systemMainMenuStyle = styleKey
+                                                expandedMainMenuStyleDropdown = false
+                                            },
+                                            leadingIcon = {
+                                                if (systemMainMenuStyle == styleKey) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // GRID / GRID ALT SPECIFIC SETTINGS
+                            if (systemMainMenuStyle == "ICON_GRID" || systemMainMenuStyle == "GRID_ALT") {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "GRID STYLE ARRANGEMENT",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                val gridArrangements = remember {
+                                    listOf(
+                                        "TOP_LEFT" to "Top Left (Default)",
+                                        "TOP_RIGHT" to "Top Right",
+                                        "BOTTOM_LEFT" to "Bottom Left",
+                                        "BOTTOM_RIGHT" to "Bottom Right"
+                                    )
+                                }
+                                val currentArrangementKey = when (systemMainMenuGridStyle) {
+                                    "TOP_RIGHT" -> "TOP_RIGHT"
+                                    "BOTTOM_LEFT" -> "BOTTOM_LEFT"
+                                    "BOTTOM_RIGHT" -> "BOTTOM_RIGHT"
+                                    else -> "TOP_LEFT"
+                                }
+                                val selectedArrangementLabel = gridArrangements.firstOrNull { it.first == currentArrangementKey }?.second ?: "Top Left (Default)"
+
+                                ExposedDropdownMenuBox(
+                                    expanded = expandedGridStyleDropdown,
+                                    onExpandedChange = { expandedGridStyleDropdown = !expandedGridStyleDropdown }
+                                ) {
+                                    OutlinedTextField(
+                                        value = selectedArrangementLabel,
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text("Grid Arrangement Corner") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGridStyleDropdown) },
+                                        modifier = Modifier
+                                            .menuAnchor()
+                                            .fillMaxWidth(),
+                                        singleLine = true
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = expandedGridStyleDropdown,
+                                        onDismissRequest = { expandedGridStyleDropdown = false }
+                                    ) {
+                                        gridArrangements.forEach { (arrKey, arrLabel) ->
+                                            DropdownMenuItem(
+                                                text = { Text(arrLabel, fontWeight = FontWeight.SemiBold) },
+                                                onClick = {
+                                                    systemMainMenuGridStyle = arrKey
+                                                    expandedGridStyleDropdown = false
+                                                },
+                                                leadingIcon = {
+                                                    if (currentArrangementKey == arrKey) {
+                                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Centered Last Grid Item",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Switch(
+                                            checked = centeredLastGridItem,
+                                            onCheckedChange = { centeredLastGridItem = it }
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                // ICON GRID SIZE PERCENTAGE
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Icon Grid Size (%)", style = MaterialTheme.typography.bodyMedium)
+                                        Text("${mainMenuIconGridScalePercent.toInt()}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    }
+                                    Slider(
+                                        value = mainMenuIconGridScalePercent,
+                                        onValueChange = { mainMenuIconGridScalePercent = it },
+                                        valueRange = 50f..150f,
+                                        steps = 19
+                                    )
+                                }
+                            }
+
+                            // CAROUSEL SPECIFIC SETTINGS
+                            if (systemMainMenuStyle == "CAROUSEL") {
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Carousel Animation Toggle
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Carousel Animation",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                            )
+                                            Text(
+                                                text = "Enable zoom, scale and smooth transition animation in carousel main menu style",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = mainMenuCarouselAnimation,
+                                            onCheckedChange = { mainMenuCarouselAnimation = it }
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // CAROUSEL ICON SIZE PERCENTAGE
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Carousel Icon Size (%)", style = MaterialTheme.typography.bodyMedium)
+                                        Text("${mainMenuCarouselIconSizePercent.toInt()}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    }
+                                    Slider(
+                                        value = mainMenuCarouselIconSizePercent,
+                                        onValueChange = { mainMenuCarouselIconSizePercent = it },
+                                        valueRange = 50f..200f,
+                                        steps = 29
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            // TEXT DISPLAY STYLE SETTING (DEDICATED)
+                            // TEXT DISPLAY & DESCRIPTION SETTINGS (ALWAYS VISIBLE AT THE BOTTOM)
                             Text(
-                                text = "TEXT DISPLAY STYLE SETTINGS",
+                                text = "TEXT & DESCRIPTION SETTINGS",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -1994,6 +2052,37 @@ fun DisplaySettingsDialog(
                                                      modifier = Modifier.scale(0.85f)
                                                  )
                                              }
+
+                                             HorizontalDivider(
+                                                 modifier = Modifier.padding(horizontal = 14.dp),
+                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                                             )
+
+                                             // 6. Show in Carousel Style
+                                             Row(
+                                                 modifier = Modifier
+                                                     .fillMaxWidth()
+                                                     .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                                 verticalAlignment = Alignment.CenterVertically
+                                             ) {
+                                                 Column(modifier = Modifier.weight(1f)) {
+                                                     Text(
+                                                         text = "Show in Carousel Style",
+                                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                     )
+                                                     Text(
+                                                         text = "Enable pop-up when viewing game lists in Carousel layout",
+                                                         style = MaterialTheme.typography.bodySmall,
+                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                     )
+                                                 }
+                                                 Switch(
+                                                      checked = romIconPopUpShowInCarouselStyle,
+                                                      onCheckedChange = { romIconPopUpShowInCarouselStyle = it },
+                                                      modifier = Modifier.scale(0.85f)
+                                                 )
+                                             }
                                          }
                                      }
                                  }
@@ -2257,6 +2346,8 @@ fun DisplaySettingsDialog(
                                 enableNavigationSound = enableNavigationSound,
                                 enableBgm = enableBgm,
                                 mainMenuIconGridScalePercent = mainMenuIconGridScalePercent.toInt(),
+                                mainMenuCarouselIconSizePercent = mainMenuCarouselIconSizePercent.toInt(),
+                                mainMenuCarouselAnimation = mainMenuCarouselAnimation,
                                 selectedSfxFileName = selectedSfxFileName,
                                 maxRecentCount = maxRecentCountText.toIntOrNull() ?: 30,
                                 customArcadeDbPath = customArcadeDbPathText,
@@ -2274,6 +2365,7 @@ fun DisplaySettingsDialog(
                                 romIconPopUpShowAndroid = romIconPopUpShowAndroid,
                                 romIconPopUpShowDefault = romIconPopUpShowDefault,
                                 romIconPopUpShowInGridStyle = romIconPopUpShowInGridStyle,
+                                romIconPopUpShowInCarouselStyle = romIconPopUpShowInCarouselStyle,
                                 romIconPopUpTimeoutMs = romIconPopUpTimeoutMsText.toIntOrNull() ?: 1000,
                                 romIconPopUpAlignment = romIconPopUpAlignment,
                                 romIconPopUpWidthPercent = romIconPopUpWidthPercentText.toIntOrNull() ?: 30,

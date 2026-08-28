@@ -40,12 +40,16 @@ object SystemIconHelper {
         "home" to Icons.Default.Home,
         "bar_chart" to Icons.Default.BarChart,
         "check_box" to Icons.Default.CheckBox,
-        "badge" to Icons.Default.Badge
+        "badge" to Icons.Default.Badge,
+        "wifi" to Icons.Default.Wifi,
+        "bluetooth" to Icons.Default.Bluetooth
     )
 
     fun getIconVector(iconName: String): ImageVector {
         val lower = iconName.lowercase()
         return when {
+            lower == "wifi" || lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("wireless") -> Icons.Default.Wifi
+            lower == "bluetooth" || lower.contains("bluetooth") || lower.contains("bt") -> Icons.Default.Bluetooth
             lower == "star" || lower.contains("fav") || lower.contains("star") -> Icons.Default.Star
             lower == "history" || lower.contains("recent") || lower.contains("history") -> Icons.Default.History
             lower == "android" || lower.contains("android") -> Icons.Default.Android

@@ -26,6 +26,8 @@ import com.example.ui.viewmodel.LauncherViewModel
 
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import android.view.MotionEvent
+import android.view.InputDevice
 import coil.ImageLoader
 import coil.decode.SvgDecoder
 import coil.Coil
@@ -132,6 +134,48 @@ class MainActivity : ComponentActivity() {
             WindowCompat.setDecorFitsSystemWindows(window, true)
             controller.show(WindowInsetsCompat.Type.systemBars())
         }
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_SCROLL || event.actionMasked == MotionEvent.ACTION_SCROLL) {
+            val axisScroll = event.getAxisValue(MotionEvent.AXIS_SCROLL)
+            val axisVScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+            val axisWheel = event.getAxisValue(MotionEvent.AXIS_WHEEL)
+            val axisY = event.getAxisValue(MotionEvent.AXIS_Y)
+            val vScroll = when {
+                axisScroll != 0f -> axisScroll
+                axisVScroll != 0f -> axisVScroll
+                axisWheel != 0f -> axisWheel
+                axisY != 0f -> axisY
+                else -> 0f
+            }
+            if (vScroll != 0f) {
+                viewModel.onRotaryScroll(vScroll)
+                return true
+            }
+        }
+        return super.dispatchGenericMotionEvent(event)
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_SCROLL || event.actionMasked == MotionEvent.ACTION_SCROLL) {
+            val axisScroll = event.getAxisValue(MotionEvent.AXIS_SCROLL)
+            val axisVScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+            val axisWheel = event.getAxisValue(MotionEvent.AXIS_WHEEL)
+            val axisY = event.getAxisValue(MotionEvent.AXIS_Y)
+            val vScroll = when {
+                axisScroll != 0f -> axisScroll
+                axisVScroll != 0f -> axisVScroll
+                axisWheel != 0f -> axisWheel
+                axisY != 0f -> axisY
+                else -> 0f
+            }
+            if (vScroll != 0f) {
+                viewModel.onRotaryScroll(vScroll)
+                return true
+            }
+        }
+        return super.onGenericMotionEvent(event)
     }
 
     private fun startSleepTimer() {

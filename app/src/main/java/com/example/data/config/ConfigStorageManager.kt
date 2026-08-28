@@ -495,6 +495,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "showSubSystemTitle").text(settings.showSubSystemTitle.toString()).endTag("", "showSubSystemTitle")
             serializer.startTag("", "swapTopAndBottomBar").text(settings.swapTopAndBottomBar.toString()).endTag("", "swapTopAndBottomBar")
             serializer.startTag("", "systemMenuTextSizeSp").text(settings.systemMenuTextSizeSp.toString()).endTag("", "systemMenuTextSizeSp")
+            serializer.startTag("", "systemMenuDescTextSizeSp").text(settings.systemMenuDescTextSizeSp.toString()).endTag("", "systemMenuDescTextSizeSp")
             serializer.startTag("", "systemMenuTextAlignment").text(settings.systemMenuTextAlignment).endTag("", "systemMenuTextAlignment")
             serializer.startTag("", "backgroundColorHex").text(settings.backgroundColorHex).endTag("", "backgroundColorHex")
             serializer.startTag("", "surfaceColorHex").text(settings.surfaceColorHex).endTag("", "surfaceColorHex")
@@ -508,6 +509,8 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "enableNavigationSound").text(settings.enableNavigationSound.toString()).endTag("", "enableNavigationSound")
             serializer.startTag("", "enableBgm").text(settings.enableBgm.toString()).endTag("", "enableBgm")
             serializer.startTag("", "mainMenuIconGridScalePercent").text(settings.mainMenuIconGridScalePercent.toString()).endTag("", "mainMenuIconGridScalePercent")
+            serializer.startTag("", "mainMenuCarouselIconSizePercent").text(settings.mainMenuCarouselIconSizePercent.toString()).endTag("", "mainMenuCarouselIconSizePercent")
+            serializer.startTag("", "mainMenuCarouselAnimation").text(settings.mainMenuCarouselAnimation.toString()).endTag("", "mainMenuCarouselAnimation")
             serializer.startTag("", "selectedSfxFileName").text(settings.selectedSfxFileName).endTag("", "selectedSfxFileName")
             serializer.startTag("", "maxRecentCount").text(settings.maxRecentCount.toString()).endTag("", "maxRecentCount")
             serializer.startTag("", "customArcadeDbPath").text(settings.customArcadeDbPath).endTag("", "customArcadeDbPath")
@@ -525,6 +528,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "romIconPopUpShowAndroid").text(settings.romIconPopUpShowAndroid.toString()).endTag("", "romIconPopUpShowAndroid")
             serializer.startTag("", "romIconPopUpShowDefault").text(settings.romIconPopUpShowDefault.toString()).endTag("", "romIconPopUpShowDefault")
             serializer.startTag("", "romIconPopUpShowInGridStyle").text(settings.romIconPopUpShowInGridStyle.toString()).endTag("", "romIconPopUpShowInGridStyle")
+            serializer.startTag("", "romIconPopUpShowInCarouselStyle").text(settings.romIconPopUpShowInCarouselStyle.toString()).endTag("", "romIconPopUpShowInCarouselStyle")
             serializer.startTag("", "romIconPopUpTimeoutMs").text(settings.romIconPopUpTimeoutMs.toString()).endTag("", "romIconPopUpTimeoutMs")
             serializer.startTag("", "romIconPopUpAlignment").text(settings.romIconPopUpAlignment).endTag("", "romIconPopUpAlignment")
             serializer.startTag("", "romIconPopUpWidthPercent").text(settings.romIconPopUpWidthPercent.toString()).endTag("", "romIconPopUpWidthPercent")
@@ -592,6 +596,7 @@ class ConfigStorageManager(private val context: Context) {
             var showSubSystemTitle = true
             var swapTopAndBottomBar = false
             var systemMenuTextSizeSp = 16
+            var systemMenuDescTextSizeSp = 12
             var systemMenuTextAlignment = "LEFT"
             var backgroundColorHex = "#121212"
             var surfaceColorHex = "#1E1E1E"
@@ -605,6 +610,8 @@ class ConfigStorageManager(private val context: Context) {
             var enableNavigationSound = true
             var enableBgm = true
             var mainMenuIconGridScalePercent = 100
+            var mainMenuCarouselIconSizePercent = 100
+            var mainMenuCarouselAnimation = true
             var selectedSfxFileName = ""
             var maxRecentCount = 30
             var customArcadeDbPath = ""
@@ -622,6 +629,7 @@ class ConfigStorageManager(private val context: Context) {
             var romIconPopUpShowAndroid = true
             var romIconPopUpShowDefault = true
             var romIconPopUpShowInGridStyle = true
+            var romIconPopUpShowInCarouselStyle = true
             var romIconPopUpTimeoutMs = 1000
             var romIconPopUpAlignment = "middle_center"
             var romIconPopUpWidthPercent = 30
@@ -678,6 +686,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "showSubSystemTitle" -> showSubSystemTitle = text.toBooleanStrictOrNull() ?: true
                                 "swapTopAndBottomBar" -> swapTopAndBottomBar = text.toBooleanStrictOrNull() ?: false
                                 "systemMenuTextSizeSp" -> systemMenuTextSizeSp = text.toIntOrNull() ?: 16
+                                "systemMenuDescTextSizeSp" -> systemMenuDescTextSizeSp = text.toIntOrNull() ?: 12
                                 "systemMenuTextAlignment" -> systemMenuTextAlignment = text
                                 "backgroundColorHex" -> backgroundColorHex = text
                                 "surfaceColorHex" -> surfaceColorHex = text
@@ -691,6 +700,8 @@ class ConfigStorageManager(private val context: Context) {
                                 "enableNavigationSound" -> enableNavigationSound = text.toBooleanStrictOrNull() ?: true
                                 "enableBgm" -> enableBgm = text.toBooleanStrictOrNull() ?: true
                                 "mainMenuIconGridScalePercent" -> mainMenuIconGridScalePercent = text.toIntOrNull() ?: 100
+                                "mainMenuCarouselIconSizePercent" -> mainMenuCarouselIconSizePercent = text.toIntOrNull() ?: 100
+                                "mainMenuCarouselAnimation" -> mainMenuCarouselAnimation = text.toBooleanStrictOrNull() ?: true
                                 "selectedSfxFileName" -> selectedSfxFileName = text
                                 "maxRecentCount" -> maxRecentCount = text.toIntOrNull() ?: 30
                                 "customArcadeDbPath" -> customArcadeDbPath = text
@@ -708,6 +719,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "romIconPopUpShowAndroid" -> romIconPopUpShowAndroid = text.toBooleanStrictOrNull() ?: true
                                 "romIconPopUpShowDefault" -> romIconPopUpShowDefault = text.toBooleanStrictOrNull() ?: true
                                 "romIconPopUpShowInGridStyle" -> romIconPopUpShowInGridStyle = text.toBooleanStrictOrNull() ?: true
+                                "romIconPopUpShowInCarouselStyle" -> romIconPopUpShowInCarouselStyle = text.toBooleanStrictOrNull() ?: true
                                 "romIconPopUpTimeoutMs" -> romIconPopUpTimeoutMs = text.toIntOrNull() ?: 1000
                                 "romIconPopUpAlignment" -> romIconPopUpAlignment = text
                                 "romIconPopUpWidthPercent" -> romIconPopUpWidthPercent = text.toIntOrNull() ?: 30
@@ -760,6 +772,7 @@ class ConfigStorageManager(private val context: Context) {
                 showSubSystemTitle = showSubSystemTitle,
                 swapTopAndBottomBar = swapTopAndBottomBar,
                 systemMenuTextSizeSp = systemMenuTextSizeSp,
+                systemMenuDescTextSizeSp = systemMenuDescTextSizeSp,
                 systemMenuTextAlignment = systemMenuTextAlignment,
                 backgroundColorHex = backgroundColorHex,
                 surfaceColorHex = surfaceColorHex,
@@ -773,6 +786,8 @@ class ConfigStorageManager(private val context: Context) {
                 enableNavigationSound = enableNavigationSound,
                 enableBgm = enableBgm,
                 mainMenuIconGridScalePercent = mainMenuIconGridScalePercent,
+                mainMenuCarouselIconSizePercent = mainMenuCarouselIconSizePercent,
+                mainMenuCarouselAnimation = mainMenuCarouselAnimation,
                 selectedSfxFileName = selectedSfxFileName,
                 maxRecentCount = maxRecentCount,
                 customArcadeDbPath = customArcadeDbPath,
@@ -790,6 +805,7 @@ class ConfigStorageManager(private val context: Context) {
                 romIconPopUpShowAndroid = romIconPopUpShowAndroid,
                 romIconPopUpShowDefault = romIconPopUpShowDefault,
                 romIconPopUpShowInGridStyle = romIconPopUpShowInGridStyle,
+                romIconPopUpShowInCarouselStyle = romIconPopUpShowInCarouselStyle,
                 romIconPopUpTimeoutMs = romIconPopUpTimeoutMs,
                 romIconPopUpAlignment = romIconPopUpAlignment,
                 romIconPopUpWidthPercent = romIconPopUpWidthPercent,
@@ -835,6 +851,8 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "showArtworkInTextOnly").text(settings.showArtworkInTextOnly.toString()).endTag("", "showArtworkInTextOnly")
             serializer.startTag("", "gridScalePercent").text(settings.gridScalePercent.toString()).endTag("", "gridScalePercent")
             serializer.startTag("", "showDetails").text(settings.showDetails.toString()).endTag("", "showDetails")
+            serializer.startTag("", "carouselIconSizePercent").text(settings.carouselIconSizePercent.toString()).endTag("", "carouselIconSizePercent")
+            serializer.startTag("", "enableCarouselAnimation").text(settings.enableCarouselAnimation.toString()).endTag("", "enableCarouselAnimation")
 
             serializer.endTag("", "RomListSettings")
             serializer.endDocument()
@@ -863,6 +881,8 @@ class ConfigStorageManager(private val context: Context) {
             var showArtworkInTextOnly = true
             var gridScalePercent = 100
             var showDetails = true
+            var carouselIconSizePercent = 100
+            var enableCarouselAnimation = true
 
             var currentTag = ""
 
@@ -880,6 +900,8 @@ class ConfigStorageManager(private val context: Context) {
                                 "showArtworkInTextOnly" -> showArtworkInTextOnly = text.toBooleanStrictOrNull() ?: true
                                 "gridScalePercent" -> gridScalePercent = text.toIntOrNull() ?: 100
                                 "showDetails" -> showDetails = text.toBooleanStrictOrNull() ?: true
+                                "carouselIconSizePercent" -> carouselIconSizePercent = text.toIntOrNull() ?: 100
+                                "enableCarouselAnimation" -> enableCarouselAnimation = text.toBooleanStrictOrNull() ?: true
                             }
                         }
                     }
@@ -893,7 +915,9 @@ class ConfigStorageManager(private val context: Context) {
                 textAlignment = textAlignment,
                 showArtworkInTextOnly = showArtworkInTextOnly,
                 gridScalePercent = gridScalePercent,
-                showDetails = showDetails
+                showDetails = showDetails,
+                carouselIconSizePercent = carouselIconSizePercent,
+                enableCarouselAnimation = enableCarouselAnimation
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -921,6 +945,8 @@ class ConfigStorageManager(private val context: Context) {
                 serializer.startTag("", "showArtworkInTextOnly").text(settings.showArtworkInTextOnly.toString()).endTag("", "showArtworkInTextOnly")
                 serializer.startTag("", "gridScalePercent").text(settings.gridScalePercent.toString()).endTag("", "gridScalePercent")
                 serializer.startTag("", "showDetails").text(settings.showDetails.toString()).endTag("", "showDetails")
+                serializer.startTag("", "carouselIconSizePercent").text(settings.carouselIconSizePercent.toString()).endTag("", "carouselIconSizePercent")
+                serializer.startTag("", "enableCarouselAnimation").text(settings.enableCarouselAnimation.toString()).endTag("", "enableCarouselAnimation")
                 serializer.endTag("", "SystemEntry")
             }
 
@@ -953,6 +979,8 @@ class ConfigStorageManager(private val context: Context) {
             var showArtworkInTextOnly = true
             var gridScalePercent = 100
             var showDetails = true
+            var carouselIconSizePercent = 100
+            var enableCarouselAnimation = true
 
             var currentTag = ""
 
@@ -969,6 +997,8 @@ class ConfigStorageManager(private val context: Context) {
                             showArtworkInTextOnly = true
                             gridScalePercent = 100
                             showDetails = true
+                            carouselIconSizePercent = 100
+                            enableCarouselAnimation = true
                         }
                     }
                     XmlPullParser.TEXT -> {
@@ -982,6 +1012,8 @@ class ConfigStorageManager(private val context: Context) {
                                 "showArtworkInTextOnly" -> showArtworkInTextOnly = text.toBooleanStrictOrNull() ?: true
                                 "gridScalePercent" -> gridScalePercent = text.toIntOrNull() ?: 100
                                 "showDetails" -> showDetails = text.toBooleanStrictOrNull() ?: true
+                                "carouselIconSizePercent" -> carouselIconSizePercent = text.toIntOrNull() ?: 100
+                                "enableCarouselAnimation" -> enableCarouselAnimation = text.toBooleanStrictOrNull() ?: true
                             }
                         }
                     }
@@ -994,7 +1026,9 @@ class ConfigStorageManager(private val context: Context) {
                                 textAlignment = textAlignment,
                                 showArtworkInTextOnly = showArtworkInTextOnly,
                                 gridScalePercent = gridScalePercent,
-                                showDetails = showDetails
+                                showDetails = showDetails,
+                                carouselIconSizePercent = carouselIconSizePercent,
+                                enableCarouselAnimation = enableCarouselAnimation
                             )
                             currentSystemId = ""
                         }
