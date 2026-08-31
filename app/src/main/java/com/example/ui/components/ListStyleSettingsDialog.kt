@@ -41,6 +41,7 @@ fun ListStyleSettingsDialog(
     var showDetails by remember { mutableStateOf(settings.showDetails) }
     var carouselIconSizePercent by remember { mutableFloatStateOf(settings.carouselIconSizePercent.toFloat()) }
     var enableCarouselAnimation by remember { mutableStateOf(settings.enableCarouselAnimation) }
+    var enableCarouselUnlimited by remember { mutableStateOf(settings.enableCarouselUnlimited) }
 
     fun getCurrentSettings() = RomListSettings(
         listStyle = style,
@@ -51,7 +52,8 @@ fun ListStyleSettingsDialog(
         gridScalePercent = gridScalePercent.toInt(),
         showDetails = showDetails,
         carouselIconSizePercent = carouselIconSizePercent.toInt(),
-        enableCarouselAnimation = enableCarouselAnimation
+        enableCarouselAnimation = enableCarouselAnimation,
+        enableCarouselUnlimited = enableCarouselUnlimited
     )
 
     ScaledDialog(onDismissRequest = onDismiss) {
@@ -200,6 +202,34 @@ fun ListStyleSettingsDialog(
                             onCheckedChange = {
                                 enableCarouselAnimation = it
                                 onUpdateSettings(getCurrentSettings().copy(enableCarouselAnimation = it))
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Unlimited Carousel",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Enable infinite loop wrapping in the carousel style to cycle endlessly through items",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = enableCarouselUnlimited,
+                            onCheckedChange = {
+                                enableCarouselUnlimited = it
+                                onUpdateSettings(getCurrentSettings().copy(enableCarouselUnlimited = it))
                             }
                         )
                     }

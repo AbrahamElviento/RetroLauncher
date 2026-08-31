@@ -49,6 +49,7 @@ data class DisplaySettings(
     val mainMenuIconGridScalePercent: Int = 100,
     val mainMenuCarouselIconSizePercent: Int = 100,
     val mainMenuCarouselAnimation: Boolean = true,
+    val mainMenuCarouselUnlimited: Boolean = false,
     val selectedSfxFileName: String = "",
     val maxRecentCount: Int = 30,
     val customArcadeDbPath: String = "",

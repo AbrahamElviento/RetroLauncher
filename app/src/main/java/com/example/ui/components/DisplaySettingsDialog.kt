@@ -95,6 +95,7 @@ fun DisplaySettingsDialog(
     var showSystemMainMenuEditIcon by remember { mutableStateOf(currentSettings.showSystemMainMenuEditIcon) }
     var systemMainMenuStyle by remember { mutableStateOf(currentSettings.systemMainMenuStyle) }
     var mainMenuCarouselAnimation by remember { mutableStateOf(currentSettings.mainMenuCarouselAnimation) }
+    var mainMenuCarouselUnlimited by remember { mutableStateOf(currentSettings.mainMenuCarouselUnlimited) }
     var systemMainMenuGridStyle by remember { mutableStateOf(currentSettings.systemMainMenuGridStyle) }
     var centeredLastGridItem by remember { mutableStateOf(currentSettings.centeredLastGridItem) }
     var showSystemTitle by remember { mutableStateOf(currentSettings.showSystemTitle) }
@@ -964,34 +965,63 @@ fun DisplaySettingsDialog(
                             if (systemMainMenuStyle == "CAROUSEL") {
                                 Spacer(modifier = Modifier.height(10.dp))
 
-                                // Carousel Animation Toggle
+                                // Carousel Settings Group
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
                                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Row(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Carousel Animation",
-                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                                            )
-                                            Text(
-                                                text = "Enable zoom, scale and smooth transition animation in carousel main menu style",
-                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                                Text(
+                                                    text = "Carousel Animation",
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                                )
+                                                Text(
+                                                    text = "Enable zoom, scale and smooth transition animation in carousel main menu style",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Switch(
+                                                checked = mainMenuCarouselAnimation,
+                                                onCheckedChange = { mainMenuCarouselAnimation = it }
                                             )
                                         }
-                                        Switch(
-                                            checked = mainMenuCarouselAnimation,
-                                            onCheckedChange = { mainMenuCarouselAnimation = it }
-                                        )
+
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                                Text(
+                                                    text = "Unlimited Carousel",
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                                )
+                                                Text(
+                                                    text = "Enable infinite loop wrapping in the carousel style to cycle endlessly through items",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Switch(
+                                                checked = mainMenuCarouselUnlimited,
+                                                onCheckedChange = { mainMenuCarouselUnlimited = it }
+                                            )
+                                        }
                                     }
                                 }
 
@@ -2348,6 +2378,7 @@ fun DisplaySettingsDialog(
                                 mainMenuIconGridScalePercent = mainMenuIconGridScalePercent.toInt(),
                                 mainMenuCarouselIconSizePercent = mainMenuCarouselIconSizePercent.toInt(),
                                 mainMenuCarouselAnimation = mainMenuCarouselAnimation,
+                                 mainMenuCarouselUnlimited = mainMenuCarouselUnlimited,
                                 selectedSfxFileName = selectedSfxFileName,
                                 maxRecentCount = maxRecentCountText.toIntOrNull() ?: 30,
                                 customArcadeDbPath = customArcadeDbPathText,

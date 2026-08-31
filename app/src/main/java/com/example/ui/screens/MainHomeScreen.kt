@@ -94,6 +94,9 @@ fun MainHomeScreen(
     var showBgmControlDialog by remember { mutableStateOf(false) }
     var showSlideshowControlDialog by remember { mutableStateOf(false) }
     var activeSlideshowSystemName by remember { mutableStateOf("") }
+    var activeSlideshowSystem by remember { mutableStateOf<SystemEntity?>(null) }
+    var showFullScreenClockDialog by remember { mutableStateOf(false) }
+    var activeFullScreenClockSystem by remember { mutableStateOf<SystemEntity?>(null) }
     var showSystemEditDialog by remember { mutableStateOf(false) }
     var editingSystem by remember { mutableStateOf<SystemEntity?>(null) }
 
@@ -543,8 +546,10 @@ fun MainHomeScreen(
             } else false
         }
     ) {
+        val isFullScreenOverlayActive = showSlideshowControlDialog || showFullScreenClockDialog
+
         val HeaderBarContent: @Composable () -> Unit = {
-            if (showTopBar) {
+            if (showTopBar && !isFullScreenOverlayActive) {
                 val alignment = displaySettings.topBarTitleAlignment.uppercase()
                 val arrangement = when (alignment) {
                     "CENTER" -> Arrangement.Center
@@ -602,7 +607,7 @@ fun MainHomeScreen(
                                     modifier = Modifier
                                         .padding(horizontal = 2.dp)
                                         .border(
-                                            width = if (isFocused) 2.dp else 0.dp,
+                                             width = if (isFocused) 2.dp else 0.dp,
                                             color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
                                             shape = CircleShape
                                         )
@@ -630,34 +635,40 @@ fun MainHomeScreen(
         }
 
         val FooterBarContent: @Composable () -> Unit = {
-            BottomStatusBar(
-                settings = bottomBarSettings,
-                isFocused = (activeFocusZone == ActiveFocusZone.BOTTOM_BAR),
-                containerColorHex = displaySettings.bottomBarColorHex,
-                notificationText = bottomBarNotification,
-                onOpenBarSettings = {
-                    activeFocusZone = ActiveFocusZone.BOTTOM_BAR
-                    showBottomBarSettingsDialog = true
-                },
-                onDoubleTapClock = {
-                    viewModel.updateDisplaySettings(displaySettings.copy(showTopBar = !displaySettings.showTopBar))
-                }
-            )
+            if (!isFullScreenOverlayActive) {
+                BottomStatusBar(
+                    settings = bottomBarSettings,
+                    isFocused = (activeFocusZone == ActiveFocusZone.BOTTOM_BAR),
+                    containerColorHex = displaySettings.bottomBarColorHex,
+                    notificationText = bottomBarNotification,
+                    onOpenBarSettings = {
+                        activeFocusZone = ActiveFocusZone.BOTTOM_BAR
+                        showBottomBarSettingsDialog = true
+                    },
+                    onDoubleTapClock = {
+                        viewModel.updateDisplaySettings(displaySettings.copy(showTopBar = !displaySettings.showTopBar))
+                    }
+                )
+            }
         }
 
         Scaffold(
             topBar = {
-                if (displaySettings.swapTopAndBottomBar) {
-                    FooterBarContent()
-                } else {
-                    HeaderBarContent()
+                if (!isFullScreenOverlayActive) {
+                    if (displaySettings.swapTopAndBottomBar) {
+                        FooterBarContent()
+                    } else {
+                        HeaderBarContent()
+                    }
                 }
             },
             bottomBar = {
-                if (displaySettings.swapTopAndBottomBar) {
-                    HeaderBarContent()
-                } else {
-                    FooterBarContent()
+                if (!isFullScreenOverlayActive) {
+                    if (displaySettings.swapTopAndBottomBar) {
+                        HeaderBarContent()
+                    } else {
+                        FooterBarContent()
+                    }
                 }
             },
             containerColor = MaterialTheme.colorScheme.background
@@ -682,8 +693,12 @@ fun MainHomeScreen(
                             if (system.defaultLaunchMode == "WIDGET_BGM") {
                                 showBgmControlDialog = true
                             } else if (system.defaultLaunchMode == "WIDGET_SLIDESHOW") {
+                                activeSlideshowSystem = system
                                 activeSlideshowSystemName = system.name
                                 showSlideshowControlDialog = true
+                            } else if (system.defaultLaunchMode == "WIDGET_CLOCK" && system.retroarchSaveDir == "FULLSCREEN_CLOCK") {
+                                activeFullScreenClockSystem = system
+                                showFullScreenClockDialog = true
                             } else if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
                                 if (system.folderPath.isNotEmpty()) {
                                     viewModel.launchAndroidApp(system.folderPath)
@@ -716,6 +731,7 @@ fun MainHomeScreen(
                         mainMenuIconGridScalePercent = displaySettings.mainMenuIconGridScalePercent,
                         mainMenuCarouselIconSizePercent = displaySettings.mainMenuCarouselIconSizePercent,
                         mainMenuCarouselAnimation = displaySettings.mainMenuCarouselAnimation,
+                        mainMenuCarouselUnlimited = displaySettings.mainMenuCarouselUnlimited,
                         showMainMenuTitle = displaySettings.showSystemMainMenuTitle,
                         bottomSystemMainMenuTitle = displaySettings.bottomSystemMainMenuTitle,
                         showEditIcon = displaySettings.showSystemMainMenuEditIcon,
@@ -746,6 +762,7 @@ fun MainHomeScreen(
                         isMenuFocused = (activeFocusZone == ActiveFocusZone.ROM_LIST),
                         onMoveFocusUp = { activeFocusZone = ActiveFocusZone.TOP_BAR },
                         onMoveFocusDown = { activeFocusZone = ActiveFocusZone.BOTTOM_BAR },
+                        onCarouselSwipeUpDown = { activeFocusZone = ActiveFocusZone.ROM_LIST },
                         onToggleDisplayStyle = { newStyle ->
                             viewModel.updateDisplaySettings(displaySettings.copy(systemMainMenuStyle = newStyle))
                         },
@@ -759,6 +776,10 @@ fun MainHomeScreen(
                         },
                         onToggleHeader = {
                             viewModel.updateDisplaySettings(displaySettings.copy(showSystemMainMenuTitle = !displaySettings.showSystemMainMenuTitle))
+                        },
+                        onOpenFullScreenClock = { clockSys ->
+                            activeFullScreenClockSystem = clockSys
+                            showFullScreenClockDialog = true
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -1176,9 +1197,32 @@ fun MainHomeScreen(
     }
 
     if (showSlideshowControlDialog) {
+        val currentSlideshowSystem = systems.find { it.id == activeSlideshowSystem?.id } ?: activeSlideshowSystem
+        val showStatusInFullScreen = currentSlideshowSystem?.let {
+            it.retroArchCore.isBlank() || it.retroArchCore == "SHOW_STATUS" || it.retroArchCore == "true"
+        } ?: true
+
         SlideshowControlDialog(
             systemName = activeSlideshowSystemName,
+            enableImmersiveMode = displaySettings.enableImmersiveMode,
+            showStatusInFullScreen = showStatusInFullScreen,
             onDismiss = { showSlideshowControlDialog = false }
+        )
+    }
+
+    if (showFullScreenClockDialog && activeFullScreenClockSystem != null) {
+        val currentClockSystem = systems.find { it.id == activeFullScreenClockSystem?.id } ?: activeFullScreenClockSystem!!
+        val showStatusInFullScreen = currentClockSystem.shortName.isBlank() ||
+                currentClockSystem.shortName == "CLOCK" ||
+                currentClockSystem.shortName.startsWith("SHOW_STATUS") ||
+                currentClockSystem.shortName == "true" ||
+                !currentClockSystem.shortName.contains("HIDE_STATUS")
+
+        FullScreenClockDialog(
+            system = currentClockSystem,
+            enableImmersiveMode = displaySettings.enableImmersiveMode,
+            showStatusInFullScreen = showStatusInFullScreen,
+            onDismiss = { showFullScreenClockDialog = false }
         )
     }
 

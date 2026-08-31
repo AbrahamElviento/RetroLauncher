@@ -14,7 +14,7 @@ A customizable, lightweight retro gaming frontend and launcher built for Android
 
 ## ✨ Features
 
-- **Multiple Display Styles**: Choose between Icon Grid, Compact List, Carousel / Accordion, and Fullscreen views for both system selection and ROM lists.
+- **Multiple Display Styles**: Choose between Icon Grid, Compact List, Carousel, and Fullscreen views for both system selection and ROM lists.
 - **Interactive System Main Menu Gestures**:
   - **Single Tap**: Instantly enter a gaming system to view its ROM list, or interact with widgets (open BGM music controls, configure slideshow settings, or launch assigned Android apps).
   - **Double Tap**: Fast interactive shortcuts on widgets (such as double-tapping the Clock or Battery widget to toggle Top Bar or header visibility).

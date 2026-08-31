@@ -22,5 +22,6 @@ data class RomListSettings(
     val gridScalePercent: Int = 100,
     val showDetails: Boolean = true,
     val carouselIconSizePercent: Int = 100,
-    val enableCarouselAnimation: Boolean = true
+    val enableCarouselAnimation: Boolean = true,
+    val enableCarouselUnlimited: Boolean = false
 )

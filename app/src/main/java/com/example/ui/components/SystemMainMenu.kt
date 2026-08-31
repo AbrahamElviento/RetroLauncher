@@ -53,6 +53,7 @@ import java.io.File
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -90,6 +91,7 @@ fun SystemMainMenu(
     mainMenuIconGridScalePercent: Int = 100,
     mainMenuCarouselIconSizePercent: Int = 100,
     mainMenuCarouselAnimation: Boolean = true,
+    mainMenuCarouselUnlimited: Boolean = false,
     showMainMenuTitle: Boolean = true,
     showEditIcon: Boolean = false,
     defaultDisplayStyle: String = "ICON_GRID",
@@ -130,7 +132,9 @@ fun SystemMainMenu(
     totalCompletedCount: Int = 0,
     onDoubleTapClock: (() -> Unit)? = null,
     onToggleHeader: (() -> Unit)? = null,
+    onOpenFullScreenClock: ((SystemEntity) -> Unit)? = null,
     bottomSystemMainMenuTitle: Boolean = false,
+    onCarouselSwipeUpDown: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var displayStyle by remember(defaultDisplayStyle) {
@@ -190,6 +194,9 @@ fun SystemMainMenu(
         when (action) {
             "NONE" -> {
                 // Do nothing
+            }
+            "FULLSCREEN_CLOCK" -> {
+                onOpenFullScreenClock?.invoke(system)
             }
             "HIDE_SHOW_TOP_BAR" -> {
                 onDoubleTapClock?.invoke()
@@ -1103,19 +1110,41 @@ fun SystemMainMenu(
                     }
                 }
                 SystemDisplayStyle.CAROUSEL -> {
-                    val carouselState = remember(systems.size, selectedSystemId) {
+                    fun getRealIndex(virtualIdx: Int): Int {
+                        if (systems.isEmpty()) return 0
+                        return if (mainMenuCarouselUnlimited) {
+                            val rem = virtualIdx % systems.size
+                            if (rem < 0) rem + systems.size else rem
+                        } else {
+                            virtualIdx.coerceIn(systems.indices)
+                        }
+                    }
+
+                    val carouselState = remember(systems.size, selectedSystemId, mainMenuCarouselUnlimited) {
                         val initialIdx = systems.indexOfFirst { it.id == selectedSystemId }
                         val safeIdx = if (initialIdx >= 0) initialIdx else 0
-                        LazyListState(firstVisibleItemIndex = safeIdx, firstVisibleItemScrollOffset = 0)
+                        val startIdx = if (mainMenuCarouselUnlimited && systems.isNotEmpty()) 50_000 - (50_000 % systems.size) + safeIdx else safeIdx
+                        LazyListState(firstVisibleItemIndex = startIdx, firstVisibleItemScrollOffset = 0)
+                    }
+
+                    val initialIdx = systems.indexOfFirst { it.id == selectedSystemId }
+                    val safeIdx = if (initialIdx >= 0) initialIdx else 0
+                    val startIdx = if (mainMenuCarouselUnlimited && systems.isNotEmpty()) 50_000 - (50_000 % systems.size) + safeIdx else safeIdx
+
+                    var virtualFocusedIndex by remember(systems.size, selectedSystemId, mainMenuCarouselUnlimited) {
+                        mutableIntStateOf(startIdx)
                     }
 
                     var scrollJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
                     fun scrollCarouselToCenter(index: Int) {
-                        if (index in systems.indices) {
-                            scrollJob?.cancel()
-                            scrollJob = coroutineScope.launch {
-                                carouselState.animateScrollToItem(index, scrollOffset = 0)
+                        if (systems.isNotEmpty()) {
+                            val maxCount = if (mainMenuCarouselUnlimited) 100_000 else systems.size
+                            if (index in 0 until maxCount) {
+                                scrollJob?.cancel()
+                                scrollJob = coroutineScope.launch {
+                                    carouselState.animateScrollToItem(index, scrollOffset = 0)
+                                }
                             }
                         }
                     }
@@ -1129,16 +1158,39 @@ fun SystemMainMenu(
                                 val itemCenter = item.offset + item.size / 2
                                 kotlin.math.abs(itemCenter - viewportCenter)
                             }
-                            if (centerItem != null && centerItem.index in systems.indices && focusedIndex != centerItem.index) {
-                                focusedIndex = centerItem.index
+                            if (centerItem != null) {
+                                val maxVirtualCount = if (mainMenuCarouselUnlimited) 100_000 else systems.size
+                                if (centerItem.index in 0 until maxVirtualCount && virtualFocusedIndex != centerItem.index) {
+                                    virtualFocusedIndex = centerItem.index
+                                    focusedIndex = getRealIndex(centerItem.index)
+                                }
                             }
                         }
                     }
 
                     // When focusedIndex changes via D-Pad or logic, ensure it's centered
                     LaunchedEffect(focusedIndex) {
-                        if (!isScrollInProgress && systems.isNotEmpty()) {
-                            scrollCarouselToCenter(focusedIndex)
+                        if (systems.isNotEmpty()) {
+                            val currentReal = getRealIndex(virtualFocusedIndex)
+                            if (currentReal != focusedIndex) {
+                                // Adjust virtual index to match the new focusedIndex
+                                if (mainMenuCarouselUnlimited) {
+                                    val diff = focusedIndex - currentReal
+                                    val halfSize = systems.size / 2
+                                    var adjustedDiff = diff
+                                    if (adjustedDiff > halfSize) {
+                                        adjustedDiff -= systems.size
+                                    } else if (adjustedDiff < -halfSize) {
+                                        adjustedDiff += systems.size
+                                    }
+                                    virtualFocusedIndex = (virtualFocusedIndex + adjustedDiff).coerceIn(0, 100_000 - 1)
+                                } else {
+                                    virtualFocusedIndex = focusedIndex
+                                }
+                            }
+                            if (!isScrollInProgress) {
+                                scrollCarouselToCenter(virtualFocusedIndex)
+                            }
                         }
                     }
 
@@ -1146,8 +1198,13 @@ fun SystemMainMenu(
                         if (goToTopTrigger > 0L && goToTopTrigger != lastHandledGoToTop && systems.isNotEmpty()) {
                             lastHandledGoToTop = goToTopTrigger
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
+                            virtualFocusedIndex = if (mainMenuCarouselUnlimited) {
+                                50_000 - (50_000 % systems.size)
+                            } else {
+                                0
+                            }
                             focusedIndex = 0
-                            scrollCarouselToCenter(focusedIndex)
+                            scrollCarouselToCenter(virtualFocusedIndex)
                         }
                     }
 
@@ -1155,8 +1212,13 @@ fun SystemMainMenu(
                         if (goToBottomTrigger > 0L && goToBottomTrigger != lastHandledGoToBottom && systems.isNotEmpty()) {
                             lastHandledGoToBottom = goToBottomTrigger
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-                            focusedIndex = maxOf(0, systems.size - 1)
-                            scrollCarouselToCenter(focusedIndex)
+                            virtualFocusedIndex = if (mainMenuCarouselUnlimited) {
+                                50_000 - (50_000 % systems.size) + (systems.size - 1)
+                            } else {
+                                systems.size - 1
+                            }
+                            focusedIndex = systems.size - 1
+                            scrollCarouselToCenter(virtualFocusedIndex)
                         }
                     }
 
@@ -1164,8 +1226,14 @@ fun SystemMainMenu(
                         if (pageUpTrigger > 0L && pageUpTrigger != lastHandledPageUp && systems.isNotEmpty()) {
                             lastHandledPageUp = pageUpTrigger
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-                            focusedIndex = maxOf(0, focusedIndex - 5)
-                            scrollCarouselToCenter(focusedIndex)
+                            val step = 5
+                            if (mainMenuCarouselUnlimited) {
+                                virtualFocusedIndex = (virtualFocusedIndex - step + 100_000) % 100_000
+                            } else {
+                                virtualFocusedIndex = maxOf(0, virtualFocusedIndex - step)
+                            }
+                            focusedIndex = getRealIndex(virtualFocusedIndex)
+                            scrollCarouselToCenter(virtualFocusedIndex)
                         }
                     }
 
@@ -1173,8 +1241,14 @@ fun SystemMainMenu(
                         if (pageDownTrigger > 0L && pageDownTrigger != lastHandledPageDown && systems.isNotEmpty()) {
                             lastHandledPageDown = pageDownTrigger
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-                            focusedIndex = minOf(systems.size - 1, focusedIndex + 5)
-                            scrollCarouselToCenter(focusedIndex)
+                            val step = 5
+                            if (mainMenuCarouselUnlimited) {
+                                virtualFocusedIndex = (virtualFocusedIndex + step) % 100_000
+                            } else {
+                                virtualFocusedIndex = minOf(systems.size - 1, virtualFocusedIndex + step)
+                            }
+                            focusedIndex = getRealIndex(virtualFocusedIndex)
+                            scrollCarouselToCenter(virtualFocusedIndex)
                         }
                     }
 
@@ -1185,12 +1259,17 @@ fun SystemMainMenu(
                             if (isHeaderFocused) {
                                 headerFocusedIndex = maxOf(0, headerFocusedIndex - 1)
                             } else {
-                                if (focusedIndex > 0) {
-                                    focusedIndex -= 1
+                                if (mainMenuCarouselUnlimited) {
+                                    virtualFocusedIndex = (virtualFocusedIndex - 1 + 100_000) % 100_000
                                 } else {
-                                    focusedIndex = systems.size - 1
+                                    if (virtualFocusedIndex > 0) {
+                                        virtualFocusedIndex -= 1
+                                    } else {
+                                        virtualFocusedIndex = systems.size - 1
+                                    }
                                 }
-                                scrollCarouselToCenter(focusedIndex)
+                                focusedIndex = getRealIndex(virtualFocusedIndex)
+                                scrollCarouselToCenter(virtualFocusedIndex)
                             }
                         }
                     }
@@ -1201,12 +1280,17 @@ fun SystemMainMenu(
                             if (isHeaderFocused) {
                                 headerFocusedIndex = minOf(1, headerFocusedIndex + 1)
                             } else {
-                                if (focusedIndex + 1 < systems.size) {
-                                    focusedIndex += 1
+                                if (mainMenuCarouselUnlimited) {
+                                    virtualFocusedIndex = (virtualFocusedIndex + 1) % 100_000
                                 } else {
-                                    focusedIndex = 0
+                                    if (virtualFocusedIndex + 1 < systems.size) {
+                                        virtualFocusedIndex += 1
+                                    } else {
+                                        virtualFocusedIndex = 0
+                                    }
                                 }
-                                scrollCarouselToCenter(focusedIndex)
+                                focusedIndex = getRealIndex(virtualFocusedIndex)
+                                scrollCarouselToCenter(virtualFocusedIndex)
                             }
                         }
                     }
@@ -1241,12 +1325,17 @@ fun SystemMainMenu(
                             lastHandledCrownUp = crownUpTrigger
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                             isHeaderFocused = false
-                            if (focusedIndex > 0) {
-                                focusedIndex -= 1
+                            if (mainMenuCarouselUnlimited) {
+                                virtualFocusedIndex = (virtualFocusedIndex - 1 + 100_000) % 100_000
                             } else {
-                                focusedIndex = systems.size - 1
+                                if (virtualFocusedIndex > 0) {
+                                    virtualFocusedIndex -= 1
+                                } else {
+                                    virtualFocusedIndex = systems.size - 1
+                                }
                             }
-                            scrollCarouselToCenter(focusedIndex)
+                            focusedIndex = getRealIndex(virtualFocusedIndex)
+                            scrollCarouselToCenter(virtualFocusedIndex)
                         }
                     }
 
@@ -1255,33 +1344,81 @@ fun SystemMainMenu(
                             lastHandledCrownDown = crownDownTrigger
                             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
                             isHeaderFocused = false
-                            if (focusedIndex + 1 < systems.size) {
-                                focusedIndex += 1
+                            if (mainMenuCarouselUnlimited) {
+                                virtualFocusedIndex = (virtualFocusedIndex + 1) % 100_000
                             } else {
-                                focusedIndex = 0
+                                if (virtualFocusedIndex + 1 < systems.size) {
+                                    virtualFocusedIndex += 1
+                                } else {
+                                    virtualFocusedIndex = 0
+                                }
                             }
-                            scrollCarouselToCenter(focusedIndex)
+                            focusedIndex = getRealIndex(virtualFocusedIndex)
+                            scrollCarouselToCenter(virtualFocusedIndex)
                         }
                     }
 
                     BoxWithConstraints(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                var totalDragY = 0f
+                                var hasTriggered = false
+                                detectVerticalDragGestures(
+                                    onDragStart = {
+                                        totalDragY = 0f
+                                        hasTriggered = false
+                                    },
+                                    onDragEnd = {},
+                                    onDragCancel = {},
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        totalDragY += dragAmount
+                                        if (!hasTriggered && kotlin.math.abs(totalDragY) > 50f) {
+                                            hasTriggered = true
+                                            if (systems.isNotEmpty()) {
+                                                if (mainMenuCarouselUnlimited) {
+                                                    val currentReal = getRealIndex(virtualFocusedIndex)
+                                                    val diff = 0 - currentReal
+                                                    val halfSize = systems.size / 2
+                                                    var adjustedDiff = diff
+                                                    if (adjustedDiff > halfSize) {
+                                                        adjustedDiff -= systems.size
+                                                    } else if (adjustedDiff < -halfSize) {
+                                                        adjustedDiff += systems.size
+                                                    }
+                                                    virtualFocusedIndex = (virtualFocusedIndex + adjustedDiff).coerceIn(0, 100_000 - 1)
+                                                } else {
+                                                    virtualFocusedIndex = 0
+                                                }
+                                                focusedIndex = 0
+                                                isHeaderFocused = false
+                                                scrollCarouselToCenter(virtualFocusedIndex)
+                                                onCarouselSwipeUpDown()
+                                            }
+                                        }
+                                    }
+                                )
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         val screenWidth = maxWidth
                         val itemWidth = 220.dp
                         val centerHorizontalPadding = if (screenWidth > itemWidth) (screenWidth - itemWidth) / 2 else 24.dp
 
+                        val itemCount = if (mainMenuCarouselUnlimited && systems.isNotEmpty()) 100_000 else systems.size
+
                         LazyRow(
                             state = carouselState,
                             horizontalArrangement = Arrangement.spacedBy(24.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             contentPadding = PaddingValues(horizontal = centerHorizontalPadding, vertical = 24.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            itemsIndexed(systems, key = { _, s -> s.id }) { index, system ->
-                                val isFocused = isMenuFocused && !isHeaderFocused && index == focusedIndex
+                            items(itemCount, key = { index -> index }) { index ->
+                                val realIndex = getRealIndex(index)
+                                val system = systems[realIndex]
+                                val isFocused = isMenuFocused && !isHeaderFocused && index == virtualFocusedIndex
                                 val cardScale by animateFloatAsState(
                                     targetValue = if (isFocused && mainMenuCarouselAnimation) 1.20f else if (mainMenuCarouselAnimation) 0.88f else 1.0f,
                                     animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
@@ -1318,17 +1455,19 @@ fun SystemMainMenu(
                                         modifier = Modifier.fillMaxSize(),
                                         onClick = {
                                             isHeaderFocused = false
-                                            if (focusedIndex == index) {
+                                            if (virtualFocusedIndex == index) {
                                                 triggerWidgetActionIfSingleTap(system)
                                                 onSelectAndEnterSystem(system)
                                             } else {
-                                                focusedIndex = index
+                                                virtualFocusedIndex = index
+                                                focusedIndex = realIndex
                                                 scrollCarouselToCenter(index)
                                             }
                                         },
                                         onLongClick = {
                                             isHeaderFocused = false
-                                            focusedIndex = index
+                                            virtualFocusedIndex = index
+                                            focusedIndex = realIndex
                                             scrollCarouselToCenter(index)
                                         },
                                         onEdit = { onEditSystem(system) }

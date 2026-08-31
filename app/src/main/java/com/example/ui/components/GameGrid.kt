@@ -283,18 +283,43 @@ fun GameGrid(
     val listState = remember(currentSystem?.id, currentSubfolderPath) {
         LazyListState(firstVisibleItemIndex = maxOf(0, selectedIndex - 2))
     }
-    val carouselState = remember(currentSystem?.id, currentSubfolderPath) {
-        LazyListState(firstVisibleItemIndex = selectedIndex, firstVisibleItemScrollOffset = 0)
+    fun getRealCarouselIndex(virtualIdx: Int): Int {
+        if (displayItems.isEmpty()) return 0
+        if (!listSettings.enableCarouselUnlimited) {
+            return virtualIdx.coerceIn(0, displayItems.size - 1)
+        }
+        val rem = virtualIdx % displayItems.size
+        return if (rem < 0) rem + displayItems.size else rem
+    }
+
+    val carouselStartIdx = remember(currentSystem?.id, currentSubfolderPath, listSettings.enableCarouselUnlimited, displayItems.size) {
+        val safeIdx = if (selectedIndex in displayItems.indices) selectedIndex else 0
+        if (listSettings.enableCarouselUnlimited && displayItems.isNotEmpty()) {
+            50_000 - (50_000 % displayItems.size) + safeIdx
+        } else {
+            safeIdx
+        }
+    }
+
+    val carouselState = remember(currentSystem?.id, currentSubfolderPath, listSettings.enableCarouselUnlimited) {
+        LazyListState(firstVisibleItemIndex = carouselStartIdx, firstVisibleItemScrollOffset = 0)
+    }
+
+    var virtualSelectedIndex by remember(currentSystem?.id, currentSubfolderPath, listSettings.enableCarouselUnlimited, displayItems.size) {
+        mutableIntStateOf(carouselStartIdx)
     }
 
     var carouselScrollJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     fun scrollToCenter(index: Int) {
         if (listSettings.listStyle == RomListStyle.CAROUSEL) {
-            if (index in displayItems.indices) {
-                carouselScrollJob?.cancel()
-                carouselScrollJob = coroutineScope.launch {
-                    carouselState.animateScrollToItem(index, scrollOffset = 0)
+            if (displayItems.isNotEmpty()) {
+                val maxCount = if (listSettings.enableCarouselUnlimited) 100_000 else displayItems.size
+                if (index in 0 until maxCount) {
+                    carouselScrollJob?.cancel()
+                    carouselScrollJob = coroutineScope.launch {
+                        carouselState.animateScrollToItem(index, scrollOffset = 0)
+                    }
                 }
             }
         } else if (listSettings.listStyle == RomListStyle.GRID) {
@@ -313,7 +338,7 @@ fun GameGrid(
     }
 
     // Continuously auto-highlight the most centered item in real time during gesture scrolling
-    LaunchedEffect(carouselState, listSettings.listStyle, displayItems.size) {
+    LaunchedEffect(carouselState, listSettings.listStyle, listSettings.enableCarouselUnlimited, displayItems.size) {
         if (listSettings.listStyle == RomListStyle.CAROUSEL) {
             snapshotFlow {
                 val layoutInfo = carouselState.layoutInfo
@@ -325,8 +350,13 @@ fun GameGrid(
                     kotlin.math.abs(itemCenter - viewportCenter)
                 }?.index ?: -1
             }.collect { centerIdx ->
-                if (centerIdx in displayItems.indices && !isHeaderFocused && selectedIndex != centerIdx) {
-                    selectedIndex = centerIdx
+                val maxVirtual = if (listSettings.enableCarouselUnlimited) 100_000 else displayItems.size
+                if (centerIdx in 0 until maxVirtual && !isHeaderFocused && virtualSelectedIndex != centerIdx) {
+                    virtualSelectedIndex = centerIdx
+                    val realIdx = getRealCarouselIndex(centerIdx)
+                    if (selectedIndex != realIdx) {
+                        selectedIndex = realIdx
+                    }
                 }
             }
         }
@@ -336,10 +366,36 @@ fun GameGrid(
     val isCarouselScrollInProgress = carouselState.isScrollInProgress
     LaunchedEffect(isCarouselScrollInProgress, listSettings.listStyle) {
         if (listSettings.listStyle == RomListStyle.CAROUSEL && !isCarouselScrollInProgress && displayItems.isNotEmpty() && !isHeaderFocused) {
-            if (selectedIndex in displayItems.indices) {
+            val maxVirtual = if (listSettings.enableCarouselUnlimited) 100_000 else displayItems.size
+            if (virtualSelectedIndex in 0 until maxVirtual) {
                 carouselScrollJob?.cancel()
                 carouselScrollJob = coroutineScope.launch {
-                    carouselState.animateScrollToItem(selectedIndex, scrollOffset = 0)
+                    carouselState.animateScrollToItem(virtualSelectedIndex, scrollOffset = 0)
+                }
+            }
+        }
+    }
+
+    // When selectedIndex changes externally (e.g. initial select or jump), ensure virtualSelectedIndex stays synchronized
+    LaunchedEffect(selectedIndex) {
+        if (listSettings.listStyle == RomListStyle.CAROUSEL && displayItems.isNotEmpty()) {
+            val currentReal = getRealCarouselIndex(virtualSelectedIndex)
+            if (currentReal != selectedIndex) {
+                if (listSettings.enableCarouselUnlimited) {
+                    val diff = selectedIndex - currentReal
+                    val halfSize = displayItems.size / 2
+                    var adjustedDiff = diff
+                    if (adjustedDiff > halfSize) {
+                        adjustedDiff -= displayItems.size
+                    } else if (adjustedDiff < -halfSize) {
+                        adjustedDiff += displayItems.size
+                    }
+                    virtualSelectedIndex = (virtualSelectedIndex + adjustedDiff).coerceIn(0, 100_000 - 1)
+                } else {
+                    virtualSelectedIndex = selectedIndex
+                }
+                if (!isCarouselScrollInProgress) {
+                    scrollToCenter(virtualSelectedIndex)
                 }
             }
         }
@@ -349,10 +405,12 @@ fun GameGrid(
     var lastListStyle by remember { mutableStateOf(listSettings.listStyle) }
     LaunchedEffect(listSettings.listStyle) {
         if (listSettings.listStyle == RomListStyle.CAROUSEL && lastListStyle != RomListStyle.CAROUSEL) {
-            if (selectedIndex in displayItems.indices) {
+            val targetIdx = if (listSettings.enableCarouselUnlimited) virtualSelectedIndex else selectedIndex
+            val maxVirtual = if (listSettings.enableCarouselUnlimited) 100_000 else displayItems.size
+            if (targetIdx in 0 until maxVirtual) {
                 carouselScrollJob?.cancel()
                 carouselScrollJob = coroutineScope.launch {
-                    carouselState.scrollToItem(selectedIndex, scrollOffset = 0)
+                    carouselState.scrollToItem(targetIdx, scrollOffset = 0)
                 }
             }
         }
@@ -458,7 +516,11 @@ fun GameGrid(
                     headerFocusedIndex = validHeaderIndices[currentIndexInValid - 1]
                 }
             } else if (listSettings.listStyle == RomListStyle.CAROUSEL) {
-                if (selectedIndex > 0) {
+                if (listSettings.enableCarouselUnlimited && displayItems.isNotEmpty()) {
+                    virtualSelectedIndex = (virtualSelectedIndex - 1 + 100_000) % 100_000
+                    selectedIndex = getRealCarouselIndex(virtualSelectedIndex)
+                    scrollToCenter(virtualSelectedIndex)
+                } else if (selectedIndex > 0) {
                     selectedIndex -= 1
                     scrollToCenter(selectedIndex)
                 } else if (displayItems.isNotEmpty()) {
@@ -488,7 +550,11 @@ fun GameGrid(
                     headerFocusedIndex = validHeaderIndices[currentIndexInValid + 1]
                 }
             } else if (listSettings.listStyle == RomListStyle.CAROUSEL) {
-                if (selectedIndex + 1 < displayItems.size) {
+                if (listSettings.enableCarouselUnlimited && displayItems.isNotEmpty()) {
+                    virtualSelectedIndex = (virtualSelectedIndex + 1) % 100_000
+                    selectedIndex = getRealCarouselIndex(virtualSelectedIndex)
+                    scrollToCenter(virtualSelectedIndex)
+                } else if (selectedIndex + 1 < displayItems.size) {
                     selectedIndex += 1
                     scrollToCenter(selectedIndex)
                 } else if (displayItems.isNotEmpty()) {
@@ -512,8 +578,14 @@ fun GameGrid(
         if (pageUpTrigger > 0L && pageUpTrigger != lastHandledPageUpTrigger && displayItems.isNotEmpty()) {
             lastHandledPageUpTrigger = pageUpTrigger
             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-            selectedIndex = maxOf(0, selectedIndex - 8)
-            scrollToCenter(selectedIndex)
+            if (listSettings.listStyle == RomListStyle.CAROUSEL && listSettings.enableCarouselUnlimited) {
+                virtualSelectedIndex = (virtualSelectedIndex - 8 + 100_000) % 100_000
+                selectedIndex = getRealCarouselIndex(virtualSelectedIndex)
+                scrollToCenter(virtualSelectedIndex)
+            } else {
+                selectedIndex = maxOf(0, selectedIndex - 8)
+                scrollToCenter(selectedIndex)
+            }
         }
     }
 
@@ -521,8 +593,14 @@ fun GameGrid(
         if (pageDownTrigger > 0L && pageDownTrigger != lastHandledPageDownTrigger && displayItems.isNotEmpty()) {
             lastHandledPageDownTrigger = pageDownTrigger
             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-            selectedIndex = minOf(displayItems.size - 1, selectedIndex + 8)
-            scrollToCenter(selectedIndex)
+            if (listSettings.listStyle == RomListStyle.CAROUSEL && listSettings.enableCarouselUnlimited) {
+                virtualSelectedIndex = (virtualSelectedIndex + 8) % 100_000
+                selectedIndex = getRealCarouselIndex(virtualSelectedIndex)
+                scrollToCenter(virtualSelectedIndex)
+            } else {
+                selectedIndex = minOf(displayItems.size - 1, selectedIndex + 8)
+                scrollToCenter(selectedIndex)
+            }
         }
     }
 
@@ -530,8 +608,14 @@ fun GameGrid(
         if (goToTopTrigger > 0L && goToTopTrigger != lastHandledGoToTopTrigger && displayItems.isNotEmpty()) {
             lastHandledGoToTopTrigger = goToTopTrigger
             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-            selectedIndex = 0
-            scrollToCenter(selectedIndex)
+            if (listSettings.listStyle == RomListStyle.CAROUSEL && listSettings.enableCarouselUnlimited) {
+                virtualSelectedIndex = 50_000 - (50_000 % displayItems.size)
+                selectedIndex = 0
+                scrollToCenter(virtualSelectedIndex)
+            } else {
+                selectedIndex = 0
+                scrollToCenter(selectedIndex)
+            }
         }
     }
 
@@ -539,8 +623,14 @@ fun GameGrid(
         if (goToBottomTrigger > 0L && goToBottomTrigger != lastHandledGoToBottomTrigger && displayItems.isNotEmpty()) {
             lastHandledGoToBottomTrigger = goToBottomTrigger
             com.example.util.SoundManager.playNavSound(enableNavigationSound, context, selectedSfxFileName)
-            selectedIndex = maxOf(0, displayItems.size - 1)
-            scrollToCenter(selectedIndex)
+            if (listSettings.listStyle == RomListStyle.CAROUSEL && listSettings.enableCarouselUnlimited) {
+                virtualSelectedIndex = 50_000 - (50_000 % displayItems.size) + (displayItems.size - 1)
+                selectedIndex = displayItems.size - 1
+                scrollToCenter(virtualSelectedIndex)
+            } else {
+                selectedIndex = maxOf(0, displayItems.size - 1)
+                scrollToCenter(selectedIndex)
+            }
         }
     }
 
@@ -1188,6 +1278,8 @@ fun GameGrid(
                         val screenWidth = maxWidth
                         val centerHorizontalPadding = if (screenWidth > cardWidth) (screenWidth - cardWidth) / 2 else 32.dp
 
+                        val itemCount = if (listSettings.enableCarouselUnlimited && displayItems.isNotEmpty()) 100_000 else displayItems.size
+
                         LazyRow(
                             state = carouselState,
                             contentPadding = PaddingValues(horizontal = centerHorizontalPadding, vertical = 24.dp),
@@ -1196,14 +1288,10 @@ fun GameGrid(
                             modifier = Modifier
                                 .fillMaxWidth()
                         ) {
-                            itemsIndexed(displayItems, key = { index, item ->
-                                when (item) {
-                                    is ListDisplayItem.ParentFolderItem -> "parent_dir"
-                                    is ListDisplayItem.FolderItem -> "dir_${item.fullPath}"
-                                    is ListDisplayItem.GameItem -> "game_${item.game.id}"
-                                }
-                            }) { index, item ->
-                                val isFocused = isListFocused && !isHeaderFocused && (index == selectedIndex)
+                            items(itemCount, key = { index -> index }) { index ->
+                                val realIndex = getRealCarouselIndex(index)
+                                val item = displayItems[realIndex]
+                                val isFocused = isListFocused && !isHeaderFocused && (index == virtualSelectedIndex)
                                 val animScale by animateFloatAsState(
                                     targetValue = if (isFocused && listSettings.enableCarouselAnimation) 1.18f else if (listSettings.enableCarouselAnimation) 0.88f else if (isFocused) 1.05f else 0.95f,
                                     animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
@@ -1235,13 +1323,15 @@ fun GameGrid(
                                                 marqueeDelayMillis = marqueeDelayMillis,
                                                 settings = listSettings,
                                                 onClick = {
-                                                    selectedIndex = index
+                                                    virtualSelectedIndex = index
+                                                    selectedIndex = realIndex
                                                     isHeaderFocused = false
                                                     scrollToCenter(index)
                                                     navigateUpToParent()
                                                 },
                                                 onLongClick = {
-                                                    selectedIndex = index
+                                                    virtualSelectedIndex = index
+                                                    selectedIndex = realIndex
                                                     isHeaderFocused = false
                                                     scrollToCenter(index)
                                                 }
@@ -1257,13 +1347,15 @@ fun GameGrid(
                                                 marqueeDelayMillis = marqueeDelayMillis,
                                                 settings = listSettings,
                                                 onClick = {
-                                                    selectedIndex = index
+                                                    virtualSelectedIndex = index
+                                                    selectedIndex = realIndex
                                                     isHeaderFocused = false
                                                     scrollToCenter(index)
                                                     openSubfolder(item.name)
                                                 },
                                                 onLongClick = {
-                                                    selectedIndex = index
+                                                    virtualSelectedIndex = index
+                                                    selectedIndex = realIndex
                                                     isHeaderFocused = false
                                                     scrollToCenter(index)
                                                 }
@@ -1278,13 +1370,15 @@ fun GameGrid(
                                                 marqueeDelayMillis = marqueeDelayMillis,
                                                 settings = listSettings,
                                                 onClick = {
-                                                    selectedIndex = index
+                                                    virtualSelectedIndex = index
+                                                    selectedIndex = realIndex
                                                     isHeaderFocused = false
                                                     scrollToCenter(index)
                                                     onGameClick(item.game)
                                                 },
                                                 onLongClick = {
-                                                    selectedIndex = index
+                                                    virtualSelectedIndex = index
+                                                    selectedIndex = realIndex
                                                     isHeaderFocused = false
                                                     scrollToCenter(index)
                                                     onGameLongClick(item.game)

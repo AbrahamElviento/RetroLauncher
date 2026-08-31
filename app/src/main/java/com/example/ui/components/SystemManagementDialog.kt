@@ -240,6 +240,7 @@ fun SystemManagementDialog(
                                         shortName = "SLIDE",
                                         folderPath = "/storage/emulated/0/Pictures",
                                         allowedExtensions = "5",
+                                        retroArchCore = "SHOW_STATUS",
                                         iconName = "play_arrow",
                                         defaultLaunchMode = "WIDGET_SLIDESHOW",
                                         displayOrder = systemList.size,
@@ -1184,6 +1185,28 @@ fun WidgetEditDetailDialog(
         )
     }
 
+    var showStatusInFullScreen by remember {
+        mutableStateOf(
+            if (system.defaultLaunchMode == "WIDGET_SLIDESHOW") {
+                system.retroArchCore.isBlank() || system.retroArchCore.startsWith("SHOW_STATUS") || system.retroArchCore == "true"
+            } else if (system.defaultLaunchMode == "WIDGET_CLOCK" || system.id.startsWith("widget_clock")) {
+                system.shortName.isBlank() || system.shortName == "CLOCK" || system.shortName.startsWith("SHOW_STATUS") || system.shortName == "true"
+            } else {
+                true
+            }
+        )
+    }
+
+    var clockStatusBarAlignment by remember {
+        mutableStateOf(
+            when {
+                system.shortName.contains("CENTERED") -> "CENTERED"
+                system.shortName.contains("BOTTOM") -> "BOTTOM"
+                else -> "TOP"
+            }
+        )
+    }
+
     var isClassicClock by remember {
         mutableStateOf(
             if (system.defaultLaunchMode == "WIDGET_CLOCK") {
@@ -1356,21 +1379,25 @@ fun WidgetEditDetailDialog(
                     var doubleTapAppSearchQuery by remember { mutableStateOf("") }
                     var doubleTapAppExpanded by remember { mutableStateOf(false) }
 
-                    val doubleTapActionOptions = listOf(
-                        "NONE" to "None",
-                        "HIDE_SHOW_TOP_BAR" to "Hide / Show Top Bar",
-                        "HIDE_SHOW_HEADER" to "Hide / Show Main Menu Header Bar",
-                        "OPEN_MAIN_SETTING" to "Open Main Setting Dialog",
-                        "OPEN_SYSTEM_MANAGER" to "Open Emulator System Manager",
-                        "CYCLE_DISPLAY_STYLE" to "Cycle Main Menu Display Style",
-                        "EXPAND_NOTIFICATIONS" to "Expand Notifications",
-                        "TOGGLE_WIFI" to "Toggle Wi-Fi",
-                        "TOGGLE_BLUETOOTH" to "Toggle Bluetooth",
-                        "SHOW_VOLUME_PANEL" to "Show Volume Panel",
-                        "SHOW_RECENT_APPS" to "Show Recent Apps",
-                        "SCREEN_LOCK" to "Screen Lock",
-                        "LAUNCH_APP" to "Launch App"
-                    )
+                    val isClockWidget = system.defaultLaunchMode == "WIDGET_CLOCK" || system.id.startsWith("widget_clock")
+                    val doubleTapActionOptions = buildList {
+                        add("NONE" to "None")
+                        if (isClockWidget) {
+                            add("FULLSCREEN_CLOCK" to "Full Screen Clock")
+                        }
+                        add("HIDE_SHOW_TOP_BAR" to "Hide / Show Top Bar")
+                        add("HIDE_SHOW_HEADER" to "Hide / Show Main Menu Header Bar")
+                        add("OPEN_MAIN_SETTING" to "Open Main Setting Dialog")
+                        add("OPEN_SYSTEM_MANAGER" to "Open Emulator System Manager")
+                        add("CYCLE_DISPLAY_STYLE" to "Cycle Main Menu Display Style")
+                        add("EXPAND_NOTIFICATIONS" to "Expand Notifications")
+                        add("TOGGLE_WIFI" to "Toggle Wi-Fi")
+                        add("TOGGLE_BLUETOOTH" to "Toggle Bluetooth")
+                        add("SHOW_VOLUME_PANEL" to "Show Volume Panel")
+                        add("SHOW_RECENT_APPS" to "Show Recent Apps")
+                        add("SCREEN_LOCK" to "Screen Lock")
+                        add("LAUNCH_APP" to "Launch App")
+                    }
 
                     val currentActionKey = when {
                         doubleTapAction == "LAUNCH_APP" || doubleTapAction.startsWith("LAUNCH_APP:") -> "LAUNCH_APP"
@@ -1417,6 +1444,85 @@ fun WidgetEditDetailDialog(
                                         }
                                     }
                                 )
+                            }
+                        }
+                    }
+
+                    if (isClockWidget && currentActionKey == "FULLSCREEN_CLOCK") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showStatusInFullScreen = !showStatusInFullScreen },
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Status in Full Screen",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "Show battery and date information when full screen clock controls are hidden",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = showStatusInFullScreen,
+                                        onCheckedChange = { showStatusInFullScreen = it }
+                                    )
+                                }
+
+                                if (showStatusInFullScreen) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(
+                                        text = "Status Bar Alignment",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        val alignmentOptions = listOf(
+                                            "TOP" to "Top",
+                                            "BOTTOM" to "Bottom",
+                                            "CENTERED" to "Centered"
+                                        )
+                                        alignmentOptions.forEach { (key, label) ->
+                                            FilterChip(
+                                                selected = clockStatusBarAlignment == key,
+                                                onClick = { clockStatusBarAlignment = key },
+                                                label = { Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                    val alignDesc = when (clockStatusBarAlignment) {
+                                        "BOTTOM" -> "Battery on bottom-left, date on bottom-right"
+                                        "CENTERED" -> "Battery on top of centered clock, date under clock matching clock width"
+                                        else -> "Battery on top-left, date on top-right"
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = alignDesc,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
@@ -1776,6 +1882,84 @@ fun WidgetEditDetailDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { showStatusInFullScreen = !showStatusInFullScreen },
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Status in Full Screen",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "Show battery and date information when full screen clock controls are hidden",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = showStatusInFullScreen,
+                                            onCheckedChange = { showStatusInFullScreen = it }
+                                        )
+                                    }
+
+                                    if (showStatusInFullScreen) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Text(
+                                            text = "Status Bar Alignment",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            val alignmentOptions = listOf(
+                                                "TOP" to "Top",
+                                                "BOTTOM" to "Bottom",
+                                                "CENTERED" to "Centered"
+                                            )
+                                            alignmentOptions.forEach { (key, label) ->
+                                                FilterChip(
+                                                    selected = clockStatusBarAlignment == key,
+                                                    onClick = { clockStatusBarAlignment = key },
+                                                    label = { Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                        val alignDesc = when (clockStatusBarAlignment) {
+                                            "BOTTOM" -> "Battery on bottom-left, date on bottom-right"
+                                            "CENTERED" -> "Battery on top of centered clock, date under clock matching clock width"
+                                            else -> "Battery on top-left, date on top-right"
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = alignDesc,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                     "WIDGET_CUSTOM_TEXT" -> {
@@ -1815,6 +1999,42 @@ fun WidgetEditDetailDialog(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showStatusInFullScreen = !showStatusInFullScreen }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Status in Full Screen",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Show battery level on top left and clock on top right when full screen controls are hidden",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = showStatusInFullScreen,
+                                    onCheckedChange = { showStatusInFullScreen = it }
+                                )
+                            }
+                        }
                     }
                     "WIDGET_BGM" -> {
                         Text(
@@ -2095,6 +2315,8 @@ fun WidgetEditDetailDialog(
                             }
                             val finalRetroArchCore = if (system.defaultLaunchMode == "WIDGET_APP_LAUNCH") {
                                 showLaunchText.toString()
+                            } else if (system.defaultLaunchMode == "WIDGET_SLIDESHOW") {
+                                if (showStatusInFullScreen) "SHOW_STATUS" else "HIDE_STATUS"
                             } else {
                                 retroArchCore
                             }
@@ -2125,9 +2347,16 @@ fun WidgetEditDetailDialog(
                             } else {
                                 system.saveAspectRatio
                             }
+                            val finalShortName = if (system.defaultLaunchMode == "WIDGET_CLOCK" || system.id.startsWith("widget_clock")) {
+                                val statusPrefix = if (showStatusInFullScreen) "SHOW_STATUS" else "HIDE_STATUS"
+                                "${statusPrefix}:${clockStatusBarAlignment}"
+                            } else {
+                                system.shortName
+                            }
                             onSave(
                                 system.copy(
                                     name = name,
+                                    shortName = finalShortName,
                                     colorHex = colorHex,
                                     folderPath = finalFolderPath,
                                     allowedExtensions = savedExt,

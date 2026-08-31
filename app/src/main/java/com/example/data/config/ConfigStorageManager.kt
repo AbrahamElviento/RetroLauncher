@@ -511,6 +511,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "mainMenuIconGridScalePercent").text(settings.mainMenuIconGridScalePercent.toString()).endTag("", "mainMenuIconGridScalePercent")
             serializer.startTag("", "mainMenuCarouselIconSizePercent").text(settings.mainMenuCarouselIconSizePercent.toString()).endTag("", "mainMenuCarouselIconSizePercent")
             serializer.startTag("", "mainMenuCarouselAnimation").text(settings.mainMenuCarouselAnimation.toString()).endTag("", "mainMenuCarouselAnimation")
+            serializer.startTag("", "mainMenuCarouselUnlimited").text(settings.mainMenuCarouselUnlimited.toString()).endTag("", "mainMenuCarouselUnlimited")
             serializer.startTag("", "selectedSfxFileName").text(settings.selectedSfxFileName).endTag("", "selectedSfxFileName")
             serializer.startTag("", "maxRecentCount").text(settings.maxRecentCount.toString()).endTag("", "maxRecentCount")
             serializer.startTag("", "customArcadeDbPath").text(settings.customArcadeDbPath).endTag("", "customArcadeDbPath")
@@ -612,6 +613,7 @@ class ConfigStorageManager(private val context: Context) {
             var mainMenuIconGridScalePercent = 100
             var mainMenuCarouselIconSizePercent = 100
             var mainMenuCarouselAnimation = true
+            var mainMenuCarouselUnlimited = false
             var selectedSfxFileName = ""
             var maxRecentCount = 30
             var customArcadeDbPath = ""
@@ -702,6 +704,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "mainMenuIconGridScalePercent" -> mainMenuIconGridScalePercent = text.toIntOrNull() ?: 100
                                 "mainMenuCarouselIconSizePercent" -> mainMenuCarouselIconSizePercent = text.toIntOrNull() ?: 100
                                 "mainMenuCarouselAnimation" -> mainMenuCarouselAnimation = text.toBooleanStrictOrNull() ?: true
+                                "mainMenuCarouselUnlimited" -> mainMenuCarouselUnlimited = text.toBooleanStrictOrNull() ?: false
                                 "selectedSfxFileName" -> selectedSfxFileName = text
                                 "maxRecentCount" -> maxRecentCount = text.toIntOrNull() ?: 30
                                 "customArcadeDbPath" -> customArcadeDbPath = text
@@ -788,6 +791,7 @@ class ConfigStorageManager(private val context: Context) {
                 mainMenuIconGridScalePercent = mainMenuIconGridScalePercent,
                 mainMenuCarouselIconSizePercent = mainMenuCarouselIconSizePercent,
                 mainMenuCarouselAnimation = mainMenuCarouselAnimation,
+                mainMenuCarouselUnlimited = mainMenuCarouselUnlimited,
                 selectedSfxFileName = selectedSfxFileName,
                 maxRecentCount = maxRecentCount,
                 customArcadeDbPath = customArcadeDbPath,
@@ -853,6 +857,7 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "showDetails").text(settings.showDetails.toString()).endTag("", "showDetails")
             serializer.startTag("", "carouselIconSizePercent").text(settings.carouselIconSizePercent.toString()).endTag("", "carouselIconSizePercent")
             serializer.startTag("", "enableCarouselAnimation").text(settings.enableCarouselAnimation.toString()).endTag("", "enableCarouselAnimation")
+            serializer.startTag("", "enableCarouselUnlimited").text(settings.enableCarouselUnlimited.toString()).endTag("", "enableCarouselUnlimited")
 
             serializer.endTag("", "RomListSettings")
             serializer.endDocument()
@@ -883,6 +888,7 @@ class ConfigStorageManager(private val context: Context) {
             var showDetails = true
             var carouselIconSizePercent = 100
             var enableCarouselAnimation = true
+            var enableCarouselUnlimited = false
 
             var currentTag = ""
 
@@ -902,6 +908,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "showDetails" -> showDetails = text.toBooleanStrictOrNull() ?: true
                                 "carouselIconSizePercent" -> carouselIconSizePercent = text.toIntOrNull() ?: 100
                                 "enableCarouselAnimation" -> enableCarouselAnimation = text.toBooleanStrictOrNull() ?: true
+                                "enableCarouselUnlimited" -> enableCarouselUnlimited = text.toBooleanStrictOrNull() ?: false
                             }
                         }
                     }
@@ -917,7 +924,8 @@ class ConfigStorageManager(private val context: Context) {
                 gridScalePercent = gridScalePercent,
                 showDetails = showDetails,
                 carouselIconSizePercent = carouselIconSizePercent,
-                enableCarouselAnimation = enableCarouselAnimation
+                enableCarouselAnimation = enableCarouselAnimation,
+                enableCarouselUnlimited = enableCarouselUnlimited
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -947,6 +955,7 @@ class ConfigStorageManager(private val context: Context) {
                 serializer.startTag("", "showDetails").text(settings.showDetails.toString()).endTag("", "showDetails")
                 serializer.startTag("", "carouselIconSizePercent").text(settings.carouselIconSizePercent.toString()).endTag("", "carouselIconSizePercent")
                 serializer.startTag("", "enableCarouselAnimation").text(settings.enableCarouselAnimation.toString()).endTag("", "enableCarouselAnimation")
+                serializer.startTag("", "enableCarouselUnlimited").text(settings.enableCarouselUnlimited.toString()).endTag("", "enableCarouselUnlimited")
                 serializer.endTag("", "SystemEntry")
             }
 
@@ -981,6 +990,7 @@ class ConfigStorageManager(private val context: Context) {
             var showDetails = true
             var carouselIconSizePercent = 100
             var enableCarouselAnimation = true
+            var enableCarouselUnlimited = false
 
             var currentTag = ""
 
@@ -999,6 +1009,7 @@ class ConfigStorageManager(private val context: Context) {
                             showDetails = true
                             carouselIconSizePercent = 100
                             enableCarouselAnimation = true
+                            enableCarouselUnlimited = false
                         }
                     }
                     XmlPullParser.TEXT -> {
@@ -1014,6 +1025,7 @@ class ConfigStorageManager(private val context: Context) {
                                 "showDetails" -> showDetails = text.toBooleanStrictOrNull() ?: true
                                 "carouselIconSizePercent" -> carouselIconSizePercent = text.toIntOrNull() ?: 100
                                 "enableCarouselAnimation" -> enableCarouselAnimation = text.toBooleanStrictOrNull() ?: true
+                                "enableCarouselUnlimited" -> enableCarouselUnlimited = text.toBooleanStrictOrNull() ?: false
                             }
                         }
                     }
@@ -1028,7 +1040,8 @@ class ConfigStorageManager(private val context: Context) {
                                 gridScalePercent = gridScalePercent,
                                 showDetails = showDetails,
                                 carouselIconSizePercent = carouselIconSizePercent,
-                                enableCarouselAnimation = enableCarouselAnimation
+                                enableCarouselAnimation = enableCarouselAnimation,
+                                enableCarouselUnlimited = enableCarouselUnlimited
                             )
                             currentSystemId = ""
                         }
