@@ -10,27 +10,36 @@ import android.os.BatteryManager
 import android.os.Build
 import android.view.KeyEvent
 import android.view.ViewGroup
+import android.view.Window
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.BrightnessHigh
+import androidx.compose.material.icons.filled.BrightnessLow
+import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -82,6 +91,56 @@ fun FullScreenClockDialog(
     val context = LocalContext.current
     var showOverlays by remember { mutableStateOf(true) }
     var activityTrigger by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    var dialogWindow by remember { mutableStateOf<Window?>(null) }
+    val activity = remember(context) { context.findActivity() }
+
+    // Screen brightness state initialized from current window or system setting
+    val initialBrightness = remember {
+        try {
+            val windowBrightness = activity?.window?.attributes?.screenBrightness ?: -1f
+            if (windowBrightness in 0.01f..1.0f) {
+                windowBrightness
+            } else {
+                val cur = android.provider.Settings.System.getInt(
+                    context.contentResolver,
+                    android.provider.Settings.System.SCREEN_BRIGHTNESS
+                )
+                (cur / 255f).coerceIn(0.05f, 1.0f)
+            }
+        } catch (e: Exception) {
+            0.8f
+        }
+    }
+    var currentBrightness by remember { mutableFloatStateOf(initialBrightness) }
+
+    val gestureBrightnessEnabled = remember(system.shortName) {
+        system.shortName.contains("GESTURE_BRIGHTNESS")
+    }
+
+    var showBrightnessIndicator by remember { mutableStateOf(false) }
+    LaunchedEffect(currentBrightness) {
+        if (gestureBrightnessEnabled) {
+            showBrightnessIndicator = true
+            delay(1200)
+            showBrightnessIndicator = false
+        }
+    }
+
+    // Apply brightness dynamically to both Dialog window and Activity window
+    LaunchedEffect(currentBrightness, dialogWindow, activity) {
+        val b = currentBrightness.coerceIn(0.01f, 1.0f)
+        dialogWindow?.let { win ->
+            val lp = win.attributes
+            lp.screenBrightness = b
+            win.attributes = lp
+        }
+        activity?.window?.let { actWin ->
+            val lp = actWin.attributes
+            lp.screenBrightness = b
+            actWin.attributes = lp
+        }
+    }
 
     // Live Battery state
     var batteryPercent by remember { mutableIntStateOf(100) }
@@ -167,6 +226,7 @@ fun FullScreenClockDialog(
                 parent = parent.parent
             }
             (parent as? DialogWindowProvider)?.window?.let { window ->
+                dialogWindow = window
                 window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                 window.setBackgroundDrawableResource(android.R.color.black)
                 window.setDimAmount(0f)
@@ -219,8 +279,14 @@ fun FullScreenClockDialog(
             }
 
             onDispose {
+                dialogWindow = null
                 val act = context.findActivity()
                 act?.window?.let { actWindow ->
+                    // Restore default brightness on exit
+                    val actLp = actWindow.attributes
+                    actLp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                    actWindow.attributes = actLp
+
                     val actController = WindowInsetsControllerCompat(actWindow, actWindow.decorView)
                     if (enableImmersiveMode) {
                         WindowCompat.setDecorFitsSystemWindows(actWindow, false)
@@ -234,8 +300,54 @@ fun FullScreenClockDialog(
             }
         }
 
-        Box(
-            modifier = Modifier
+        val containerModifier = if (gestureBrightnessEnabled) {
+            Modifier
+                .fillMaxSize()
+                .focusRequester(focusRequester)
+                .focusable()
+                .onKeyEvent { keyEvent ->
+                    activityTrigger = System.currentTimeMillis()
+                    if (keyEvent.type == KeyEventType.KeyDown) {
+                        when (keyEvent.nativeKeyEvent.keyCode) {
+                            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BUTTON_B -> {
+                                onDismiss()
+                                true
+                            }
+                            else -> false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = {
+                            activityTrigger = System.currentTimeMillis()
+                        },
+                        onDragEnd = {
+                            activityTrigger = System.currentTimeMillis()
+                        },
+                        onDragCancel = {
+                            activityTrigger = System.currentTimeMillis()
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            val delta = -dragAmount.y / 600f
+                            currentBrightness = (currentBrightness + delta).coerceIn(0.01f, 1.0f)
+                            activityTrigger = System.currentTimeMillis()
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            showOverlays = !showOverlays
+                            activityTrigger = System.currentTimeMillis()
+                        }
+                    )
+                }
+        } else {
+            Modifier
                 .fillMaxSize()
                 .focusRequester(focusRequester)
                 .focusable()
@@ -260,6 +372,10 @@ fun FullScreenClockDialog(
                     showOverlays = !showOverlays
                     activityTrigger = System.currentTimeMillis()
                 }
+        }
+
+        Box(
+            modifier = containerModifier
         ) {
             // Extra 10% top & 10% bottom pure black background overlay (120% height layout)
             Box(
@@ -284,6 +400,10 @@ fun FullScreenClockDialog(
                 Color(android.graphics.Color.parseColor(system.colorHex))
             }.getOrDefault(MaterialTheme.colorScheme.primary)
 
+            val alwaysShowStatus = remember(system.shortName) {
+                system.shortName.contains("ALWAYS")
+            }
+
             val (showStatusEffective, statusAlignment) = remember(system.shortName, showStatusInFullScreen) {
                 val showInSystem = !system.shortName.contains("HIDE_STATUS") && system.shortName != "false"
                 val show = showStatusInFullScreen && showInSystem
@@ -294,6 +414,8 @@ fun FullScreenClockDialog(
                 }
                 Pair(show, align)
             }
+
+            val isStatusVisible = showStatusEffective && (alwaysShowStatus || !showOverlays)
 
             val isClassicClock = system.folderPath.startsWith("CLASSIC")
             val is24Hour = system.folderPath.contains("24H") || system.allowedExtensions == "24h" || system.allowedExtensions == "HH:mm:ss" || system.allowedExtensions == "HH:mm"
@@ -338,6 +460,62 @@ fun FullScreenClockDialog(
             ) {
                 val availW = (maxWidth - 16.dp).coerceAtLeast(60.dp)
                 val availH = (maxHeight - 16.dp).coerceAtLeast(40.dp)
+                val density = LocalDensity.current
+                val computedDigitHeight = remember(isClassicClock, is24Hour, showSeconds, availW, availH, statusAlignment) {
+                    val widthFactor = when {
+                        !is24Hour && showSeconds -> 4.85f
+                        is24Hour && showSeconds -> 4.05f
+                        !is24Hour && !showSeconds -> 3.75f
+                        else -> 2.85f
+                    }
+                    val maxHFromWidth = availW / widthFactor
+                    val maxHFromHeight = if (statusAlignment == "CENTERED") availH * 0.55f else availH * 0.72f
+                    minOf(maxHFromWidth, maxHFromHeight).coerceAtLeast(32.dp)
+                }
+
+                val textMeasurer = rememberTextMeasurer()
+                val textStyle = MaterialTheme.typography.displayLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = parseColor,
+                    textAlign = TextAlign.Center
+                )
+
+                val optimalFontSize = remember(mainTimeStr, availW, availH, statusAlignment, textStyle, density) {
+                    if (mainTimeStr.isBlank()) 64.sp else {
+                        val targetWidthPx = with(density) { availW.toPx() }.toInt()
+                        val targetHeightPx = with(density) { (if (statusAlignment == "CENTERED") availH * 0.55f else availH * 0.72f).toPx() }.toInt()
+
+                        var low = 16
+                        var high = 350
+                        var best = 32
+
+                        while (low <= high) {
+                            val mid = (low + high) / 2
+                            val layoutResult = textMeasurer.measure(
+                                text = mainTimeStr,
+                                style = textStyle.copy(fontSize = mid.sp),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                            if (layoutResult.size.width <= targetWidthPx && layoutResult.size.height <= targetHeightPx) {
+                                best = mid
+                                low = mid + 1
+                            } else {
+                                high = mid - 1
+                            }
+                        }
+                        best.sp
+                    }
+                }
+
+                val clockFontSizeVal = if (isClassicClock) {
+                    with(density) { computedDigitHeight.toSp().value }
+                } else {
+                    optimalFontSize.value
+                }
+
+                val batteryFontSize = (clockFontSizeVal * 0.50f).coerceIn(16f, 160f).sp
+                val batteryIconSize = with(density) { (clockFontSizeVal * 0.50f).toDp().coerceIn(20.dp, 160.dp) }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -346,46 +524,39 @@ fun FullScreenClockDialog(
                     // CENTERED Alignment: Battery Level Above Clock
                     if (statusAlignment == "CENTERED") {
                         AnimatedVisibility(
-                            visible = !showOverlays && showStatusEffective,
+                            visible = isStatusVisible,
                             enter = fadeIn(animationSpec = tween(600)),
                             exit = fadeOut(animationSpec = tween(300))
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            ) {
-                                Icon(
-                                    imageVector = batteryIcon,
-                                    contentDescription = "Battery Level",
-                                    tint = parseColor,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                                Text(
-                                    text = "$batteryPercent%",
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = statusFontFamily,
-                                        letterSpacing = statusLetterSpacing,
-                                        color = parseColor
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = batteryIcon,
+                                        contentDescription = "Battery Level",
+                                        tint = parseColor,
+                                        modifier = Modifier.size(batteryIconSize)
                                     )
-                                )
+                                    Text(
+                                        text = "$batteryPercent%",
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = statusFontFamily,
+                                            letterSpacing = statusLetterSpacing,
+                                            color = parseColor,
+                                            fontSize = batteryFontSize
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(28.dp))
                             }
                         }
                     }
 
                     // Main Clock Display (Classic 7-segment or Standard Formatted text)
                     if (isClassicClock) {
-                        val widthFactor = when {
-                            !is24Hour && showSeconds -> 4.85f
-                            is24Hour && showSeconds -> 4.05f
-                            !is24Hour && !showSeconds -> 3.75f
-                            else -> 2.85f
-                        }
-                        val maxHFromWidth = availW / widthFactor
-                        val maxHFromHeight = if (statusAlignment == "CENTERED") availH * 0.55f else availH * 0.72f
-                        val computedDigitHeight = minOf(maxHFromWidth, maxHFromHeight).coerceAtLeast(32.dp)
-
                         SevenSegmentClock(
                             is24Hour = is24Hour,
                             color = parseColor,
@@ -394,42 +565,6 @@ fun FullScreenClockDialog(
                             showContainerBackground = false
                         )
                     } else {
-                        val textMeasurer = rememberTextMeasurer()
-                        val density = LocalDensity.current
-                        val textStyle = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = parseColor,
-                            textAlign = TextAlign.Center
-                        )
-
-                        val optimalFontSize = remember(mainTimeStr, availW, availH, statusAlignment, textStyle, density) {
-                            if (mainTimeStr.isBlank()) 64.sp else {
-                                val targetWidthPx = with(density) { availW.toPx() }.toInt()
-                                val targetHeightPx = with(density) { (if (statusAlignment == "CENTERED") availH * 0.55f else availH * 0.72f).toPx() }.toInt()
-
-                                var low = 16
-                                var high = 350
-                                var best = 32
-
-                                while (low <= high) {
-                                    val mid = (low + high) / 2
-                                    val layoutResult = textMeasurer.measure(
-                                        text = mainTimeStr,
-                                        style = textStyle.copy(fontSize = mid.sp),
-                                        maxLines = 1,
-                                        softWrap = false
-                                    )
-                                    if (layoutResult.size.width <= targetWidthPx && layoutResult.size.height <= targetHeightPx) {
-                                        best = mid
-                                        low = mid + 1
-                                    } else {
-                                        high = mid - 1
-                                    }
-                                }
-                                best.sp
-                            }
-                        }
-
                         Text(
                             text = mainTimeStr,
                             style = textStyle.copy(
@@ -443,12 +578,10 @@ fun FullScreenClockDialog(
                     // CENTERED Alignment: Date Under Clock (matching font style and clock width)
                     if (statusAlignment == "CENTERED") {
                         AnimatedVisibility(
-                            visible = !showOverlays && showStatusEffective,
+                            visible = isStatusVisible,
                             enter = fadeIn(animationSpec = tween(600)),
                             exit = fadeOut(animationSpec = tween(300))
                         ) {
-                            val textMeasurer = rememberTextMeasurer()
-                            val density = LocalDensity.current
                             val dateStyle = MaterialTheme.typography.displayMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = statusFontFamily,
@@ -485,13 +618,15 @@ fun FullScreenClockDialog(
                                 }
                             }
 
-                            Text(
-                                text = statusDateStr,
-                                style = dateStyle.copy(fontSize = optimalDateFontSize),
-                                modifier = Modifier.padding(top = 16.dp),
-                                maxLines = 1,
-                                softWrap = false
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Spacer(modifier = Modifier.height(28.dp))
+                                Text(
+                                    text = statusDateStr,
+                                    style = dateStyle.copy(fontSize = optimalDateFontSize),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
                     }
                 }
@@ -500,7 +635,7 @@ fun FullScreenClockDialog(
             // TOP or BOTTOM Status Bar
             if (statusAlignment == "TOP" || statusAlignment == "BOTTOM") {
                 AnimatedVisibility(
-                    visible = !showOverlays && showStatusEffective,
+                    visible = isStatusVisible,
                     enter = fadeIn(animationSpec = tween(600)),
                     exit = fadeOut(animationSpec = tween(300)),
                     modifier = Modifier
@@ -549,6 +684,77 @@ fun FullScreenClockDialog(
                 }
             }
 
+            // Brightness Slider (positioned at Bottom by default; moved to Top if status bar is at Bottom)
+            AnimatedVisibility(
+                visible = showOverlays && !gestureBrightnessEnabled,
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(500)),
+                modifier = Modifier
+                    .align(if (statusAlignment == "BOTTOM") Alignment.TopCenter else Alignment.BottomCenter)
+                    .padding(
+                        start = if (statusAlignment == "BOTTOM") 20.dp else 24.dp,
+                        end = if (statusAlignment == "BOTTOM") 84.dp else 24.dp,
+                        top = if (statusAlignment == "BOTTOM") 20.dp else 0.dp,
+                        bottom = if (statusAlignment == "BOTTOM") 0.dp else 24.dp
+                    )
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = Color.Black.copy(alpha = 0.75f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .widthIn(max = 420.dp)
+                        .fillMaxWidth(if (statusAlignment == "BOTTOM") 0.75f else 0.85f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        val brightnessIcon = when {
+                            currentBrightness < 0.35f -> Icons.Default.BrightnessLow
+                            currentBrightness < 0.70f -> Icons.Default.BrightnessMedium
+                            else -> Icons.Default.BrightnessHigh
+                        }
+                        Icon(
+                            imageVector = brightnessIcon,
+                            contentDescription = "Brightness Control",
+                            tint = parseColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+
+                        Slider(
+                            value = currentBrightness,
+                            onValueChange = {
+                                currentBrightness = it
+                                activityTrigger = System.currentTimeMillis()
+                            },
+                            onValueChangeFinished = {
+                                activityTrigger = System.currentTimeMillis()
+                            },
+                            valueRange = 0.05f..1.0f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = parseColor,
+                                activeTrackColor = parseColor,
+                                inactiveTrackColor = parseColor.copy(alpha = 0.25f)
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Text(
+                            text = "${(currentBrightness * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = statusFontFamily,
+                                color = parseColor
+                            ),
+                            modifier = Modifier.width(38.dp),
+                            textAlign = TextAlign.End
+                        )
+                    }
+                }
+            }
+
             // Close Button in top right corner (auto-hides after inactivity period)
             AnimatedVisibility(
                 visible = showOverlays,
@@ -572,6 +778,46 @@ fun FullScreenClockDialog(
                         contentDescription = "Close Full Screen Clock",
                         modifier = Modifier.size(24.dp)
                     )
+                }
+            }
+
+            // Central Brightness Gesture Indicator
+            AnimatedVisibility(
+                visible = showBrightnessIndicator,
+                enter = fadeIn(animationSpec = tween(150)),
+                exit = fadeOut(animationSpec = tween(400)),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Black.copy(alpha = 0.8f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val brightnessIcon = when {
+                            currentBrightness < 0.35f -> Icons.Default.BrightnessLow
+                            currentBrightness < 0.70f -> Icons.Default.BrightnessMedium
+                            else -> Icons.Default.BrightnessHigh
+                        }
+                        Icon(
+                            imageVector = brightnessIcon,
+                            contentDescription = "Brightness",
+                            tint = parseColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "Brightness: ${(currentBrightness * 100).toInt()}%",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                    }
                 }
             }
         }

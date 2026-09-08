@@ -28,14 +28,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import android.view.MotionEvent
 import android.view.InputDevice
+import android.view.ViewGroup
+import android.view.accessibility.AccessibilityEvent
 import coil.ImageLoader
 import coil.decode.SvgDecoder
 import coil.Coil
+import com.example.ui.components.CrownScrollView
+import com.example.ui.components.CrownAccessibilityDelegate
 
 class MainActivity : ComponentActivity() {
 
     private val viewModel: LauncherViewModel by viewModels()
     private var sleepJob: kotlinx.coroutines.Job? = null
+    private var myScrollView: CrownScrollView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,6 +67,134 @@ class MainActivity : ComponentActivity() {
                     MainHomeScreen(viewModel = viewModel)
                 }
             }
+        }
+        setupCrownScrollView()
+    }
+
+    private fun setupCrownScrollView() {
+        val root = findViewById<ViewGroup>(android.R.id.content) ?: return
+        
+        // Line 1: Tell the system that this layout actively handles automated user scroll intents
+        val scrollView = CrownScrollView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            alpha = 0.001f // Invisible to eye, visible to accessibility & scroll system
+            
+            // Route crown rotation to ViewModel active item updates
+            onCrownScrollUp = {
+                viewModel.onRotaryScroll(1f)
+            }
+            onCrownScrollDown = {
+                viewModel.onRotaryScroll(-1f)
+            }
+
+            // Line 1: Tell the system that this layout actively handles automated user scroll intents
+            accessibilityDelegate = CrownAccessibilityDelegate(
+                onEvent = { event -> onAccessibilityEvent(event) },
+                onScrollUp = { viewModel.onRotaryScroll(1f) },
+                onScrollDown = { viewModel.onRotaryScroll(-1f) }
+            )
+        }
+        myScrollView = scrollView
+        root.addView(scrollView, 0)
+
+        // Also assign accessibility delegate to window DecorView for system-level crown listeners
+        window.decorView.accessibilityDelegate = CrownAccessibilityDelegate(
+            onEvent = { event -> onAccessibilityEvent(event) },
+            onScrollUp = { viewModel.onRotaryScroll(1f) },
+            onScrollDown = { viewModel.onRotaryScroll(-1f) }
+        )
+    }
+
+    override fun dispatchPopulateAccessibilityEvent(event: AccessibilityEvent): Boolean {
+        onAccessibilityEvent(event)
+        return super.dispatchPopulateAccessibilityEvent(event)
+    }
+
+    // Line 2: Route the standard framework container tracking to update your active item indices
+    fun onAccessibilityEvent(event: AccessibilityEvent) {
+        /* Update list index here */
+        handleCrownAccessibilityEvent(event)
+    }
+
+    private var lastAccScrollY = 5000
+    private var lastAccFromIndex = -1
+    private var lastAccEventTime = 0L
+
+    private fun handleCrownAccessibilityEvent(event: AccessibilityEvent) {
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val dy = event.scrollDeltaY
+                    val dx = event.scrollDeltaX
+                    if (dy > 0 || dx > 0) {
+                        triggerCrownDownFromAcc()
+                        return
+                    } else if (dy < 0 || dx < 0) {
+                        triggerCrownUpFromAcc()
+                        return
+                    }
+                }
+
+                if (event.action == android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) {
+                    triggerCrownDownFromAcc()
+                    return
+                } else if (event.action == android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) {
+                    triggerCrownUpFromAcc()
+                    return
+                }
+
+                val curY = event.scrollY
+                if (curY != -1 && curY != lastAccScrollY) {
+                    if (curY > lastAccScrollY) {
+                        triggerCrownDownFromAcc()
+                    } else {
+                        triggerCrownUpFromAcc()
+                    }
+                    lastAccScrollY = curY
+                    return
+                }
+
+                val fromIdx = event.fromIndex
+                if (fromIdx != -1 && fromIdx != lastAccFromIndex) {
+                    if (fromIdx > lastAccFromIndex) {
+                        triggerCrownDownFromAcc()
+                    } else {
+                        triggerCrownUpFromAcc()
+                    }
+                    lastAccFromIndex = fromIdx
+                    return
+                }
+            }
+            AccessibilityEvent.TYPE_VIEW_SELECTED -> {
+                val fromIdx = event.fromIndex
+                if (fromIdx != -1 && fromIdx != lastAccFromIndex) {
+                    if (fromIdx > lastAccFromIndex) {
+                        triggerCrownDownFromAcc()
+                    } else {
+                        triggerCrownUpFromAcc()
+                    }
+                    lastAccFromIndex = fromIdx
+                }
+            }
+        }
+    }
+
+    private fun triggerCrownUpFromAcc() {
+        val now = System.currentTimeMillis()
+        if (now - lastAccEventTime > 25L) {
+            lastAccEventTime = now
+            viewModel.onRotaryScroll(1f)
+        }
+    }
+
+    private fun triggerCrownDownFromAcc() {
+        val now = System.currentTimeMillis()
+        if (now - lastAccEventTime > 25L) {
+            lastAccEventTime = now
+            viewModel.onRotaryScroll(-1f)
         }
     }
 

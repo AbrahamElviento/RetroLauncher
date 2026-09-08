@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.activity.compose.BackHandler
@@ -27,6 +28,7 @@ import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -546,6 +548,23 @@ fun MainHomeScreen(
             } else false
         }
     ) {
+        // Dedicated Crown ScrollView container embedded in Compose tree for Chinese Android watches
+        AndroidView(
+            modifier = Modifier
+                .size(1.dp)
+                .alpha(0.001f),
+            factory = { ctx ->
+                CrownScrollView(ctx).apply {
+                    onCrownScrollUp = { handleCrownUp() }
+                    onCrownScrollDown = { handleCrownDown() }
+                }
+            },
+            update = { crownScrollView ->
+                crownScrollView.onCrownScrollUp = { handleCrownUp() }
+                crownScrollView.onCrownScrollDown = { handleCrownDown() }
+            }
+        )
+
         val isFullScreenOverlayActive = showSlideshowControlDialog || showFullScreenClockDialog
 
         val HeaderBarContent: @Composable () -> Unit = {

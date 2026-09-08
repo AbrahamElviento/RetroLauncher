@@ -1197,6 +1197,18 @@ fun WidgetEditDetailDialog(
         )
     }
 
+    var alwaysShowStatusBar by remember {
+        mutableStateOf(
+            system.shortName.contains("ALWAYS")
+        )
+    }
+
+    var gestureBrightnessEnabled by remember {
+        mutableStateOf(
+            system.shortName.contains("GESTURE_BRIGHTNESS")
+        )
+    }
+
     var clockStatusBarAlignment by remember {
         mutableStateOf(
             when {
@@ -1488,6 +1500,35 @@ fun WidgetEditDetailDialog(
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                                     Spacer(modifier = Modifier.height(8.dp))
 
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { alwaysShowStatusBar = !alwaysShowStatusBar },
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Always Show Status Bar",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "Keep status bar permanently visible on full screen clock instead of auto-fading",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = alwaysShowStatusBar,
+                                            onCheckedChange = { alwaysShowStatusBar = it }
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                    Spacer(modifier = Modifier.height(8.dp))
+
                                     Text(
                                         text = "Status Bar Alignment",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
@@ -1522,6 +1563,35 @@ fun WidgetEditDetailDialog(
                                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { gestureBrightnessEnabled = !gestureBrightnessEnabled },
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Gesture Brightness Toggle",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "Swipe up/down to adjust brightness and hide the brightness slider overlay",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = gestureBrightnessEnabled,
+                                            onCheckedChange = { gestureBrightnessEnabled = it }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1923,6 +1993,35 @@ fun WidgetEditDetailDialog(
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                                         Spacer(modifier = Modifier.height(8.dp))
 
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { alwaysShowStatusBar = !alwaysShowStatusBar },
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Always Show Status Bar",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                                Text(
+                                                    text = "Keep status bar permanently visible on full screen clock instead of auto-fading",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Switch(
+                                                checked = alwaysShowStatusBar,
+                                                onCheckedChange = { alwaysShowStatusBar = it }
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                        Spacer(modifier = Modifier.height(8.dp))
+
                                         Text(
                                             text = "Status Bar Alignment",
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
@@ -1957,6 +2056,35 @@ fun WidgetEditDetailDialog(
                                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { gestureBrightnessEnabled = !gestureBrightnessEnabled },
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Gesture Brightness Toggle",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                                Text(
+                                                    text = "Swipe up/down to adjust brightness and hide the brightness slider overlay",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Switch(
+                                                checked = gestureBrightnessEnabled,
+                                                onCheckedChange = { gestureBrightnessEnabled = it }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -2349,7 +2477,9 @@ fun WidgetEditDetailDialog(
                             }
                             val finalShortName = if (system.defaultLaunchMode == "WIDGET_CLOCK" || system.id.startsWith("widget_clock")) {
                                 val statusPrefix = if (showStatusInFullScreen) "SHOW_STATUS" else "HIDE_STATUS"
-                                "${statusPrefix}:${clockStatusBarAlignment}"
+                                val alwaysSuffix = if (showStatusInFullScreen && alwaysShowStatusBar) ":ALWAYS" else ""
+                                val gestureSuffix = if (gestureBrightnessEnabled) ":GESTURE_BRIGHTNESS" else ""
+                                "${statusPrefix}:${clockStatusBarAlignment}${alwaysSuffix}${gestureSuffix}"
                             } else {
                                 system.shortName
                             }
