@@ -105,8 +105,8 @@ class CrownScrollView @JvmOverloads constructor(
         // Line 1: Tell the system that this layout actively handles automated user scroll intents
         isScrollContainer = true
         isNestedScrollingEnabled = true
-        isFocusable = true
-        isFocusableInTouchMode = true
+        isFocusable = false
+        isFocusableInTouchMode = false
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         overScrollMode = OVER_SCROLL_NEVER
 
@@ -199,44 +199,28 @@ class CrownScrollView @JvmOverloads constructor(
     }
 
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
-        val axisScroll = event.getAxisValue(MotionEvent.AXIS_SCROLL)
-        val axisVScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
-        val axisWheel = event.getAxisValue(MotionEvent.AXIS_WHEEL)
-        val axisY = event.getAxisValue(MotionEvent.AXIS_Y)
-        val vScroll = when {
-            axisScroll != 0f -> axisScroll
-            axisVScroll != 0f -> axisVScroll
-            axisWheel != 0f -> axisWheel
-            axisY != 0f -> axisY
-            else -> 0f
-        }
-        if (vScroll > 0f) {
-            triggerCrownUp()
-            return true
-        } else if (vScroll < 0f) {
-            triggerCrownDown()
-            return true
+        if (event.action == MotionEvent.ACTION_SCROLL || event.actionMasked == MotionEvent.ACTION_SCROLL) {
+            val axisScroll = event.getAxisValue(MotionEvent.AXIS_SCROLL)
+            val axisVScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+            val axisWheel = event.getAxisValue(MotionEvent.AXIS_WHEEL)
+            val vScroll = when {
+                axisScroll != 0f -> axisScroll
+                axisVScroll != 0f -> axisVScroll
+                axisWheel != 0f -> axisWheel
+                else -> 0f
+            }
+            if (vScroll > 0f) {
+                triggerCrownUp()
+                return true
+            } else if (vScroll < 0f) {
+                triggerCrownDown()
+                return true
+            }
         }
         return super.onGenericMotionEvent(event)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_NAVIGATE_PREVIOUS,
-                KeyEvent.KEYCODE_PAGE_UP,
-                KeyEvent.KEYCODE_DPAD_UP -> {
-                    triggerCrownUp()
-                    return true
-                }
-                KeyEvent.KEYCODE_NAVIGATE_NEXT,
-                KeyEvent.KEYCODE_PAGE_DOWN,
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    triggerCrownDown()
-                    return true
-                }
-            }
-        }
         return super.dispatchKeyEvent(event)
     }
 

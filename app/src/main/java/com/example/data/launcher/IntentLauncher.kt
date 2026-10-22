@@ -305,13 +305,17 @@ class IntentLauncher(private val context: Context) {
 
         // Format activity class name
         val rawActivity = profile.activityName.trim()
+        val isDrastic = profile.id.lowercase().contains("drastic") ||
+                targetPackage == "com.dsemu.drastic" ||
+                rawActivity.endsWith(".DraSticActivity")
+
         val activityClass = when {
             isAetherOrNether -> "$targetPackage.EmulationActivity"
             rawActivity.startsWith(".") -> "$targetPackage$rawActivity"
             rawActivity.startsWith("/") -> "$targetPackage${rawActivity.removePrefix("/")}"
             rawActivity.endsWith(".EmulationActivity") -> "$targetPackage.EmulationActivity"
             profile.id == "ppsspp" || profile.id == "ppsspp_gold" || rawActivity.endsWith(".PpssppActivity") -> "$targetPackage.PpssppActivity"
-            profile.id == "drastic" || rawActivity.endsWith(".DraSticActivity") -> "$targetPackage.DraSticActivity"
+            isDrastic -> "$targetPackage.DraSticActivity"
             profile.id == "dolphin" || rawActivity.endsWith("ui.main.MainActivity") -> "$targetPackage.ui.main.MainActivity"
             else -> rawActivity
         }
@@ -322,7 +326,7 @@ class IntentLauncher(private val context: Context) {
 
         val actionToUse = when {
             isAetherOrNether -> Intent.ACTION_MAIN
-            isPpsspp -> Intent.ACTION_VIEW
+            isPpsspp || isDrastic -> Intent.ACTION_VIEW
             else -> profile.intentAction.ifEmpty { Intent.ACTION_VIEW }
         }
 
@@ -347,7 +351,9 @@ class IntentLauncher(private val context: Context) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+                if (!isDrastic) {
+                    addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+                }
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
 
@@ -362,6 +368,31 @@ class IntentLauncher(private val context: Context) {
                 if (isPpsspp) {
                     addCategory(Intent.CATEGORY_DEFAULT)
                     data = safUri
+                } else if (isDrastic) {
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                    val targetUri = when {
+                        profile.romPathExtraKey.equals("FILE_URI", ignoreCase = true) ||
+                        profile.romPathExtraKey.equals("FILE", ignoreCase = true) -> fileUri
+                        profile.romPathExtraKey.equals("FILE_PATH", ignoreCase = true) ||
+                        profile.romPathExtraKey.equals("RAW_PATH", ignoreCase = true) -> Uri.parse(game.filePath)
+                        else -> safUri
+                    }
+                    data = targetUri
+                    clipData = android.content.ClipData.newRawUri(null, targetUri)
+
+                    // Do NOT pass legacy shortcut extras like "GAMEPATH", "path", "PATH", "bootPath", etc.
+                    // Passing those extras causes DraStic's shortcut handler to activate and fail with
+                    // the toast "Unable to open shortcut", even when the ROM loads successfully via data URI.
+                    if (profile.romPathExtraKey.isNotBlank() &&
+                        !profile.romPathExtraKey.equals("DATA", ignoreCase = true) &&
+                        !profile.romPathExtraKey.equals("FILE_URI", ignoreCase = true) &&
+                        !profile.romPathExtraKey.equals("FILE", ignoreCase = true) &&
+                        !profile.romPathExtraKey.equals("FILE_PATH", ignoreCase = true) &&
+                        !profile.romPathExtraKey.equals("RAW_PATH", ignoreCase = true) &&
+                        !profile.romPathExtraKey.equals("NONE", ignoreCase = true)
+                    ) {
+                        putExtra(profile.romPathExtraKey, game.filePath)
+                    }
                 } else if (isAetherOrNether) {
                     putExtra("bootPath", safUriString)
                     if (extraKey.isNotEmpty() && extraKey != "bootPath") {
@@ -378,8 +409,6 @@ class IntentLauncher(private val context: Context) {
                     if (extraKey == "android.intent.extra.STREAM" || extraKey == "CONTENT_URI") {
                         putExtra(Intent.EXTRA_STREAM, uri)
                         setDataAndType(uri, "*/*")
-                    } else if (profile.id == "drastic" || targetPackage == "com.dsemu.drastic") {
-                        setDataAndType(fileUri, "*/*")
                     } else {
                         setDataAndType(uri, "*/*")
                     }
@@ -403,7 +432,7 @@ class IntentLauncher(private val context: Context) {
             }
 
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            val urisToGrant = if (isAetherOrNether || isPpsspp) {
+            val urisToGrant = if (isAetherOrNether || isPpsspp || isDrastic) {
                 listOfNotNull(safUri, safTreeUri, uri, fileUri)
             } else {
                 listOfNotNull(uri, fileUri)

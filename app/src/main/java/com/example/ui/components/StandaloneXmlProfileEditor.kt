@@ -131,6 +131,19 @@ fun StandaloneXmlProfileEditor(
                         },
                         label = { Text("PPSSPP") }
                     )
+                    AssistChip(
+                        onClick = {
+                            rawXml = """
+<emulator id="drastic" name="DraStic (NDS)">
+  <package>com.dsemu.drastic</package>
+  <activity>com.dsemu.drastic.DraSticActivity</activity>
+  <action>android.intent.action.VIEW</action>
+  <romPathExtraKey></romPathExtraKey>
+</emulator>
+                            """.trimIndent()
+                        },
+                        label = { Text("DraStic") }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))

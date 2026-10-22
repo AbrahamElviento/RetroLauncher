@@ -26,6 +26,7 @@ import com.example.ui.viewmodel.LauncherViewModel
 
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.InputDevice
 import android.view.ViewGroup
@@ -81,6 +82,8 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             alpha = 0.001f // Invisible to eye, visible to accessibility & scroll system
+            isFocusable = false
+            isFocusableInTouchMode = false
             
             // Route crown rotation to ViewModel active item updates
             onCrownScrollUp = {
@@ -269,17 +272,40 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // State tracking for native D-pad key events vs analog axes and triggers
+    private var lastNativeDpadTime = 0L
+    private var lastLTrigger = false
+    private var lastRTrigger = false
+    private var lastStickDirX = 0
+    private var lastStickDirY = 0
+    private var lastStickEventTime = 0L
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode in listOf(
+                KeyEvent.KEYCODE_DPAD_LEFT,
+                KeyEvent.KEYCODE_DPAD_RIGHT,
+                KeyEvent.KEYCODE_DPAD_UP,
+                KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_BUTTON_L1,
+                KeyEvent.KEYCODE_BUTTON_R1,
+                KeyEvent.KEYCODE_BUTTON_L2,
+                KeyEvent.KEYCODE_BUTTON_R2
+            )) {
+            lastNativeDpadTime = System.currentTimeMillis()
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        // Rotary / Crown / Mouse scroll handling
         if (event.action == MotionEvent.ACTION_SCROLL || event.actionMasked == MotionEvent.ACTION_SCROLL) {
             val axisScroll = event.getAxisValue(MotionEvent.AXIS_SCROLL)
             val axisVScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
             val axisWheel = event.getAxisValue(MotionEvent.AXIS_WHEEL)
-            val axisY = event.getAxisValue(MotionEvent.AXIS_Y)
             val vScroll = when {
                 axisScroll != 0f -> axisScroll
                 axisVScroll != 0f -> axisVScroll
                 axisWheel != 0f -> axisWheel
-                axisY != 0f -> axisY
                 else -> 0f
             }
             if (vScroll != 0f) {
@@ -287,27 +313,99 @@ class MainActivity : ComponentActivity() {
                 return true
             }
         }
+
+        // Gamepad Joystick, D-Pad Axes, and Triggers handling
+        val isJoystickOrGamepad = (event.source and InputDevice.SOURCE_CLASS_JOYSTICK != 0) ||
+                (event.source and InputDevice.SOURCE_GAMEPAD != 0) ||
+                (event.source and InputDevice.SOURCE_DPAD != 0)
+
+        if (isJoystickOrGamepad) {
+            val now = System.currentTimeMillis()
+
+            // 1. Analog Triggers: L2 (AXIS_LTRIGGER, AXIS_BRAKE) and R2 (AXIS_RTRIGGER, AXIS_GAS)
+            // Note: AXIS_Z and AXIS_RZ are the right analog thumbstick on gamepads - never treat them as triggers!
+            val lTriggerVal = maxOf(
+                event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
+                event.getAxisValue(MotionEvent.AXIS_BRAKE)
+            )
+            val rTriggerVal = maxOf(
+                event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
+                event.getAxisValue(MotionEvent.AXIS_GAS)
+            )
+
+            if (lTriggerVal > 0.5f && !lastLTrigger) {
+                lastLTrigger = true
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_L2))
+            } else if (lTriggerVal < 0.25f && lastLTrigger) {
+                lastLTrigger = false
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_L2))
+            }
+
+            if (rTriggerVal > 0.5f && !lastRTrigger) {
+                lastRTrigger = true
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_R2))
+            } else if (rTriggerVal < 0.25f && lastRTrigger) {
+                lastRTrigger = false
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_R2))
+            }
+
+            // 2. Analog Thumbstick (Left Stick) or Hat Axes navigation:
+            // ONLY process if no native physical D-pad KeyEvent was recently handled to prevent duplicate inputs
+            val isNativeDpadActive = (now - lastNativeDpadTime) < 180L
+
+            if (!isNativeDpadActive) {
+                val hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
+                val hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+                val stickX = event.getAxisValue(MotionEvent.AXIS_X)
+                val stickY = event.getAxisValue(MotionEvent.AXIS_Y)
+
+                val dirX = when {
+                    hatX < -0.5f || stickX < -0.55f -> -1
+                    hatX > 0.5f || stickX > 0.55f -> 1
+                    else -> 0
+                }
+                val dirY = when {
+                    hatY < -0.5f || stickY < -0.55f -> -1
+                    hatY > 0.5f || stickY > 0.55f -> 1
+                    else -> 0
+                }
+
+                // Handle horizontal stick / hat direction change or repeat
+                if (dirX != 0) {
+                    val isInitial = (dirX != lastStickDirX)
+                    val isRepeat = (dirX == lastStickDirX && (now - lastStickEventTime > 250L))
+                    if (isInitial || isRepeat) {
+                        lastStickEventTime = now
+                        lastStickDirX = dirX
+                        val keyCode = if (dirX < 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
+                        dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                        dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                    }
+                } else {
+                    lastStickDirX = 0
+                }
+
+                // Handle vertical stick / hat direction change or repeat
+                if (dirY != 0) {
+                    val isInitial = (dirY != lastStickDirY)
+                    val isRepeat = (dirY == lastStickDirY && (now - lastStickEventTime > 250L))
+                    if (isInitial || isRepeat) {
+                        lastStickEventTime = now
+                        lastStickDirY = dirY
+                        val keyCode = if (dirY < 0) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN
+                        dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                        dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                    }
+                } else {
+                    lastStickDirY = 0
+                }
+            }
+        }
+
         return super.dispatchGenericMotionEvent(event)
     }
 
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_SCROLL || event.actionMasked == MotionEvent.ACTION_SCROLL) {
-            val axisScroll = event.getAxisValue(MotionEvent.AXIS_SCROLL)
-            val axisVScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
-            val axisWheel = event.getAxisValue(MotionEvent.AXIS_WHEEL)
-            val axisY = event.getAxisValue(MotionEvent.AXIS_Y)
-            val vScroll = when {
-                axisScroll != 0f -> axisScroll
-                axisVScroll != 0f -> axisVScroll
-                axisWheel != 0f -> axisWheel
-                axisY != 0f -> axisY
-                else -> 0f
-            }
-            if (vScroll != 0f) {
-                viewModel.onRotaryScroll(vScroll)
-                return true
-            }
-        }
         return super.onGenericMotionEvent(event)
     }
 

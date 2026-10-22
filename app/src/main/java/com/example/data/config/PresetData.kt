@@ -86,7 +86,7 @@ object PresetData {
             packageName = "com.dsemu.drastic",
             activityName = "com.dsemu.drastic.DraSticActivity",
             intentAction = "android.intent.action.VIEW",
-            romPathExtraKey = "PATH",
+            romPathExtraKey = "",
             extraArgsJson = "{}",
             isCustomXml = false,
             rawXmlContent = """
@@ -94,7 +94,7 @@ object PresetData {
                   <package>com.dsemu.drastic</package>
                   <activity>com.dsemu.drastic.DraSticActivity</activity>
                   <action>android.intent.action.VIEW</action>
-                  <romPathExtraKey>PATH</romPathExtraKey>
+                  <romPathExtraKey></romPathExtraKey>
                 </emulator>
             """.trimIndent()
         ),

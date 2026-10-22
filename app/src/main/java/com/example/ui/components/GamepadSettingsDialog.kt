@@ -34,6 +34,8 @@ fun GamepadSettingsDialog(
     var keyPageDown by remember { mutableIntStateOf(settings.keyPageDown) }
     var keyGoToTop by remember { mutableIntStateOf(settings.keyGoToTop) }
     var keyGoToBottom by remember { mutableIntStateOf(settings.keyGoToBottom) }
+    var keyPreviousSystem by remember { mutableIntStateOf(settings.keyPreviousSystem) }
+    var keyNextSystem by remember { mutableIntStateOf(settings.keyNextSystem) }
     var keySystemSettings by remember { mutableIntStateOf(settings.keySystemSettings) }
     var keyRomListSettings by remember { mutableIntStateOf(settings.keyRomListSettings) }
     var keySelectAction by remember { mutableIntStateOf(settings.keySelectAction) }
@@ -50,12 +52,16 @@ fun GamepadSettingsDialog(
     fun getKeyLabel(keyCode: Int): String {
         if (keyCode <= 0) return "Unset"
         return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> "D-Pad Left"
+            KeyEvent.KEYCODE_DPAD_RIGHT -> "D-Pad Right"
+            KeyEvent.KEYCODE_DPAD_UP -> "D-Pad Up"
+            KeyEvent.KEYCODE_DPAD_DOWN -> "D-Pad Down"
             KeyEvent.KEYCODE_BUTTON_L1, 102 -> "L1 / L Shoulder"
             KeyEvent.KEYCODE_BUTTON_R1, 103 -> "R1 / R Shoulder"
             KeyEvent.KEYCODE_BUTTON_L2, 104 -> "L2 / L Trigger"
             KeyEvent.KEYCODE_BUTTON_R2, 105 -> "R2 / R Trigger"
-            KeyEvent.KEYCODE_BUTTON_THUMBL, 106 -> "L Thumbstick Press"
-            KeyEvent.KEYCODE_BUTTON_THUMBR, 107 -> "R Thumbstick Press"
+            KeyEvent.KEYCODE_BUTTON_THUMBL, 106 -> "L Thumbstick (L3)"
+            KeyEvent.KEYCODE_BUTTON_THUMBR, 107 -> "R Thumbstick (R3)"
             KeyEvent.KEYCODE_BUTTON_START, 108 -> "START Button"
             KeyEvent.KEYCODE_BUTTON_SELECT, 109 -> "SELECT Button"
             KeyEvent.KEYCODE_BUTTON_A, 96 -> "A Button / Cross"
@@ -85,6 +91,8 @@ fun GamepadSettingsDialog(
                             when (capturingActionName) {
                                 "page_up" -> keyPageUp = code
                                 "page_down" -> keyPageDown = code
+                                "prev_system" -> keyPreviousSystem = code
+                                "next_system" -> keyNextSystem = code
                                 "go_top" -> keyGoToTop = code
                                 "go_bottom" -> keyGoToBottom = code
                                 "sys_settings" -> keySystemSettings = code
@@ -151,10 +159,10 @@ fun GamepadSettingsDialog(
                     // Mapping Items
                     KeyMappingRow("Page Up List (L / L1)", getKeyLabel(keyPageUp), capturingActionName == "page_up", onClick = { capturingActionName = "page_up" }, onUnset = { keyPageUp = 0 })
                     KeyMappingRow("Page Down List (R / R1)", getKeyLabel(keyPageDown), capturingActionName == "page_down", onClick = { capturingActionName = "page_down" }, onUnset = { keyPageDown = 0 })
-                    KeyMappingRow("Toggle Top Bar (Combo Key 1)", getKeyLabel(keyToggleTopBarKey1), capturingActionName == "top_bar_1", onClick = { capturingActionName = "top_bar_1" }, onUnset = { keyToggleTopBarKey1 = 0 })
-                    KeyMappingRow("Toggle Top Bar (Combo Key 2)", getKeyLabel(keyToggleTopBarKey2), capturingActionName == "top_bar_2", onClick = { capturingActionName = "top_bar_2" }, onUnset = { keyToggleTopBarKey2 = 0 })
-                    KeyMappingRow("Jump to First Item (L2)", getKeyLabel(keyGoToTop), capturingActionName == "go_top", onClick = { capturingActionName = "go_top" }, onUnset = { keyGoToTop = 0 })
-                    KeyMappingRow("Jump to Last Item (R2)", getKeyLabel(keyGoToBottom), capturingActionName == "go_bottom", onClick = { capturingActionName = "go_bottom" }, onUnset = { keyGoToBottom = 0 })
+                    KeyMappingRow("Previous System (Switch Tab)", getKeyLabel(keyPreviousSystem), capturingActionName == "prev_system", onClick = { capturingActionName = "prev_system" }, onUnset = { keyPreviousSystem = 0 })
+                    KeyMappingRow("Next System (Switch Tab)", getKeyLabel(keyNextSystem), capturingActionName == "next_system", onClick = { capturingActionName = "next_system" }, onUnset = { keyNextSystem = 0 })
+                    KeyMappingRow("Jump to First Item (L2 Trigger)", getKeyLabel(keyGoToTop), capturingActionName == "go_top", onClick = { capturingActionName = "go_top" }, onUnset = { keyGoToTop = 0 })
+                    KeyMappingRow("Jump to Last Item (R2 Trigger)", getKeyLabel(keyGoToBottom), capturingActionName == "go_bottom", onClick = { capturingActionName = "go_bottom" }, onUnset = { keyGoToBottom = 0 })
                     KeyMappingRow("Open System Settings (START in ROM list)", getKeyLabel(keySystemSettings), capturingActionName == "sys_settings", onClick = { capturingActionName = "sys_settings" }, onUnset = { keySystemSettings = 0 })
                     KeyMappingRow("Open ROM List Settings (SELECT in ROM list)", getKeyLabel(keyRomListSettings), capturingActionName == "rom_settings", onClick = { capturingActionName = "rom_settings" }, onUnset = { keyRomListSettings = 0 })
                     KeyMappingRow("Open Emulator System Manager", getKeyLabel(keySystemManagerAction), capturingActionName == "sys_manager", onClick = { capturingActionName = "sys_manager" }, onUnset = { keySystemManagerAction = 0 })
@@ -162,6 +170,8 @@ fun GamepadSettingsDialog(
                     KeyMappingRow("B: Go Back", getKeyLabel(keyBackAction), capturingActionName == "back_action", onClick = { capturingActionName = "back_action" }, onUnset = { keyBackAction = 0 })
                     KeyMappingRow("Y: Toggle Favorite (in ROM list)", getKeyLabel(keyFavoriteAction), capturingActionName == "fav_action", onClick = { capturingActionName = "fav_action" }, onUnset = { keyFavoriteAction = 0 })
                     KeyMappingRow("X: Show ROM Info / Stats (in ROM list)", getKeyLabel(keyInfoAction), capturingActionName == "info_action", onClick = { capturingActionName = "info_action" }, onUnset = { keyInfoAction = 0 })
+                    KeyMappingRow("Toggle Top Bar (Combo Key 1)", getKeyLabel(keyToggleTopBarKey1), capturingActionName == "top_bar_1", onClick = { capturingActionName = "top_bar_1" }, onUnset = { keyToggleTopBarKey1 = 0 })
+                    KeyMappingRow("Toggle Top Bar (Combo Key 2)", getKeyLabel(keyToggleTopBarKey2), capturingActionName == "top_bar_2", onClick = { capturingActionName = "top_bar_2" }, onUnset = { keyToggleTopBarKey2 = 0 })
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
@@ -178,6 +188,8 @@ fun GamepadSettingsDialog(
                             keyPageDown = def.keyPageDown
                             keyGoToTop = def.keyGoToTop
                             keyGoToBottom = def.keyGoToBottom
+                            keyPreviousSystem = def.keyPreviousSystem
+                            keyNextSystem = def.keyNextSystem
                             keySystemSettings = def.keySystemSettings
                             keyRomListSettings = def.keyRomListSettings
                             keySelectAction = def.keySelectAction
@@ -207,6 +219,8 @@ fun GamepadSettingsDialog(
                                     keyPageDown = keyPageDown,
                                     keyGoToTop = keyGoToTop,
                                     keyGoToBottom = keyGoToBottom,
+                                    keyPreviousSystem = keyPreviousSystem,
+                                    keyNextSystem = keyNextSystem,
                                     keySystemSettings = keySystemSettings,
                                     keyRomListSettings = keyRomListSettings,
                                     keySelectAction = keySelectAction,

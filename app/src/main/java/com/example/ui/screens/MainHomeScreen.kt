@@ -411,6 +411,34 @@ fun MainHomeScreen(
                         pageDownTrigger = System.currentTimeMillis()
                         true
                     }
+                    gamepadSettings.keyPreviousSystem > 0 && keyCode == gamepadSettings.keyPreviousSystem -> {
+                        val activeSystems = systems.filter {
+                            it.isEnabled &&
+                            !it.id.startsWith("widget_") &&
+                            !it.defaultLaunchMode.startsWith("WIDGET_")
+                        }
+                        if (activeSystems.isNotEmpty()) {
+                            val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
+                            val prevIdx = if (curIdx <= 0) activeSystems.size - 1 else curIdx - 1
+                            viewModel.selectSystem(activeSystems[prevIdx].id)
+                            com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
+                        }
+                        true
+                    }
+                    gamepadSettings.keyNextSystem > 0 && keyCode == gamepadSettings.keyNextSystem -> {
+                        val activeSystems = systems.filter {
+                            it.isEnabled &&
+                            !it.id.startsWith("widget_") &&
+                            !it.defaultLaunchMode.startsWith("WIDGET_")
+                        }
+                        if (activeSystems.isNotEmpty()) {
+                            val curIdx = if (currentSystem != null) activeSystems.indexOfFirst { it.id == currentSystem.id }.coerceAtLeast(0) else 0
+                            val nextIdx = (curIdx + 1) % activeSystems.size
+                            viewModel.selectSystem(activeSystems[nextIdx].id)
+                            com.example.util.SoundManager.playNavSound(displaySettings.enableNavigationSound, context, displaySettings.selectedSfxFileName)
+                        }
+                        true
+                    }
                     keyCode == gamepadSettings.keyGoToTop -> {
                         goToTopTrigger = System.currentTimeMillis()
                         true

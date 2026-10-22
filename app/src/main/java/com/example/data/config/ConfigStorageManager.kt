@@ -1070,6 +1070,8 @@ class ConfigStorageManager(private val context: Context) {
             serializer.startTag("", "keyPageDown").text(settings.keyPageDown.toString()).endTag("", "keyPageDown")
             serializer.startTag("", "keyGoToTop").text(settings.keyGoToTop.toString()).endTag("", "keyGoToTop")
             serializer.startTag("", "keyGoToBottom").text(settings.keyGoToBottom.toString()).endTag("", "keyGoToBottom")
+            serializer.startTag("", "keyPreviousSystem").text(settings.keyPreviousSystem.toString()).endTag("", "keyPreviousSystem")
+            serializer.startTag("", "keyNextSystem").text(settings.keyNextSystem.toString()).endTag("", "keyNextSystem")
             serializer.startTag("", "keySystemSettings").text(settings.keySystemSettings.toString()).endTag("", "keySystemSettings")
             serializer.startTag("", "keyRomListSettings").text(settings.keyRomListSettings.toString()).endTag("", "keyRomListSettings")
             serializer.startTag("", "keySelectAction").text(settings.keySelectAction.toString()).endTag("", "keySelectAction")
@@ -1106,6 +1108,8 @@ class ConfigStorageManager(private val context: Context) {
             var keyPageDown = defaults.keyPageDown
             var keyGoToTop = defaults.keyGoToTop
             var keyGoToBottom = defaults.keyGoToBottom
+            var keyPreviousSystem = defaults.keyPreviousSystem
+            var keyNextSystem = defaults.keyNextSystem
             var keySystemSettings = defaults.keySystemSettings
             var keyRomListSettings = defaults.keyRomListSettings
             var keySelectAction = defaults.keySelectAction
@@ -1130,6 +1134,8 @@ class ConfigStorageManager(private val context: Context) {
                                 "keyPageDown" -> keyPageDown = text.toIntOrNull() ?: defaults.keyPageDown
                                 "keyGoToTop" -> keyGoToTop = text.toIntOrNull() ?: defaults.keyGoToTop
                                 "keyGoToBottom" -> keyGoToBottom = text.toIntOrNull() ?: defaults.keyGoToBottom
+                                "keyPreviousSystem" -> keyPreviousSystem = text.toIntOrNull() ?: defaults.keyPreviousSystem
+                                "keyNextSystem" -> keyNextSystem = text.toIntOrNull() ?: defaults.keyNextSystem
                                 "keySystemSettings" -> keySystemSettings = text.toIntOrNull() ?: defaults.keySystemSettings
                                 "keyRomListSettings" -> keyRomListSettings = text.toIntOrNull() ?: defaults.keyRomListSettings
                                 "keySelectAction" -> keySelectAction = text.toIntOrNull() ?: defaults.keySelectAction
@@ -1151,6 +1157,8 @@ class ConfigStorageManager(private val context: Context) {
                 keyPageDown = keyPageDown,
                 keyGoToTop = keyGoToTop,
                 keyGoToBottom = keyGoToBottom,
+                keyPreviousSystem = keyPreviousSystem,
+                keyNextSystem = keyNextSystem,
                 keySystemSettings = keySystemSettings,
                 keyRomListSettings = keyRomListSettings,
                 keySelectAction = keySelectAction,
