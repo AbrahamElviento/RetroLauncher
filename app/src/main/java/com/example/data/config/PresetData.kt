@@ -45,6 +45,25 @@ object PresetData {
             """.trimIndent()
         ),
         StandaloneProfileEntity(
+            id = "armsx2",
+            name = "ARMSX2 (PS2)",
+            packageName = "come.nanodata.armsx2",
+            activityName = "kr.co.iefriends.pcsx2.activities.MainActivity",
+            intentAction = "android.intent.action.VIEW",
+            romPathExtraKey = "bootPath",
+            extraArgsJson = "{}",
+            isCustomXml = false,
+            rawXmlContent = """
+                <emulator id="armsx2" name="ARMSX2 (PS2)">
+                  <package>come.nanodata.armsx2</package>
+                  <activity>kr.co.iefriends.pcsx2.activities.MainActivity</activity>
+                  <action>android.intent.action.VIEW</action>
+                  <romPathExtraKey>bootPath</romPathExtraKey>
+                  <extraArgsJson>{}</extraArgsJson>
+                </emulator>
+            """.trimIndent()
+        ),
+        StandaloneProfileEntity(
             id = "ppsspp",
             name = "PPSSPP (PSP)",
             packageName = "org.ppsspp.ppsspp",
@@ -275,7 +294,7 @@ object PresetData {
                 name = "PlayStation 2",
                 shortName = "PS2",
                 folderPath = "$baseFolder/example/ps2",
-                allowedExtensions = ".iso,.chd,.bin",
+                allowedExtensions = ".iso,.chd,.bin,.cso,.zso,.gz",
                 defaultLaunchMode = "STANDALONE_XML",
                 retroArchCore = "",
                 customXmlProfileId = "aethersx2",

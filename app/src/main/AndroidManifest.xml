@@ -27,6 +27,9 @@
         <package android:name="xyz.aethersx2.android" />
         <package android:name="net.nethersx2.android" />
         <package android:name="net.pcsx2.aethersx2" />
+        <package android:name="come.nanodata.armsx2" />
+        <package android:name="come.nanodata.armsx2.debug" />
+        <package android:name="com.armsx2" />
         <package android:name="org.citra.citra_emu" />
         <package android:name="io.github.azahar.emulator" />
         <package android:name="org.ppsspp.ppsspp" />

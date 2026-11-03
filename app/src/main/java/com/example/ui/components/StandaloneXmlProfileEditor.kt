@@ -121,6 +121,19 @@ fun StandaloneXmlProfileEditor(
                     AssistChip(
                         onClick = {
                             rawXml = """
+<emulator id="armsx2" name="ARMSX2 (PS2)">
+  <package>come.nanodata.armsx2</package>
+  <activity>kr.co.iefriends.pcsx2.activities.MainActivity</activity>
+  <action>android.intent.action.VIEW</action>
+  <romPathExtraKey>bootPath</romPathExtraKey>
+</emulator>
+                            """.trimIndent()
+                        },
+                        label = { Text("ARMSX2") }
+                    )
+                    AssistChip(
+                        onClick = {
+                            rawXml = """
 <emulator id="ppsspp_gold" name="PPSSPP Gold (PSP)">
   <package>org.ppsspp.ppssppgold</package>
   <activity>org.ppsspp.ppssppgold.PpssppActivity</activity>

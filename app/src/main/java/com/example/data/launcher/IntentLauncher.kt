@@ -161,6 +161,15 @@ class IntentLauncher(private val context: Context) {
                 act.contains("aethersx2") || act.contains("nethersx2")
     }
 
+    private fun isArmsX2(profile: StandaloneProfileEntity, targetPackage: String): Boolean {
+        val id = profile.id.lowercase()
+        val pkg = targetPackage.lowercase()
+        val act = profile.activityName.lowercase()
+        return id == "armsx2" ||
+                pkg == "come.nanodata.armsx2" || pkg == "come.nanodata.armsx2.debug" || pkg == "com.armsx2" ||
+                pkg.contains("armsx2") || act.contains("armsx2") || act.contains("iefriends")
+    }
+
     private fun getPpssppRomPath(filePath: String): Pair<String, String> {
         val absolutePath = filePath.trim()
         if (absolutePath.startsWith("/storage/")) {
@@ -286,7 +295,8 @@ class IntentLauncher(private val context: Context) {
         if (!isPackageInstalled(targetPackage)) {
             val idLower = profile.id.lowercase()
             val alternates = when {
-                idLower == "aethersx2" || idLower == "nethersx2" -> listOf("xyz.aethersx2.android", "net.nethersx2.android", "net.pcsx2.aethersx2")
+                idLower == "aethersx2" || idLower == "nethersx2" -> listOf("xyz.aethersx2.android", "net.nethersx2.android", "net.pcsx2.aethersx2", "come.nanodata.armsx2", "come.nanodata.armsx2.debug", "com.armsx2")
+                idLower == "armsx2" -> listOf("come.nanodata.armsx2", "come.nanodata.armsx2.debug", "com.armsx2", "net.nethersx2.android", "xyz.aethersx2.android")
                 idLower == "ppsspp" -> listOf("org.ppsspp.ppsspp", "org.ppsspp.ppssppgold")
                 idLower == "ppsspp_gold" -> listOf("org.ppsspp.ppssppgold", "org.ppsspp.ppsspp")
                 idLower == "drastic" -> listOf("com.dsemu.drastic")
@@ -302,6 +312,7 @@ class IntentLauncher(private val context: Context) {
         }
 
         val isAetherOrNether = isAetherSX2OrNetherSX2(profile, targetPackage)
+        val isArmsX2 = isArmsX2(profile, targetPackage)
 
         // Format activity class name
         val rawActivity = profile.activityName.trim()
@@ -311,6 +322,30 @@ class IntentLauncher(private val context: Context) {
 
         val activityClass = when {
             isAetherOrNether -> "$targetPackage.EmulationActivity"
+            isArmsX2 -> {
+                if (rawActivity.isNotBlank() &&
+                    !rawActivity.endsWith(".MainActivity") &&
+                    !rawActivity.endsWith(".EmulationActivity")
+                ) {
+                    rawActivity
+                } else if (targetPackage.startsWith("come.nanodata.armsx2")) {
+                    "kr.co.iefriends.pcsx2.activities.MainActivity"
+                } else if (targetPackage == "com.armsx2") {
+                    try {
+                        val pm = context.packageManager
+                        val intent1 = Intent().setClassName(targetPackage, "kr.co.iefriends.pcsx2.activities.MainActivity")
+                        if (pm.resolveActivity(intent1, 0) != null) {
+                            "kr.co.iefriends.pcsx2.activities.MainActivity"
+                        } else {
+                            "com.armsx2.MainActivity"
+                        }
+                    } catch (e: Exception) {
+                        "kr.co.iefriends.pcsx2.activities.MainActivity"
+                    }
+                } else {
+                    "kr.co.iefriends.pcsx2.activities.MainActivity"
+                }
+            }
             rawActivity.startsWith(".") -> "$targetPackage$rawActivity"
             rawActivity.startsWith("/") -> "$targetPackage${rawActivity.removePrefix("/")}"
             rawActivity.endsWith(".EmulationActivity") -> "$targetPackage.EmulationActivity"
@@ -326,7 +361,7 @@ class IntentLauncher(private val context: Context) {
 
         val actionToUse = when {
             isAetherOrNether -> Intent.ACTION_MAIN
-            isPpsspp || isDrastic -> Intent.ACTION_VIEW
+            isPpsspp || isDrastic || isArmsX2 -> Intent.ACTION_VIEW
             else -> profile.intentAction.ifEmpty { Intent.ACTION_VIEW }
         }
 
@@ -393,6 +428,23 @@ class IntentLauncher(private val context: Context) {
                     ) {
                         putExtra(profile.romPathExtraKey, game.filePath)
                     }
+                } else if (isArmsX2) {
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                    val targetUri = safUri
+                    data = targetUri
+                    clipData = android.content.ClipData.newRawUri(null, targetUri)
+
+                    // ARMSX2 boots ROM directly when passed as data URI or bootPath / path extra
+                    putExtra("bootPath", safUriString)
+                    putExtra("path", game.filePath)
+                    putExtra("gamePath", game.filePath)
+                    putExtra("romPath", game.filePath)
+                    putExtra("ROM", game.filePath)
+                    putExtra("bootPathString", game.filePath)
+                    putExtra("fileUri", safUriString)
+                    if (extraKey.isNotEmpty() && extraKey != "bootPath" && extraKey != "path") {
+                        putExtra(extraKey, safUriString)
+                    }
                 } else if (isAetherOrNether) {
                     putExtra("bootPath", safUriString)
                     if (extraKey.isNotEmpty() && extraKey != "bootPath") {
@@ -432,7 +484,7 @@ class IntentLauncher(private val context: Context) {
             }
 
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            val urisToGrant = if (isAetherOrNether || isPpsspp || isDrastic) {
+            val urisToGrant = if (isAetherOrNether || isPpsspp || isDrastic || isArmsX2) {
                 listOfNotNull(safUri, safTreeUri, uri, fileUri)
             } else {
                 listOfNotNull(uri, fileUri)
